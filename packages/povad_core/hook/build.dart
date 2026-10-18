@@ -10,10 +10,8 @@ void main(List<String> args) async {
     final target = input.config.code.targetOS;
     final transport = switch (target) {
       OS.windows => ['src/transport_windows.cpp'],
-      OS.macOS || OS.linux => [
-        'src/transport_posix.cpp',
-        'src/transport_tcp_posix.cpp',
-      ],
+      OS.macOS ||
+      OS.linux => ['src/transport_posix.cpp', 'src/transport_tcp_posix.cpp'],
       _ => ['src/transport_unavailable.cpp'],
     };
     final builder = CBuilder.library(
