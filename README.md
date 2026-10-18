@@ -15,6 +15,14 @@ ports as each capability is specified and tested.
 
 ![Povad desktop interface](assets/preview/overview.png)
 
+[Connected overview preview](assets/preview/connected_overview.png)
+
+![Connected bridge with repeated traffic in both directions](assets/preview/connection_activity.gif)
+
+These connected views use illustrative endpoints and traffic. In a live
+session, each direction lights up only when its received-byte counter
+increases.
+
 ## Current status
 
 The desktop app now connects its overview and setup screen to an embedded

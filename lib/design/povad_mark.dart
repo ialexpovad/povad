@@ -1,3 +1,5 @@
+import 'dart:ui' show PathMetric;
+
 import 'package:flutter/widgets.dart';
 
 import 'povad_theme.dart';
@@ -12,19 +14,17 @@ class PovadMark extends StatelessWidget {
     required this.secondPoint,
     this.activeInk,
     this.activeProgress = 0,
-    this.signalProgress,
-    this.signalReverse = false,
-    this.strokeWidth = 7.3,
-    this.pointRadius = 5,
+    this.serialSignalProgress,
+    this.tcpSignalProgress,
+    this.showPoints = true,
   });
 
   final double size;
   final Color ink, firstPoint, secondPoint;
   final Color? activeInk;
   final double activeProgress;
-  final double? signalProgress;
-  final bool signalReverse;
-  final double strokeWidth, pointRadius;
+  final double? serialSignalProgress, tcpSignalProgress;
+  final bool showPoints;
 
   @override
   Widget build(BuildContext context) => SizedBox.square(
@@ -36,10 +36,9 @@ class PovadMark extends StatelessWidget {
         secondPoint,
         activeInk,
         activeProgress,
-        signalProgress,
-        signalReverse,
-        strokeWidth,
-        pointRadius,
+        serialSignalProgress,
+        tcpSignalProgress,
+        showPoints,
       ),
     ),
   );
@@ -98,18 +97,16 @@ class _MarkPainter extends CustomPainter {
     this.secondPoint,
     this.activeInk,
     this.activeProgress,
-    this.signalProgress,
-    this.signalReverse,
-    this.strokeWidth,
-    this.pointRadius,
+    this.serialSignalProgress,
+    this.tcpSignalProgress,
+    this.showPoints,
   );
 
   final Color ink, firstPoint, secondPoint;
   final Color? activeInk;
   final double activeProgress;
-  final double? signalProgress;
-  final bool signalReverse;
-  final double strokeWidth, pointRadius;
+  final double? serialSignalProgress, tcpSignalProgress;
+  final bool showPoints;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -128,7 +125,7 @@ class _MarkPainter extends CustomPainter {
       Paint()
         ..color = ink
         ..style = PaintingStyle.stroke
-        ..strokeWidth = strokeWidth
+        ..strokeWidth = 7.3
         ..strokeCap = StrokeCap.round
         ..strokeJoin = StrokeJoin.round,
     );
@@ -139,39 +136,48 @@ class _MarkPainter extends CustomPainter {
         Paint()
           ..color = activeInk!
           ..style = PaintingStyle.stroke
-          ..strokeWidth = strokeWidth
+          ..strokeWidth = 7.3
           ..strokeCap = StrokeCap.round
           ..strokeJoin = StrokeJoin.round,
       );
     }
-    if (signalProgress != null && activeInk != null) {
+    if (activeInk != null &&
+        (serialSignalProgress != null || tcpSignalProgress != null)) {
       final metric = path.computeMetrics().first;
-      final head = signalReverse ? 1 - signalProgress! : signalProgress!;
-      for (var index = 2; index >= 0; index--) {
-        final offset = head + (signalReverse ? 1 : -1) * index * 0.045;
-        if (offset < 0 || offset > 1) continue;
-        final tangent = metric.getTangentForOffset(metric.length * offset);
-        if (tangent == null) continue;
-        canvas.drawCircle(
-          tangent.position,
-          index == 0 ? 1.7 : 1.2,
-          Paint()
-            ..color = const Color(0xFFFFFFFF)
-                .withValues(alpha: index == 0 ? 0.95 : 0.38 - index * 0.1),
-        );
+      if (serialSignalProgress != null) {
+        _drawSignal(canvas, metric, serialSignalProgress!, false);
+      }
+      if (tcpSignalProgress != null) {
+        _drawSignal(canvas, metric, tcpSignalProgress!, true);
       }
     }
-    canvas.drawCircle(
-      const Offset(17, 52),
-      pointRadius,
-      Paint()..color = firstPoint,
-    );
-    canvas.drawCircle(
-      const Offset(26, 37),
-      pointRadius,
-      Paint()..color = secondPoint,
-    );
+    if (showPoints) {
+      canvas.drawCircle(const Offset(17, 52), 5, Paint()..color = firstPoint);
+      canvas.drawCircle(const Offset(26, 37), 5, Paint()..color = secondPoint);
+    }
     canvas.restore();
+  }
+
+  void _drawSignal(
+    Canvas canvas,
+    PathMetric metric,
+    double progress,
+    bool reverse,
+  ) {
+    final head = reverse ? 1 - progress : progress;
+    for (var index = 2; index >= 0; index--) {
+      final offset = head + (reverse ? 1 : -1) * index * 0.045;
+      if (offset < 0 || offset > 1) continue;
+      final tangent = metric.getTangentForOffset(metric.length * offset);
+      if (tangent == null) continue;
+      canvas.drawCircle(
+        tangent.position,
+        index == 0 ? 1.7 : 1.2,
+        Paint()
+          ..color = const Color(0xFFFFFFFF)
+              .withValues(alpha: index == 0 ? 0.95 : 0.38 - index * 0.1),
+      );
+    }
   }
 
   @override
@@ -181,8 +187,7 @@ class _MarkPainter extends CustomPainter {
       oldDelegate.secondPoint != secondPoint ||
       oldDelegate.activeInk != activeInk ||
       oldDelegate.activeProgress != activeProgress ||
-      oldDelegate.signalProgress != signalProgress ||
-      oldDelegate.signalReverse != signalReverse ||
-      oldDelegate.strokeWidth != strokeWidth ||
-      oldDelegate.pointRadius != pointRadius;
+      oldDelegate.serialSignalProgress != serialSignalProgress ||
+      oldDelegate.tcpSignalProgress != tcpSignalProgress ||
+      oldDelegate.showPoints != showPoints;
 }

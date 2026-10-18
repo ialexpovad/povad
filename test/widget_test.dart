@@ -159,19 +159,32 @@ void main() {
 
     await tester.pumpWidget(diagram());
     await tester.pumpAndSettle();
-    expect(mark().signalProgress, isNull);
+    expect(mark().serialSignalProgress, isNull);
+    expect(mark().tcpSignalProgress, isNull);
 
     await tester.pumpWidget(diagram(serial: 1));
     await tester.pump(const Duration(milliseconds: 120));
-    expect(mark().signalProgress, isNotNull);
-    expect(mark().signalReverse, isFalse);
+    expect(mark().serialSignalProgress, isNotNull);
+    expect(mark().tcpSignalProgress, isNull);
     await tester.pumpAndSettle();
-    expect(mark().signalProgress, isNull);
+    expect(mark().serialSignalProgress, isNull);
 
     await tester.pumpWidget(diagram(serial: 1, tcp: 1));
     await tester.pump(const Duration(milliseconds: 120));
-    expect(mark().signalProgress, isNotNull);
-    expect(mark().signalReverse, isTrue);
+    expect(mark().serialSignalProgress, isNull);
+    expect(mark().tcpSignalProgress, isNotNull);
+    await tester.pumpAndSettle();
+
+    await tester.pumpWidget(diagram(serial: 2, tcp: 2));
+    await tester.pump(const Duration(milliseconds: 120));
+    expect(mark().serialSignalProgress, isNotNull);
+    expect(mark().tcpSignalProgress, isNotNull);
+    await tester.pumpAndSettle();
+
+    await tester.pumpWidget(diagram(serial: 3, tcp: 3));
+    await tester.pump(const Duration(milliseconds: 120));
+    expect(mark().serialSignalProgress, isNotNull);
+    expect(mark().tcpSignalProgress, isNotNull);
   });
 
   testWidgets('reduced motion suppresses observed-byte signal', (tester) async {
@@ -199,7 +212,7 @@ void main() {
     await tester.pumpWidget(diagram(1));
     await tester.pump(const Duration(milliseconds: 120));
     expect(
-      tester.widget<PovadMark>(find.byType(PovadMark)).signalProgress,
+      tester.widget<PovadMark>(find.byType(PovadMark)).serialSignalProgress,
       isNull,
     );
   });

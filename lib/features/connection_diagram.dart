@@ -30,27 +30,44 @@ class _ConnectionDiagramState extends State<ConnectionDiagram>
     vsync: this,
     duration: const Duration(milliseconds: 1100),
   );
-  late final AnimationController signal = AnimationController(
-    vsync: this,
-    duration: const Duration(milliseconds: 680),
-  )..addStatusListener(_onSignalStatus);
-  bool signalReverse = false;
-  bool? queuedReverse;
+  late final AnimationController serialSignal =
+      AnimationController(
+        vsync: this,
+        duration: const Duration(milliseconds: 900),
+      )..addStatusListener((status) {
+        if (status == AnimationStatus.completed && serialPending) {
+          serialPending = false;
+          serialSignal.forward(from: 0);
+        }
+      });
+  late final AnimationController tcpSignal =
+      AnimationController(
+        vsync: this,
+        duration: const Duration(milliseconds: 900),
+      )..addStatusListener((status) {
+        if (status == AnimationStatus.completed && tcpPending) {
+          tcpPending = false;
+          tcpSignal.forward(from: 0);
+        }
+      });
+  bool serialPending = false;
+  bool tcpPending = false;
 
-  void _onSignalStatus(AnimationStatus status) {
-    if (status != AnimationStatus.completed || queuedReverse == null) return;
-    signalReverse = queuedReverse!;
-    queuedReverse = null;
-    signal.forward(from: 0);
+  void _queueSerialSignal() {
+    if (reduceMotion || widget.state != BridgeViewState.connected) return;
+    if (serialSignal.isAnimating) {
+      serialPending = true;
+    } else {
+      serialSignal.forward(from: 0);
+    }
   }
 
-  void _queueSignal(bool reverse) {
+  void _queueTcpSignal() {
     if (reduceMotion || widget.state != BridgeViewState.connected) return;
-    if (signal.isAnimating) {
-      queuedReverse = reverse;
+    if (tcpSignal.isAnimating) {
+      tcpPending = true;
     } else {
-      signalReverse = reverse;
-      signal.forward(from: 0);
+      tcpSignal.forward(from: 0);
     }
   }
 
@@ -73,10 +90,10 @@ class _ConnectionDiagramState extends State<ConnectionDiagram>
     super.didUpdateWidget(oldWidget);
     if (oldWidget.state != widget.state) _syncMotion();
     if (widget.serialReceived > oldWidget.serialReceived) {
-      _queueSignal(false);
+      _queueSerialSignal();
     }
     if (widget.tcpReceived > oldWidget.tcpReceived) {
-      _queueSignal(true);
+      _queueTcpSignal();
     }
   }
 
@@ -91,15 +108,18 @@ class _ConnectionDiagramState extends State<ConnectionDiagram>
       pulse.value = 0;
     }
     if (reduceMotion || widget.state != BridgeViewState.connected) {
-      signal.stop();
-      queuedReverse = null;
+      serialSignal.stop();
+      tcpSignal.stop();
+      serialPending = false;
+      tcpPending = false;
     }
   }
 
   @override
   void dispose() {
     pulse.dispose();
-    signal.dispose();
+    serialSignal.dispose();
+    tcpSignal.dispose();
     super.dispose();
   }
 
@@ -131,7 +151,11 @@ class _ConnectionDiagramState extends State<ConnectionDiagram>
                     duration: transitionDuration,
                     curve: Curves.easeOutCubic,
                     builder: (context, clientProgress, _) => AnimatedBuilder(
-                      animation: Listenable.merge([pulse, signal]),
+                      animation: Listenable.merge([
+                        pulse,
+                        serialSignal,
+                        tcpSignal,
+                      ]),
                       builder: (context, child) => CustomPaint(
                         painter: _TerminalPulse(
                           color: colors.primary,
@@ -144,17 +168,18 @@ class _ConnectionDiagramState extends State<ConnectionDiagram>
                             Center(
                               child: PovadMark(
                                 size: 192,
-                                strokeWidth: 6.2,
-                                pointRadius: 3.5,
+                                showPoints: false,
                                 ink: colors.foreground,
                                 activeInk: colors.primary,
                                 activeProgress:
                                     0.54 * serialProgress +
                                     0.46 * clientProgress,
-                                signalProgress: signal.isAnimating
-                                    ? signal.value
+                                serialSignalProgress: serialSignal.isAnimating
+                                    ? serialSignal.value
                                     : null,
-                                signalReverse: signalReverse,
+                                tcpSignalProgress: tcpSignal.isAnimating
+                                    ? tcpSignal.value
+                                    : null,
                                 firstPoint: fault
                                     ? colors.error
                                     : serialReady
