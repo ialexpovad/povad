@@ -145,7 +145,10 @@ class BridgeSetupPage extends StatelessWidget {
                 ],
                 if (usbLoading && usbPorts.isEmpty) ...[
                   const SizedBox(height: 10),
-                  Text(l.scanningUsbDevices, style: TextStyle(color: colors.muted)),
+                  Text(
+                    l.scanningUsbDevices,
+                    style: TextStyle(color: colors.muted),
+                  ),
                 ],
                 if (usbPorts.isEmpty && usbMessage == null && !usbLoading) ...[
                   const SizedBox(height: 10),
