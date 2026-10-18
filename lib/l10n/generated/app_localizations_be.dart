@@ -25,6 +25,9 @@ class AppLocalizationsBe extends AppLocalizations {
   String get diagnostics => 'Дыягностыка';
 
   @override
+  String get diagnosticsNav => 'Дэталі';
+
+  @override
   String get settings => 'Налады';
 
   @override

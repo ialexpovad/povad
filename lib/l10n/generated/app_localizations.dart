@@ -128,6 +128,12 @@ abstract class AppLocalizations {
   /// **'Diagnostics'**
   String get diagnostics;
 
+  /// No description provided for @diagnosticsNav.
+  ///
+  /// In en, this message translates to:
+  /// **'Details'**
+  String get diagnosticsNav;
+
   /// No description provided for @settings.
   ///
   /// In en, this message translates to:

@@ -25,6 +25,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get diagnostics => 'Diagnostics';
 
   @override
+  String get diagnosticsNav => 'Details';
+
+  @override
   String get settings => 'Settings';
 
   @override

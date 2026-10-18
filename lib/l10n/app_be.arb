@@ -5,6 +5,7 @@
   "overview": "Агляд",
   "bridge": "Мост",
   "diagnostics": "Дыягностыка",
+  "diagnosticsNav": "Дэталі",
   "settings": "Налады",
   "moduleName": "Мост паслядоўны порт ↔ TCP",
   "pageTitle": "Агляд злучэння",

@@ -5,6 +5,7 @@
   "overview": "Overview",
   "bridge": "Bridge",
   "diagnostics": "Diagnostics",
+  "diagnosticsNav": "Details",
   "settings": "Settings",
   "moduleName": "Serial ↔ TCP Bridge",
   "pageTitle": "Connection overview",

@@ -3,6 +3,7 @@
 build/
 artifacts/
 coverage/
+/test/failures/
 .flutter-plugins
 .flutter-plugins-dependencies
 windows/flutter/ephemeral/

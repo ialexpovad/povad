@@ -1,3 +1,4 @@
+import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:povad/app/ui_preferences.dart';
@@ -126,6 +127,15 @@ void main() {
     await tester.tap(find.byKey(const ValueKey('nav-0')));
     await tester.pumpAndSettle();
     expect(find.text('Мост спынены'), findsOneWidget);
+    for (final label in ['Агляд', 'Мост', 'Дэталі', 'Налады']) {
+      expect(find.text(label), findsOneWidget);
+      expect(
+        tester
+            .renderObject<RenderParagraph>(find.text(label))
+            .didExceedMaxLines,
+        isFalse,
+      );
+    }
     expect(tester.takeException(), isNull);
   });
 

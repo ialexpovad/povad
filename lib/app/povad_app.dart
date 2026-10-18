@@ -375,6 +375,9 @@ class _PovadAppState extends State<PovadApp> {
                                     compact: true,
                                     icon: icons[i],
                                     label: labels[i],
+                                    compactLabel: i == 2
+                                        ? l.diagnosticsNav
+                                        : null,
                                     onTap: () => setState(() => page = i),
                                   ),
                                 ),
@@ -446,12 +449,14 @@ class _NavItem extends StatelessWidget {
     required this.compact,
     required this.icon,
     required this.label,
+    this.compactLabel,
     required this.onTap,
   });
   final int index;
   final bool selected, compact;
   final IconData icon;
   final String label;
+  final String? compactLabel;
   final VoidCallback onTap;
 
   @override
@@ -468,8 +473,11 @@ class _NavItem extends StatelessWidget {
         ),
         child: shad.GhostButton(
           onPressed: onTap,
+          density: compact
+              ? shad.ButtonDensity.compact
+              : shad.ButtonDensity.normal,
           child: Padding(
-            padding: EdgeInsets.symmetric(vertical: compact ? 3 : 7),
+            padding: EdgeInsets.symmetric(vertical: compact ? 8 : 7),
             child: compact
                 ? Column(
                     mainAxisSize: MainAxisSize.min,
@@ -481,7 +489,7 @@ class _NavItem extends StatelessWidget {
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        label,
+                        compactLabel ?? label,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         textAlign: TextAlign.center,
