@@ -58,8 +58,10 @@ flutter run -d macos
 
 Open **Bridge** to enter a local serial port, then use **Overview** to start
 the listener. The default endpoint is `127.0.0.1`. The operator can explicitly
-enable listening on all network interfaces; the TCP bridge has no client
-authentication. The macOS build was checked with Flutter 3.47.1.
+enable listening on all network interfaces. Bridge setup then lists the current
+LAN IPv4 endpoints with copy controls. A separate TCP client can connect to
+one of those addresses; Povad does not yet have a client mode. The TCP bridge
+has no client authentication. The macOS build was checked with Flutter 3.47.1.
 Run `flutter analyze` and `flutter test` before submitting a change. UI tests use
 [Alchemist](https://pub.dev/packages/alchemist) to compare the overview with
 committed reference images in English and Belarusian at desktop and narrow

@@ -104,6 +104,10 @@ class BridgeSetupPage extends StatelessWidget {
     required this.onTcpPortChanged,
     required this.allowLan,
     required this.onAllowLanChanged,
+    required this.lanAddresses,
+    required this.copiedEndpoint,
+    required this.onRefreshLan,
+    required this.onCopyEndpoint,
     required this.error,
     required this.running,
     this.usbMode = false,
@@ -120,6 +124,10 @@ class BridgeSetupPage extends StatelessWidget {
   final ValueChanged<String> onTcpPortChanged;
   final bool allowLan;
   final ValueChanged<bool> onAllowLanChanged;
+  final List<({String name, String address})> lanAddresses;
+  final String? copiedEndpoint;
+  final VoidCallback onRefreshLan;
+  final ValueChanged<String> onCopyEndpoint;
   final String? error;
   final bool running;
   final bool usbMode, usbLoading;
@@ -217,12 +225,10 @@ class BridgeSetupPage extends StatelessWidget {
                   placeholder: '/dev/cu.usbserial-…',
                 ),
               const SizedBox(height: 20),
-              _SettingField(
-                label: l.baudRate,
+              _BaudSelector(
                 value: baud,
                 onChanged: onBaudChanged,
                 enabled: !running,
-                keyboardType: TextInputType.number,
               ),
               const SizedBox(height: 20),
               _SettingField(
@@ -256,6 +262,68 @@ class BridgeSetupPage extends StatelessWidget {
                 allowLan ? l.lanAccessRisk : l.loopbackNote,
                 style: TextStyle(color: colors.muted, fontSize: 13),
               ),
+              if (allowLan) ...[
+                const SizedBox(height: 18),
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        l.lanAddressesTitle,
+                        style: TextStyle(
+                          color: colors.foreground,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                    shad.OutlineButton(
+                      onPressed: onRefreshLan,
+                      child: Text(l.refreshAddresses),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                if (lanAddresses.isEmpty)
+                  Text(
+                    l.lanAddressUnavailable,
+                    style: TextStyle(color: colors.muted, fontSize: 13),
+                  )
+                else
+                  for (final address in lanAddresses)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 8),
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  address.name,
+                                  style: TextStyle(
+                                    color: colors.muted,
+                                    fontSize: 12,
+                                  ),
+                                ),
+                                Text(
+                                  '${address.address}:$tcpPort',
+                                  style: TextStyle(color: colors.foreground),
+                                ),
+                              ],
+                            ),
+                          ),
+                          shad.OutlineButton(
+                            onPressed: () =>
+                                onCopyEndpoint('${address.address}:$tcpPort'),
+                            child: Text(
+                              copiedEndpoint == '${address.address}:$tcpPort'
+                                  ? l.copiedEndpoint
+                                  : l.copyEndpoint,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+              ],
               if (error != null) ...[
                 const SizedBox(height: 18),
                 Text(error!, style: TextStyle(color: colors.error)),
@@ -264,6 +332,85 @@ class BridgeSetupPage extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+class _BaudSelector extends StatelessWidget {
+  const _BaudSelector({
+    required this.value,
+    required this.onChanged,
+    required this.enabled,
+  });
+
+  static const rates = [
+    '1200',
+    '2400',
+    '4800',
+    '9600',
+    '19200',
+    '38400',
+    '57600',
+    '115200',
+    '230400',
+  ];
+  static const custom = 'custom';
+
+  final String value;
+  final ValueChanged<String> onChanged;
+  final bool enabled;
+
+  @override
+  Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context)!;
+    final colors = paletteOf(context);
+    final isCustom = !rates.contains(value);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Text(
+          l.baudRate,
+          style: TextStyle(
+            fontWeight: FontWeight.w600,
+            color: colors.foreground,
+          ),
+        ),
+        const SizedBox(height: 8),
+        shad.Select<String>(
+          key: const ValueKey('baud-select'),
+          value: isCustom ? custom : value,
+          onChanged: enabled
+              ? (selected) =>
+                    onChanged(selected == custom ? '' : selected ?? value)
+              : null,
+          enabled: enabled,
+          theme: const shad.SelectTheme(adaptiveOverlay: false),
+          itemBuilder: (context, selected) =>
+              Text(selected == custom ? l.customBaudRate : selected),
+          popup: (context) => shad.SelectPopup<String>(
+            items: shad.SelectItemList(
+              children: [
+                for (final rate in rates)
+                  shad.SelectItemButton<String>(value: rate, child: Text(rate)),
+                shad.SelectItemButton<String>(
+                  value: custom,
+                  child: Text(l.customBaudRate),
+                ),
+              ],
+            ),
+          ),
+        ),
+        if (isCustom) ...[
+          const SizedBox(height: 10),
+          _SettingField(
+            label: l.customBaudRate,
+            value: value,
+            onChanged: onChanged,
+            enabled: enabled,
+            keyboardType: TextInputType.number,
+          ),
+        ],
+      ],
     );
   }
 }

@@ -10,15 +10,27 @@ class PovadMark extends StatelessWidget {
     required this.ink,
     required this.firstPoint,
     required this.secondPoint,
+    this.activeInk,
+    this.activeProgress = 0,
   });
 
   final double size;
   final Color ink, firstPoint, secondPoint;
+  final Color? activeInk;
+  final double activeProgress;
 
   @override
   Widget build(BuildContext context) => SizedBox.square(
     dimension: size,
-    child: CustomPaint(painter: _MarkPainter(ink, firstPoint, secondPoint)),
+    child: CustomPaint(
+      painter: _MarkPainter(
+        ink,
+        firstPoint,
+        secondPoint,
+        activeInk,
+        activeProgress,
+      ),
+    ),
   );
 }
 
@@ -69,9 +81,17 @@ class PovadBrandLockup extends StatelessWidget {
 }
 
 class _MarkPainter extends CustomPainter {
-  const _MarkPainter(this.ink, this.firstPoint, this.secondPoint);
+  const _MarkPainter(
+    this.ink,
+    this.firstPoint,
+    this.secondPoint,
+    this.activeInk,
+    this.activeProgress,
+  );
 
   final Color ink, firstPoint, secondPoint;
+  final Color? activeInk;
+  final double activeProgress;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -94,6 +114,18 @@ class _MarkPainter extends CustomPainter {
         ..strokeCap = StrokeCap.round
         ..strokeJoin = StrokeJoin.round,
     );
+    if (activeInk != null && activeProgress > 0) {
+      final metric = path.computeMetrics().first;
+      canvas.drawPath(
+        metric.extractPath(0, metric.length * activeProgress.clamp(0, 1)),
+        Paint()
+          ..color = activeInk!
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 7.3
+          ..strokeCap = StrokeCap.round
+          ..strokeJoin = StrokeJoin.round,
+      );
+    }
     canvas.drawCircle(const Offset(17, 52), 5, Paint()..color = firstPoint);
     canvas.drawCircle(const Offset(26, 37), 5, Paint()..color = secondPoint);
     canvas.restore();
@@ -103,5 +135,7 @@ class _MarkPainter extends CustomPainter {
   bool shouldRepaint(covariant _MarkPainter oldDelegate) =>
       oldDelegate.ink != ink ||
       oldDelegate.firstPoint != firstPoint ||
-      oldDelegate.secondPoint != secondPoint;
+      oldDelegate.secondPoint != secondPoint ||
+      oldDelegate.activeInk != activeInk ||
+      oldDelegate.activeProgress != activeProgress;
 }

@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import 'package:povad_core/povad_core.dart' as core;
 import 'package:shadcn_flutter/shadcn_flutter.dart' as shad;
@@ -43,6 +44,8 @@ class _PovadAppState extends State<PovadApp> {
   String baud = '115200';
   String tcpPort = '9268';
   bool allowLan = false;
+  List<({String name, String address})> lanAddresses = const [];
+  String? copiedEndpoint;
   bool invalidBridgeSettings = false;
   bool feedbackUnavailable = false;
   String? backgroundError;
@@ -88,6 +91,29 @@ class _PovadAppState extends State<PovadApp> {
     widget.session?.addListener(onNativeState);
     unawaited(loadPreferences());
     if (androidHost) unawaited(refreshUsbPorts());
+  }
+
+  Future<void> refreshLanAddresses() async {
+    try {
+      final interfaces = await NetworkInterface.list(
+        type: InternetAddressType.IPv4,
+        includeLoopback: false,
+      );
+      final addresses = [
+        for (final interface in interfaces)
+          for (final address in interface.addresses)
+            if (!address.isLoopback && !address.isLinkLocal)
+              (name: interface.name, address: address.address),
+      ];
+      if (mounted) setState(() => lanAddresses = addresses);
+    } catch (_) {
+      if (mounted) setState(() => lanAddresses = const []);
+    }
+  }
+
+  Future<void> copyLanEndpoint(String endpoint) async {
+    await Clipboard.setData(ClipboardData(text: endpoint));
+    if (mounted) setState(() => copiedEndpoint = endpoint);
   }
 
   Future<void> refreshUsbPorts() async {
@@ -367,7 +393,13 @@ class _PovadAppState extends State<PovadApp> {
                 : selectedUsbLabel ?? serialPort,
             tcpValue: serialPort.isEmpty
                 ? l.tcpValue
-                : '${allowLan ? '0.0.0.0' : '127.0.0.1'}:$tcpPort',
+                : !allowLan
+                ? '127.0.0.1:$tcpPort'
+                : lanAddresses.length == 1
+                ? '${lanAddresses.first.address}:$tcpPort'
+                : lanAddresses.isEmpty
+                ? l.lanAddressUnavailable
+                : l.lanAddressesTitle,
           ),
           1 =>
             widget.session == null
@@ -393,8 +425,15 @@ class _PovadAppState extends State<PovadApp> {
                       invalidBridgeSettings = false;
                     }),
                     allowLan: allowLan,
-                    onAllowLanChanged: (value) =>
-                        setState(() => allowLan = value),
+                    onAllowLanChanged: (value) {
+                      setState(() => allowLan = value);
+                      if (value) unawaited(refreshLanAddresses());
+                    },
+                    lanAddresses: lanAddresses,
+                    copiedEndpoint: copiedEndpoint,
+                    onRefreshLan: () => unawaited(refreshLanAddresses()),
+                    onCopyEndpoint: (endpoint) =>
+                        unawaited(copyLanEndpoint(endpoint)),
                     error: invalidBridgeSettings
                         ? l.invalidBridgeSettings
                         : null,

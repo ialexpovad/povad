@@ -380,6 +380,12 @@ abstract class AppLocalizations {
   /// **'Baud rate'**
   String get baudRate;
 
+  /// No description provided for @customBaudRate.
+  ///
+  /// In en, this message translates to:
+  /// **'Custom rate'**
+  String get customBaudRate;
+
   /// No description provided for @tcpPortNumber.
   ///
   /// In en, this message translates to:
@@ -415,6 +421,36 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'LAN clients can send bytes to the serial device. No authentication. Use a trusted network.'**
   String get lanAccessRisk;
+
+  /// No description provided for @lanAddressesTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Connect from another device'**
+  String get lanAddressesTitle;
+
+  /// No description provided for @lanAddressUnavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'No LAN IPv4 address found. Check the network and refresh.'**
+  String get lanAddressUnavailable;
+
+  /// No description provided for @refreshAddresses.
+  ///
+  /// In en, this message translates to:
+  /// **'Refresh'**
+  String get refreshAddresses;
+
+  /// No description provided for @copyEndpoint.
+  ///
+  /// In en, this message translates to:
+  /// **'Copy'**
+  String get copyEndpoint;
+
+  /// No description provided for @copiedEndpoint.
+  ///
+  /// In en, this message translates to:
+  /// **'Copied'**
+  String get copiedEndpoint;
 
   /// No description provided for @invalidBridgeSettings.
   ///

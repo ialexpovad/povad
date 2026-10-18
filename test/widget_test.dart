@@ -39,6 +39,37 @@ void main() {
     },
   );
 
+  testWidgets('bridge setup offers standard baud rates and custom entry', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      PovadApp(session: BridgeSession(), preferences: MemoryUiPreferences()),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Configure bridge'));
+    await tester.pumpAndSettle();
+
+    final selector = find.byKey(const ValueKey('baud-select'));
+    expect(tester.widget<shad.Select<String>>(selector).value, '115200');
+    await tester.tap(selector);
+    await tester.pump(const Duration(milliseconds: 300));
+    await tester.tap(find.text('9600'));
+    await tester.pumpAndSettle();
+    expect(tester.widget<shad.Select<String>>(selector).value, '9600');
+
+    await tester.tap(selector);
+    await tester.pump(const Duration(milliseconds: 300));
+    await tester.scrollUntilVisible(
+      find.text('Custom rate'),
+      160,
+      scrollable: find.byType(Scrollable).last,
+    );
+    await tester.tap(find.text('Custom rate').last);
+    await tester.pumpAndSettle();
+    expect(tester.widget<shad.Select<String>>(selector).value, 'custom');
+    expect(find.text('Custom rate'), findsWidgets);
+  });
+
   testWidgets('narrow overview remains usable with large system text', (
     tester,
   ) async {
@@ -80,6 +111,7 @@ void main() {
     PovadMark core() => tester.widget<PovadMark>(find.byType(PovadMark).last);
     expect(core().firstPoint, const Color(0xFFA1A1AA));
     expect(core().secondPoint, const Color(0xFFA1A1AA));
+    expect(core().activeProgress, 0);
 
     await tester.tap(find.byKey(const ValueKey('nav-2')));
     await tester.pumpAndSettle();
@@ -88,6 +120,7 @@ void main() {
     await tester.pumpAndSettle();
     expect(core().firstPoint, const Color(0xFF2563EB));
     expect(core().secondPoint, const Color(0xFFA1A1AA));
+    expect(core().activeProgress, closeTo(0.54, 0.001));
 
     await tester.tap(find.byKey(const ValueKey('nav-2')));
     await tester.pumpAndSettle();
@@ -96,6 +129,7 @@ void main() {
     await tester.pumpAndSettle();
     expect(core().firstPoint, const Color(0xFF2563EB));
     expect(core().secondPoint, const Color(0xFF2563EB));
+    expect(core().activeProgress, closeTo(1, 0.001));
   });
 
   testWidgets('reduced motion settles during bridge startup', (tester) async {

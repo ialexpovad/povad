@@ -154,6 +154,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get baudRate => 'Baud rate';
 
   @override
+  String get customBaudRate => 'Custom rate';
+
+  @override
   String get tcpPortNumber => 'TCP port';
 
   @override
@@ -172,6 +175,22 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get lanAccessRisk =>
       'LAN clients can send bytes to the serial device. No authentication. Use a trusted network.';
+
+  @override
+  String get lanAddressesTitle => 'Connect from another device';
+
+  @override
+  String get lanAddressUnavailable =>
+      'No LAN IPv4 address found. Check the network and refresh.';
+
+  @override
+  String get refreshAddresses => 'Refresh';
+
+  @override
+  String get copyEndpoint => 'Copy';
+
+  @override
+  String get copiedEndpoint => 'Copied';
 
   @override
   String get invalidBridgeSettings =>

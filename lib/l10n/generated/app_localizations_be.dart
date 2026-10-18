@@ -156,6 +156,9 @@ class AppLocalizationsBe extends AppLocalizations {
   String get baudRate => 'Хуткасць перадачы';
 
   @override
+  String get customBaudRate => 'Іншая хуткасць';
+
+  @override
   String get tcpPortNumber => 'Порт TCP';
 
   @override
@@ -174,6 +177,22 @@ class AppLocalizationsBe extends AppLocalizations {
   @override
   String get lanAccessRisk =>
       'Кліенты сеткі могуць адпраўляць байты ў паслядоўную прыладу. Праверкі доступу няма. Выкарыстоўвайце давераную сетку.';
+
+  @override
+  String get lanAddressesTitle => 'Падключэнне з іншай прылады';
+
+  @override
+  String get lanAddressUnavailable =>
+      'Адрас IPv4 лакальнай сеткі не знойдзены. Праверце сетку і абнавіце.';
+
+  @override
+  String get refreshAddresses => 'Абнавіць';
+
+  @override
+  String get copyEndpoint => 'Скапіяваць';
+
+  @override
+  String get copiedEndpoint => 'Скапіявана';
 
   @override
   String get invalidBridgeSettings =>
