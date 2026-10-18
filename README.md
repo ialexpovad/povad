@@ -1,17 +1,31 @@
 # Povad
 
-Povad is an open-source device connectivity application by [Aliaksandr Povad](https://www.linkedin.com/in/aliaksandr-povad-6154341a7/).
+**Device connectivity, starting with a transparent Serial ↔ TCP bridge.**
 
-The first planned capability is a transparent Serial ↔ TCP bridge: it forwards bytes between a serial device and TCP clients without changing the device protocol. Povad is intended to grow with other transports, protocols, and virtual ports as their behavior is defined and tested.
+Povad is an open-source application in development for connecting devices and
+network clients. Its first module will relay data between a serial port and TCP
+in both directions while preserving the byte stream.
 
-## Platforms and languages
+`Serial device ↔ Povad ↔ TCP client`
 
-Povad is being developed for Windows, macOS, Linux, and Android. On Android, the phone will act as a USB-OTG host for a serial adapter. The application interface will use English by default and offer Belarusian as a second language.
+The project is designed to grow with other transports, protocols, and virtual
+ports as each capability is defined and tested.
 
-## Availability
+## Project status
 
-Povad is in development. No supported download or release is available yet. Platform support and update delivery will be announced only after verification on the relevant systems and hardware.
+There is no public release yet. Windows, macOS, Linux, and Android are target
+platforms; live support will be listed after validation on real hardware. On
+Android, Povad is planned to act as a USB-OTG host for a serial adapter.
+
+The interface will use English by default and offer Belarusian as a second
+language.
+
+## Feedback
+
+Use [GitHub Issues](https://github.com/ialexpovad/povad/issues/new/choose) for
+feature requests and reproducible problems. Please follow the
+[security policy](SECURITY.md) for suspected vulnerabilities.
 
 ## License
 
-Povad is licensed under the [MIT License](LICENSE). Copyright © 2026 Aliaksandr Povad.
+Povad is available under the [MIT License](LICENSE).

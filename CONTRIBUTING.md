@@ -1,14 +1,14 @@
 # Contributing
 
-Povad is in a source migration phase. Please open an issue before building a new
-protocol or transport module so its wire behavior, ownership, and acceptance tests
-can be agreed first.
+Povad has no public release yet. Feature proposals and feedback on hardware
+support are welcome through the GitHub issue templates. If you tested a
+development build, include its commit ID, operating system, serial adapter,
+and clear reproduction steps.
 
-Changes to the transport ABI or handle lifetime require native and Flutter tests.
-Raw bridging must preserve bytes exactly. Tests that need physical hardware should
-state the adapter, OS, permissions, device, and observed result; a simulation is
-identified as such. Never include payloads, host paths, or binaries without consent.
+Please discuss a new transport or protocol module in an issue before opening a
+pull request. Its data handling, ownership, and acceptance tests need to be
+specified first. Build and test instructions will be added when the application
+source is published here.
 
-Use English for source comments, implementation docs, and issue reports. The application
-interface uses English by default and offers Belarusian as a second language. Public
-repository documentation remains in English.
+Keep issue reports and pull requests in English. Do not post device payloads,
+secrets, serial numbers, or absolute local paths in public reports.

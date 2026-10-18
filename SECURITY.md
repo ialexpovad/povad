@@ -1,12 +1,11 @@
 # Security policy
 
-This project has no published security-supported release yet. Please avoid posting
-secrets, captured device payloads, or host inventories in public issues.
+Povad has no supported release yet.
 
-For a suspected vulnerability, use GitHub's private vulnerability reporting for
-this repository once it is enabled. Until then, contact the maintainer through the
-profile linked in the README and request a private channel before sharing details.
+Report suspected vulnerabilities through GitHub's
+[private vulnerability reporting](https://github.com/ialexpovad/povad/security/advisories).
+Do not include exploit details, secrets, or captured device data in a public issue.
+For ordinary defects, use the issue templates.
 
-The Serial ↔ TCP bridge does not add authentication or encryption to the device
-protocol. A listener bound to a LAN address must be explicitly enabled and used on
-a trusted network.
+The planned transparent bridge preserves device protocol bytes. It does not add
+encryption or authentication to that protocol.
