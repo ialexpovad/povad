@@ -25,7 +25,7 @@ dev_dependencies:
   integration_test:
     sdk: flutter
   flutter_lints: ^6.0.0
-  alchemist: 0.14.0
+  alchemist: 0.14.1
 
 flutter:
   generate: true
