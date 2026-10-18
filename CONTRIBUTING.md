@@ -23,5 +23,17 @@ the application in its desktop runner. Review changed golden images before
 updating their references. CI also compiles the other platform runners; a
 successful build does not prove hardware behavior.
 
+For changes under `packages/povad_core`, run the standalone native contract
+tests as well:
+
+```sh
+cmake -S packages/povad_core -B build/native -DCMAKE_BUILD_TYPE=Debug
+cmake --build build/native --config Debug
+ctest --test-dir build/native --build-config Debug --output-on-failure
+```
+
+The native C ABI is versioned. Changes to its structs or ownership rules need
+matching native and Dart regression tests before they are used by the app.
+
 Keep issue reports and pull requests in English. Do not post device payloads,
 secrets, serial numbers, or absolute local paths in public reports.

@@ -1,0 +1,38 @@
+cmake_minimum_required(VERSION 3.18)
+project(povad_core LANGUAGES CXX)
+
+add_library(povad_core SHARED src/povad_core.cpp)
+target_compile_features(povad_core PUBLIC cxx_std_17)
+target_compile_definitions(povad_core PRIVATE POVAD_CORE_BUILD)
+target_include_directories(povad_core PUBLIC include)
+set_target_properties(povad_core PROPERTIES
+  CXX_VISIBILITY_PRESET hidden
+  VISIBILITY_INLINES_HIDDEN YES)
+
+if(MSVC)
+  target_compile_options(povad_core PRIVATE /W4 /WX /EHsc /utf-8)
+else()
+  target_compile_options(povad_core PRIVATE -Wall -Wextra -Wpedantic -Werror)
+endif()
+
+option(POVAD_SANITIZE "Run native tests with address and undefined behavior sanitizers" OFF)
+if(POVAD_SANITIZE)
+  if(MSVC)
+    message(FATAL_ERROR "POVAD_SANITIZE requires Clang or GCC")
+  endif()
+  target_compile_options(povad_core PRIVATE -fsanitize=address,undefined -fno-omit-frame-pointer)
+  target_link_options(povad_core PRIVATE -fsanitize=address,undefined)
+endif()
+
+include(CTest)
+if(BUILD_TESTING)
+  add_executable(povad_core_tests tests/core_tests.cpp)
+  target_compile_features(povad_core_tests PRIVATE cxx_std_17)
+  target_include_directories(povad_core_tests PRIVATE src)
+  target_link_libraries(povad_core_tests PRIVATE povad_core)
+  if(POVAD_SANITIZE)
+    target_compile_options(povad_core_tests PRIVATE -fsanitize=address,undefined -fno-omit-frame-pointer)
+    target_link_options(povad_core_tests PRIVATE -fsanitize=address,undefined)
+  endif()
+  add_test(NAME povad_core_contracts COMMAND povad_core_tests)
+endif()

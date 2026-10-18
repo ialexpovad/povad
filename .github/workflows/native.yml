@@ -1,0 +1,28 @@
+name: Native core checks
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  contracts:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-24.04
+            sanitize: 'ON'
+          - os: macos-latest
+            sanitize: 'OFF'
+          - os: windows-2022
+            sanitize: 'OFF'
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v6
+      - run: cmake -S packages/povad_core -B build/native -DCMAKE_BUILD_TYPE=Debug -DPOVAD_SANITIZE=${{ matrix.sanitize }}
+      - run: cmake --build build/native --config Debug --parallel
+      - run: ctest --test-dir build/native --build-config Debug --output-on-failure
