@@ -37,6 +37,13 @@ void TcpServer::listen(const char* address, uint16_t port) {
   impl_->listener = socket(AF_INET, SOCK_STREAM, 0);
   if (impl_->listener < 0) throw TransportError(PV_NATIVE_FAILURE, "Cannot create TCP listener");
   try {
+    // A stopped session with an active client can leave TCP in TIME_WAIT.
+    // Permit rebinding that closed endpoint without allowing a second live
+    // listener (SO_REUSEPORT is intentionally not enabled).
+    const int yes = 1;
+    if (setsockopt(impl_->listener, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(yes)) < 0) {
+      throw TransportError(PV_NATIVE_FAILURE, "Cannot configure TCP listener");
+    }
     sockaddr_in target{};
     target.sin_family = AF_INET;
     target.sin_port = htons(port);
