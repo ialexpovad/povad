@@ -15,9 +15,9 @@ import 'package:povad/main.dart';
 void main() {
   AlchemistConfig.runWithConfig(
     config: AlchemistConfig(
-      // Flutter's Linux and macOS rasterizers differed by at most 28 pixels
-      // in the first CI run; keep the allowance below 0.02% of the image.
-      ciGoldensConfig: const CiGoldensConfig(diffThreshold: 0.0002),
+      // Linux/macOS rasterizers differ on circular edges by 34 pixels in the
+      // 280x280 mark and 52 in the 360x700 mobile view. Allow at most 0.05%.
+      ciGoldensConfig: const CiGoldensConfig(diffThreshold: 0.0005),
       platformGoldensConfig: PlatformGoldensConfig(
         enabled: !Platform.environment.containsKey('CI'),
         platforms: {HostPlatform.macOS},
