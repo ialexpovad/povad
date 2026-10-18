@@ -168,8 +168,8 @@ class _ConnectionDiagramState extends State<ConnectionDiagram>
                               ),
                             ),
                             Positioned(
-                              left: 7,
-                              top: 148,
+                              left: 48,
+                              top: 153,
                               child: _TerminalBadge(
                                 icon: shad.LucideIcons.usb,
                                 color: fault
@@ -180,8 +180,8 @@ class _ConnectionDiagramState extends State<ConnectionDiagram>
                               ),
                             ),
                             Positioned(
-                              left: 150,
-                              top: 103,
+                              left: 75,
+                              top: 108,
                               child: _TerminalBadge(
                                 icon: shad.LucideIcons.network,
                                 color: fault
@@ -251,14 +251,14 @@ class _TerminalBadge extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = paletteOf(context);
     return Container(
-      width: 36,
-      height: 36,
+      width: 26,
+      height: 26,
       decoration: BoxDecoration(
         color: colors.background,
         shape: BoxShape.circle,
         border: Border.all(color: color, width: 1.5),
       ),
-      child: Center(child: Icon(icon, size: 17, color: color)),
+      child: Center(child: Icon(icon, size: 14, color: color)),
     );
   }
 }
