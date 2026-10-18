@@ -2,11 +2,13 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
+import 'package:povad_core/povad_core.dart' as core;
 import 'package:shadcn_flutter/shadcn_flutter.dart' as shad;
 
 import '../design/povad_mark.dart';
 import '../design/povad_theme.dart';
 import '../domain/bridge_view_state.dart';
+import '../domain/bridge_session.dart';
 import '../features/overview_page.dart';
 import '../features/secondary_pages.dart';
 import '../l10n/generated/app_localizations.dart';
@@ -14,9 +16,12 @@ import '../l10n/shadcn_localizations_be.dart';
 import 'ui_preferences.dart';
 
 class PovadApp extends StatefulWidget {
-  const PovadApp({super.key, this.preferences});
+  const PovadApp({super.key, this.preferences, this.session});
 
   final UiPreferences? preferences;
+
+  /// When absent, this widget displays the UI preview for design tests.
+  final BridgeSession? session;
 
   @override
   State<PovadApp> createState() => _PovadAppState();
@@ -29,12 +34,57 @@ class _PovadAppState extends State<PovadApp> {
   int page = 0;
   late final UiPreferences preferences;
   bool settingsChanged = false;
+  String serialPort = '';
+  String baud = '115200';
+  String tcpPort = '9268';
+  bool invalidBridgeSettings = false;
+
+  bool get configurationReady {
+    final speed = int.tryParse(baud);
+    final port = int.tryParse(tcpPort);
+    return serialPort.trim().isNotEmpty &&
+        speed != null &&
+        speed >= 300 &&
+        speed <= 4000000 &&
+        port != null &&
+        port >= 1 &&
+        port <= 65535;
+  }
+
+  bool get running =>
+      state == BridgeViewState.starting ||
+      state == BridgeViewState.listening ||
+      state == BridgeViewState.connected ||
+      state == BridgeViewState.stopping;
 
   @override
   void initState() {
     super.initState();
     preferences = widget.preferences ?? DeviceUiPreferences();
+    widget.session?.addListener(onNativeState);
     unawaited(loadPreferences());
+  }
+
+  @override
+  void dispose() {
+    widget.session?.removeListener(onNativeState);
+    if (widget.session != null) unawaited(widget.session!.close());
+    super.dispose();
+  }
+
+  void onNativeState() {
+    if (!mounted) return;
+    setState(() {
+      state = switch (widget.session!.state) {
+        core.BridgeState.stopped => BridgeViewState.stopped,
+        core.BridgeState.starting => BridgeViewState.starting,
+        core.BridgeState.listening => BridgeViewState.listening,
+        core.BridgeState.connected => BridgeViewState.connected,
+        core.BridgeState.stopping => BridgeViewState.stopping,
+        core.BridgeState.interrupted ||
+        core.BridgeState.fault => BridgeViewState.error,
+      };
+    });
   }
 
   Future<void> loadPreferences() async {
@@ -82,6 +132,30 @@ class _PovadAppState extends State<PovadApp> {
   }
 
   void act() {
+    if (widget.session != null) {
+      if (state == BridgeViewState.stopped) {
+        if (!configurationReady) {
+          setState(() {
+            invalidBridgeSettings = true;
+            page = 1;
+          });
+          return;
+        }
+        widget.session!.start(
+          core.BridgeConfig(
+            serialPort: serialPort.trim(),
+            baud: int.parse(baud),
+            tcpPort: int.parse(tcpPort),
+          ),
+        );
+      } else if (state == BridgeViewState.listening ||
+          state == BridgeViewState.connected) {
+        unawaited(widget.session!.stop());
+      } else if (state == BridgeViewState.error) {
+        setState(() => page = 2);
+      }
+      return;
+    }
     if (!kDebugMode) return;
     setState(() {
       if (state == BridgeViewState.stopped) {
@@ -125,12 +199,39 @@ class _PovadAppState extends State<PovadApp> {
               state: state,
               onAction: act,
               onPreviewState: (value) => setState(() => state = value),
+              previewMode: widget.session == null,
+              configured: widget.session == null || configurationReady,
+              serialValue: serialPort.isEmpty ? l.serialValue : serialPort,
+              tcpValue: serialPort.isEmpty ? l.tcpValue : '127.0.0.1:$tcpPort',
             ),
-            1 => EmptyPage(
-              icon: shad.LucideIcons.cable,
-              title: l.bridgeSetupTitle,
-              body: l.bridgeSetupBody,
-            ),
+            1 =>
+              widget.session == null
+                  ? EmptyPage(
+                      icon: shad.LucideIcons.cable,
+                      title: l.bridgeSetupTitle,
+                      body: l.bridgeSetupBody,
+                    )
+                  : BridgeSetupPage(
+                      serialPort: serialPort,
+                      baud: baud,
+                      tcpPort: tcpPort,
+                      onSerialPortChanged: (value) => setState(() {
+                        serialPort = value;
+                        invalidBridgeSettings = false;
+                      }),
+                      onBaudChanged: (value) => setState(() {
+                        baud = value;
+                        invalidBridgeSettings = false;
+                      }),
+                      onTcpPortChanged: (value) => setState(() {
+                        tcpPort = value;
+                        invalidBridgeSettings = false;
+                      }),
+                      error: invalidBridgeSettings
+                          ? l.invalidBridgeSettings
+                          : null,
+                      running: running,
+                    ),
             2 => EmptyPage(
               icon: shad.LucideIcons.activity,
               title: state == BridgeViewState.error
@@ -139,6 +240,8 @@ class _PovadAppState extends State<PovadApp> {
               body: state == BridgeViewState.error
                   ? l.errorDescription
                   : l.diagnosticsBody,
+              previewMode: widget.session == null,
+              detail: widget.session?.errorMessage,
             ),
             _ => SettingsPage(
               locale: locale,

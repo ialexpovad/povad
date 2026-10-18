@@ -14,10 +14,16 @@ class OverviewPage extends StatelessWidget {
     required this.state,
     required this.onAction,
     required this.onPreviewState,
+    this.previewMode = true,
+    this.configured = true,
+    this.serialValue,
+    this.tcpValue,
   });
   final BridgeViewState state;
   final VoidCallback onAction;
   final ValueChanged<BridgeViewState> onPreviewState;
+  final bool previewMode, configured;
+  final String? serialValue, tcpValue;
 
   @override
   Widget build(BuildContext context) {
@@ -36,7 +42,7 @@ class OverviewPage extends StatelessWidget {
         ? colors.primary
         : colors.muted;
     final canAct =
-        kDebugMode &&
+        (previewMode ? kDebugMode : true) &&
         state != BridgeViewState.starting &&
         state != BridgeViewState.stopping;
     return LayoutBuilder(
@@ -75,8 +81,10 @@ class OverviewPage extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: 20),
-                  PreviewNotice(label: l.previewNotice),
-                  const SizedBox(height: 16),
+                  if (previewMode) ...[
+                    PreviewNotice(label: l.previewNotice),
+                    const SizedBox(height: 16),
+                  ],
                   shad.Card(
                     padding: EdgeInsets.zero,
                     borderColor: colors.border,
@@ -190,7 +198,14 @@ class OverviewPage extends StatelessWidget {
                                       )
                                     : shad.PrimaryButton(
                                         onPressed: canAct ? onAction : null,
-                                        child: Center(child: Text(copy.action)),
+                                        child: Center(
+                                          child: Text(
+                                            state == BridgeViewState.stopped &&
+                                                    !configured
+                                                ? l.configureBridge
+                                                : copy.action,
+                                          ),
+                                        ),
                                       ),
                               ),
                             ],
@@ -203,13 +218,13 @@ class OverviewPage extends StatelessWidget {
                               Endpoint(
                                 icon: shad.LucideIcons.usb,
                                 label: l.serialDevice,
-                                value: l.serialValue,
+                                value: serialValue ?? l.serialValue,
                               ),
                               Container(height: 1, color: colors.border),
                               Endpoint(
                                 icon: shad.LucideIcons.globe,
                                 label: l.tcpListener,
-                                value: l.tcpValue,
+                                value: tcpValue ?? l.tcpValue,
                               ),
                             ],
                           )
@@ -220,7 +235,7 @@ class OverviewPage extends StatelessWidget {
                                 child: Endpoint(
                                   icon: shad.LucideIcons.usb,
                                   label: l.serialDevice,
-                                  value: l.serialValue,
+                                  value: serialValue ?? l.serialValue,
                                 ),
                               ),
                               Container(
@@ -232,7 +247,7 @@ class OverviewPage extends StatelessWidget {
                                 child: Endpoint(
                                   icon: shad.LucideIcons.globe,
                                   label: l.tcpListener,
-                                  value: l.tcpValue,
+                                  value: tcpValue ?? l.tcpValue,
                                 ),
                               ),
                             ],
@@ -240,7 +255,7 @@ class OverviewPage extends StatelessWidget {
                       ],
                     ),
                   ),
-                  if (kDebugMode) ...[
+                  if (previewMode && kDebugMode) ...[
                     const SizedBox(height: 24),
                     Text(
                       l.previewStates,

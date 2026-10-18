@@ -115,6 +115,41 @@ class AppLocalizationsEn extends AppLocalizations {
   String get reviewDetails => 'Review details';
 
   @override
+  String get configureBridge => 'Configure bridge';
+
+  @override
+  String get serialPortPath => 'Serial port';
+
+  @override
+  String get baudRate => 'Baud rate';
+
+  @override
+  String get tcpPortNumber => 'TCP port';
+
+  @override
+  String get bridgeSetupIntro =>
+      'Choose a local serial port and a TCP listener. The first session accepts one client; disconnect ends the session.';
+
+  @override
+  String get loopbackNote =>
+      'The listener is limited to this computer (127.0.0.1). LAN access is not available in this setup yet.';
+
+  @override
+  String get invalidBridgeSettings =>
+      'Enter a serial port, baud rate from 300 to 4,000,000, and TCP port from 1 to 65,535.';
+
+  @override
+  String get bridgeUnverified =>
+      'Hardware behavior is not verified yet. Use a test adapter and device before relying on this bridge.';
+
+  @override
+  String get interruptedTitle => 'Session ended';
+
+  @override
+  String get interruptedDescription =>
+      'The client disconnected or delivery became uncertain. Review details before restarting.';
+
+  @override
   String get serialDevice => 'Serial device';
 
   @override

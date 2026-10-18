@@ -296,6 +296,66 @@ abstract class AppLocalizations {
   /// **'Review details'**
   String get reviewDetails;
 
+  /// No description provided for @configureBridge.
+  ///
+  /// In en, this message translates to:
+  /// **'Configure bridge'**
+  String get configureBridge;
+
+  /// No description provided for @serialPortPath.
+  ///
+  /// In en, this message translates to:
+  /// **'Serial port'**
+  String get serialPortPath;
+
+  /// No description provided for @baudRate.
+  ///
+  /// In en, this message translates to:
+  /// **'Baud rate'**
+  String get baudRate;
+
+  /// No description provided for @tcpPortNumber.
+  ///
+  /// In en, this message translates to:
+  /// **'TCP port'**
+  String get tcpPortNumber;
+
+  /// No description provided for @bridgeSetupIntro.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose a local serial port and a TCP listener. The first session accepts one client; disconnect ends the session.'**
+  String get bridgeSetupIntro;
+
+  /// No description provided for @loopbackNote.
+  ///
+  /// In en, this message translates to:
+  /// **'The listener is limited to this computer (127.0.0.1). LAN access is not available in this setup yet.'**
+  String get loopbackNote;
+
+  /// No description provided for @invalidBridgeSettings.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter a serial port, baud rate from 300 to 4,000,000, and TCP port from 1 to 65,535.'**
+  String get invalidBridgeSettings;
+
+  /// No description provided for @bridgeUnverified.
+  ///
+  /// In en, this message translates to:
+  /// **'Hardware behavior is not verified yet. Use a test adapter and device before relying on this bridge.'**
+  String get bridgeUnverified;
+
+  /// No description provided for @interruptedTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Session ended'**
+  String get interruptedTitle;
+
+  /// No description provided for @interruptedDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'The client disconnected or delivery became uncertain. Review details before restarting.'**
+  String get interruptedDescription;
+
   /// No description provided for @serialDevice.
   ///
   /// In en, this message translates to:

@@ -2,10 +2,41 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:povad/app/ui_preferences.dart';
 import 'package:povad/design/povad_theme.dart';
+import 'package:povad/domain/bridge_session.dart';
 import 'package:povad/main.dart';
 import 'package:shadcn_flutter/shadcn_flutter.dart' as shad;
 
 void main() {
+  testWidgets(
+    'live mode configures a bridge and reports a native port failure',
+    (tester) async {
+      await tester.pumpWidget(
+        PovadApp(session: BridgeSession(), preferences: MemoryUiPreferences()),
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('Configure bridge'), findsOneWidget);
+      expect(find.textContaining('INTERFACE PREVIEW'), findsNothing);
+
+      await tester.tap(find.text('Configure bridge'));
+      await tester.pumpAndSettle();
+      expect(find.text('Bridge setup'), findsOneWidget);
+      await tester.enterText(
+        find.byType(shad.TextField).first,
+        '/dev/povad-test-port-does-not-exist',
+      );
+      await tester.tap(find.byKey(const ValueKey('nav-0')));
+      await tester.pumpAndSettle();
+      expect(find.text('Start bridge'), findsOneWidget);
+
+      await tester.tap(find.text('Start bridge'));
+      await tester.pump(const Duration(seconds: 1));
+      expect(find.text('Connection needs attention'), findsOneWidget);
+      await tester.tap(find.text('Review details'));
+      await tester.pumpAndSettle();
+      expect(find.text('Cannot open serial port exclusively'), findsOneWidget);
+    },
+  );
+
   testWidgets('narrow overview remains usable with large system text', (
     tester,
   ) async {

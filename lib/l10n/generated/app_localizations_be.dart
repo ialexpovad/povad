@@ -115,6 +115,41 @@ class AppLocalizationsBe extends AppLocalizations {
   String get reviewDetails => 'Паглядзець падрабязнасці';
 
   @override
+  String get configureBridge => 'Наладзіць мост';
+
+  @override
+  String get serialPortPath => 'Паслядоўны порт';
+
+  @override
+  String get baudRate => 'Хуткасць перадачы';
+
+  @override
+  String get tcpPortNumber => 'Порт TCP';
+
+  @override
+  String get bridgeSetupIntro =>
+      'Выберыце лакальны паслядоўны порт і TCP-сервер. Да сеанса далучаецца адзін кліент; яго адключэнне завяршае сеанс.';
+
+  @override
+  String get loopbackNote =>
+      'TCP-сервер даступны толькі на гэтым камп’ютары (127.0.0.1). Доступ праз лакальную сетку пакуль не прадугледжаны.';
+
+  @override
+  String get invalidBridgeSettings =>
+      'Увядзіце паслядоўны порт, хуткасць ад 300 да 4 000 000 і порт TCP ад 1 да 65 535.';
+
+  @override
+  String get bridgeUnverified =>
+      'Праца з абсталяваннем пакуль не праверана. Перш чым спадзявацца на мост, праверце яго з тэставым адаптарам і прыладай.';
+
+  @override
+  String get interruptedTitle => 'Сеанс завершаны';
+
+  @override
+  String get interruptedDescription =>
+      'Кліент адключыўся або дастаўка даных стала няпэўнай. Праверце падрабязнасці перад новым запускам.';
+
+  @override
   String get serialDevice => 'Паслядоўная прылада';
 
   @override
