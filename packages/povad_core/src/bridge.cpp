@@ -65,7 +65,7 @@ void Bridge::snapshot(pv_snapshot* output) const {
 
 void Bridge::set_state(uint32_t state, bool serial_open, bool connected) {
   std::lock_guard<std::mutex> lock(mutex_);
-  status_.state = stop_ ? PV_STATE_STOPPING : state;
+  status_.state = stop_ ? static_cast<uint32_t>(PV_STATE_STOPPING) : state;
   status_.serial_open = serial_open ? 1u : 0u;
   status_.client_connected = connected ? 1u : 0u;
 }

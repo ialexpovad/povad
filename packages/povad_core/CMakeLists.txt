@@ -13,6 +13,9 @@ target_compile_features(povad_core PUBLIC cxx_std_17)
 target_compile_definitions(povad_core PRIVATE POVAD_CORE_BUILD)
 target_include_directories(povad_core PUBLIC include)
 target_link_libraries(povad_core PRIVATE Threads::Threads)
+if(WIN32)
+  target_link_libraries(povad_core PRIVATE ws2_32)
+endif()
 set_target_properties(povad_core PROPERTIES
   CXX_VISIBILITY_PRESET hidden
   VISIBILITY_INLINES_HIDDEN YES)
