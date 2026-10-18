@@ -255,7 +255,7 @@ class AppLocalizationsBe extends AppLocalizations {
 
   @override
   String get aboutDescription =>
-      'Povad знаходзіцца ў распрацоўцы. Мост паслядоўны порт ↔ TCP — першы запланаваны модуль.';
+      'Povad аб’ядноўвае падключэнні прылад. Мост паслядоўны порт ↔ TCP — першы модуль.';
 
   @override
   String get connectionDiagram =>

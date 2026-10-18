@@ -75,6 +75,6 @@
   "copperTheme": "Graphite + copper",
   "classicBlueTheme": "Classic blue",
   "about": "About",
-  "aboutDescription": "Povad is in development. Serial ↔ TCP Bridge is its first planned module.",
+  "aboutDescription": "Povad brings device connections together. Serial ↔ TCP Bridge is its first module.",
   "connectionDiagram": "Serial device, Povad bridge, and TCP client connection diagram"
 }

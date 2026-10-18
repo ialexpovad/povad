@@ -253,7 +253,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get aboutDescription =>
-      'Povad is in development. Serial ↔ TCP Bridge is its first planned module.';
+      'Povad brings device connections together. Serial ↔ TCP Bridge is its first module.';
 
   @override
   String get connectionDiagram =>

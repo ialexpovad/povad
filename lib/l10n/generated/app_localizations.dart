@@ -551,7 +551,7 @@ abstract class AppLocalizations {
   /// No description provided for @aboutDescription.
   ///
   /// In en, this message translates to:
-  /// **'Povad is in development. Serial ↔ TCP Bridge is its first planned module.'**
+  /// **'Povad brings device connections together. Serial ↔ TCP Bridge is its first module.'**
   String get aboutDescription;
 
   /// No description provided for @connectionDiagram.
