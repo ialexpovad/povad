@@ -2,6 +2,7 @@ name: UI checks
 
 on:
   push:
+    branches: [main]
   pull_request:
 
 permissions:
