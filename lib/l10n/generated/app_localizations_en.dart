@@ -28,6 +28,28 @@ class AppLocalizationsEn extends AppLocalizations {
   String get settings => 'Settings';
 
   @override
+  String get menu => 'Menu';
+
+  @override
+  String get sendFeedback => 'Send feedback';
+
+  @override
+  String get feedbackNav => 'Feedback';
+
+  @override
+  String get feedbackUnavailable =>
+      'Could not open GitHub Issues. Try github.com/ialexpovad/povad/issues.';
+
+  @override
+  String get openPovad => 'Open Povad';
+
+  @override
+  String get quitPovad => 'Quit Povad';
+
+  @override
+  String get stopAndQuit => 'Stop bridge and quit';
+
+  @override
   String get previewNotice => 'PREVIEW · No live connection';
 
   @override

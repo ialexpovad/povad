@@ -317,11 +317,13 @@ class SettingsPage extends StatelessWidget {
     required this.onLocaleChanged,
     required this.appearance,
     required this.onAppearanceChanged,
+    this.feedbackError,
   });
   final Locale locale;
   final ValueChanged<Locale> onLocaleChanged;
   final PovadAppearance appearance;
   final ValueChanged<PovadAppearance> onAppearanceChanged;
+  final String? feedbackError;
   @override
   Widget build(BuildContext context) {
     final l = AppLocalizations.of(context)!;
@@ -412,6 +414,10 @@ class SettingsPage extends StatelessWidget {
               ),
               const SizedBox(height: 7),
               Text(l.aboutDescription, style: TextStyle(color: colors.muted)),
+              if (feedbackError != null) ...[
+                const SizedBox(height: 22),
+                Text(feedbackError!, style: TextStyle(color: colors.error)),
+              ],
             ],
           ),
         ),

@@ -52,7 +52,8 @@ void main() {
     await tester.pumpWidget(PovadApp(preferences: MemoryUiPreferences()));
     await tester.pumpAndSettle();
     expect(find.text('Bridge stopped'), findsOneWidget);
-    expect(find.byKey(const ValueKey('nav-3')), findsOneWidget);
+    expect(find.byKey(const ValueKey('mobile-menu')), findsOneWidget);
+    expect(find.byKey(const ValueKey('nav-3')), findsNothing);
     expect(tester.takeException(), isNull);
   });
 
@@ -159,22 +160,36 @@ void main() {
     addTearDown(tester.view.resetPhysicalSize);
     addTearDown(tester.view.resetDevicePixelRatio);
     await tester.pumpWidget(PovadApp(preferences: MemoryUiPreferences()));
-    await tester.tap(find.byKey(const ValueKey('nav-3')));
+    await tester.tap(find.byKey(const ValueKey('mobile-menu')));
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(find.text('Send feedback'), findsOneWidget);
+    await tester.tap(find.text('Settings'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Беларуская'));
     await tester.pumpAndSettle();
-    await tester.tap(find.byKey(const ValueKey('nav-0')));
-    await tester.pumpAndSettle();
-    expect(find.text('Мост спынены'), findsOneWidget);
-    for (final label in ['Агляд', 'Мост', 'Дэталі', 'Налады']) {
-      expect(find.text(label), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('mobile-menu')));
+    await tester.pump(const Duration(milliseconds: 300));
+    for (final label in [
+      'Агляд',
+      'Мост',
+      'Дэталі',
+      'Налады',
+      'Адправіць водгук',
+    ]) {
+      final menuLabel = find.descendant(
+        of: find.byType(shad.DropdownMenu),
+        matching: find.text(label),
+      );
+      expect(menuLabel, findsOneWidget);
       expect(
-        tester
-            .renderObject<RenderParagraph>(find.text(label))
-            .didExceedMaxLines,
+        tester.renderObject<RenderParagraph>(menuLabel).didExceedMaxLines,
         isFalse,
       );
     }
+    await tester.tap(find.text('Агляд'));
+    await tester.pumpAndSettle();
+    expect(find.text('Мост спынены'), findsOneWidget);
+    expect(find.byKey(const ValueKey('nav-0')), findsNothing);
     expect(tester.takeException(), isNull);
   });
 

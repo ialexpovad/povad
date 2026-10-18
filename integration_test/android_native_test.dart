@@ -1,4 +1,5 @@
 import 'package:flutter/widgets.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 import 'package:povad/app/ui_preferences.dart';
@@ -25,8 +26,7 @@ void main() {
     final usbAvailable = await host.available();
     expect(await host.listPorts(), isEmpty);
 
-    await tester.tap(find.byKey(const ValueKey('nav-1')));
-    await tester.pumpAndSettle();
+    await _navigate(tester, 'Bridge');
     expect(find.text('USB serial devices'), findsOneWidget);
     expect(
       find.textContaining('Choose a USB serial device and TCP port.'),
@@ -41,12 +41,10 @@ void main() {
       findsOneWidget,
     );
 
-    await tester.tap(find.byKey(const ValueKey('nav-3')));
-    await tester.pumpAndSettle();
+    await _navigate(tester, 'Settings');
     await tester.tap(find.text('Беларуская'));
     await tester.pumpAndSettle();
-    await tester.tap(find.byKey(const ValueKey('nav-1')));
-    await tester.pumpAndSettle();
+    await _navigate(tester, 'Мост');
     expect(find.text('Паслядоўныя USB-прылады'), findsOneWidget);
     expect(
       find.textContaining('Выберыце паслядоўную USB-прыладу і порт TCP.'),
@@ -55,6 +53,22 @@ void main() {
     expect(tester.takeException(), isNull);
 
     expect(nativeAbiVersion(), 1);
+
+    // A missing USB permission must never create a background service.
+    const background = MethodChannel('povad/background');
+    await expectLater(
+      background.invokeMethod<bool>('start', {
+        'selection': 'usb:/dev/bus/usb/999/999:0',
+        'status': 'Starting bridge',
+      }),
+      throwsA(
+        isA<PlatformException>().having(
+          (error) => error.code,
+          'code',
+          'USB_PERMISSION',
+        ),
+      ),
+    );
 
     final bridge = NativeBridge();
     try {
@@ -69,6 +83,13 @@ void main() {
       await bridge.close();
     }
   });
+}
+
+Future<void> _navigate(WidgetTester tester, String label) async {
+  await tester.tap(find.byKey(const ValueKey('mobile-menu')));
+  await tester.pump(const Duration(milliseconds: 300));
+  await tester.tap(find.text(label));
+  await tester.pumpAndSettle();
 }
 
 class _MemoryPreferences implements UiPreferences {

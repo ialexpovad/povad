@@ -33,6 +33,17 @@ USB channel, and JNI worker on an emulator. Physical USB-serial permission,
 detach, and byte-transfer behavior has not been validated. There is no public
 product release yet.
 
+The mobile interface has one main connection action and a top-right menu for
+Bridge, Details, Settings, and feedback. On desktop, closing the window during
+an active session keeps the process available from the system tray or menu bar;
+on Linux the active window minimizes so it remains reachable on desktops
+without a tray extension. Explicit Quit stops the worker before exit. On
+Android, a connected-device foreground service and persistent notification
+keep the same Flutter engine and native worker alive after the Activity closes.
+The service requires a USB serial device with permission and starts while the
+app is visible. Operating-system force-stop and process termination still end
+the connection.
+
 GitHub-based update delivery is planned. Platform support will be published
 after each implementation passes build, UI, and real hardware validation.
 
@@ -65,6 +76,8 @@ change, inspect the generated images and update the references with
 Use [GitHub Issues](https://github.com/ialexpovad/povad/issues/new/choose) for
 feature requests and reproducible problems. Please follow the
 [security policy](SECURITY.md) for suspected vulnerabilities.
+The in-app **Send feedback** action opens the same issue chooser in a browser.
+Povad does not attach logs, device data, or local paths automatically.
 
 ## License
 

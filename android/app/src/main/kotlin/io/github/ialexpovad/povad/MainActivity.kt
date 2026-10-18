@@ -1,5 +1,6 @@
 package io.github.ialexpovad.povad
 
+import android.Manifest
 import android.app.PendingIntent
 import android.content.BroadcastReceiver
 import android.content.Context
@@ -11,6 +12,7 @@ import android.hardware.usb.UsbManager
 import android.os.Build
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
+import io.flutter.embedding.engine.dart.DartExecutor
 import io.flutter.plugin.common.MethodChannel
 
 class MainActivity : FlutterActivity() {
@@ -19,6 +21,29 @@ class MainActivity : FlutterActivity() {
     private var permissionDeviceName: String? = null
     private var receiverRegistered = false
     private var nativeLibraryAvailable = false
+
+    override fun provideFlutterEngine(context: Context): FlutterEngine =
+        (application as PovadApplication).engine()
+
+    override fun shouldDestroyEngineWithHost(): Boolean = false
+
+    override fun onResume() {
+        super.onResume()
+        (application as PovadApplication).setActivity(this)
+    }
+
+    override fun onPause() {
+        (application as PovadApplication).setActivity(null)
+        super.onPause()
+    }
+
+    fun requestNotificationPermissionIfNeeded() {
+        if (Build.VERSION.SDK_INT >= 33 &&
+            checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) !=
+                PackageManager.PERMISSION_GRANTED) {
+            requestPermissions(arrayOf(Manifest.permission.POST_NOTIFICATIONS), 9268)
+        }
+    }
 
     private val permissionReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context, intent: Intent) {
@@ -95,6 +120,11 @@ class MainActivity : FlutterActivity() {
                     else -> result.notImplemented()
                 }
             }
+        if (!flutterEngine.dartExecutor.isExecutingDart) {
+            flutterEngine.dartExecutor.executeDartEntrypoint(
+                DartExecutor.DartEntrypoint.createDefault()
+            )
+        }
     }
 
     override fun onDestroy() {
@@ -103,6 +133,10 @@ class MainActivity : FlutterActivity() {
         permissionDeviceName = null
         if (receiverRegistered) unregisterReceiver(permissionReceiver)
         receiverRegistered = false
+        flutterEngine?.dartExecutor?.binaryMessenger?.let {
+            MethodChannel(it, "povad/usb_host").setMethodCallHandler(null)
+        }
+        (application as PovadApplication).setActivity(null)
         super.onDestroy()
     }
 }

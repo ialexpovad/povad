@@ -134,6 +134,48 @@ abstract class AppLocalizations {
   /// **'Settings'**
   String get settings;
 
+  /// No description provided for @menu.
+  ///
+  /// In en, this message translates to:
+  /// **'Menu'**
+  String get menu;
+
+  /// No description provided for @sendFeedback.
+  ///
+  /// In en, this message translates to:
+  /// **'Send feedback'**
+  String get sendFeedback;
+
+  /// No description provided for @feedbackNav.
+  ///
+  /// In en, this message translates to:
+  /// **'Feedback'**
+  String get feedbackNav;
+
+  /// No description provided for @feedbackUnavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not open GitHub Issues. Try github.com/ialexpovad/povad/issues.'**
+  String get feedbackUnavailable;
+
+  /// No description provided for @openPovad.
+  ///
+  /// In en, this message translates to:
+  /// **'Open Povad'**
+  String get openPovad;
+
+  /// No description provided for @quitPovad.
+  ///
+  /// In en, this message translates to:
+  /// **'Quit Povad'**
+  String get quitPovad;
+
+  /// No description provided for @stopAndQuit.
+  ///
+  /// In en, this message translates to:
+  /// **'Stop bridge and quit'**
+  String get stopAndQuit;
+
   /// No description provided for @previewNotice.
   ///
   /// In en, this message translates to:

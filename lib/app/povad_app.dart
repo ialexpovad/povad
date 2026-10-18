@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
 import 'package:povad_core/povad_core.dart' as core;
 import 'package:shadcn_flutter/shadcn_flutter.dart' as shad;
+import 'package:url_launcher/url_launcher.dart';
 
 import '../design/povad_mark.dart';
 import '../design/povad_theme.dart';
@@ -16,14 +17,16 @@ import '../features/secondary_pages.dart';
 import '../l10n/generated/app_localizations.dart';
 import '../l10n/shadcn_localizations_be.dart';
 import 'ui_preferences.dart';
+import 'bridge_presence.dart';
 
 class PovadApp extends StatefulWidget {
-  const PovadApp({super.key, this.preferences, this.session});
+  const PovadApp({super.key, this.preferences, this.session, this.presence});
 
   final UiPreferences? preferences;
 
   /// When absent, this widget displays the UI preview for design tests.
   final BridgeSession? session;
+  final BridgePresence? presence;
 
   @override
   State<PovadApp> createState() => _PovadAppState();
@@ -41,6 +44,10 @@ class _PovadAppState extends State<PovadApp> {
   String tcpPort = '9268';
   bool allowLan = false;
   bool invalidBridgeSettings = false;
+  bool feedbackUnavailable = false;
+  String? backgroundError;
+  bool presenceFailed = false;
+  bool startPending = false;
   final AndroidUsbHost usbHost = const AndroidUsbHost();
   List<AndroidUsbPort> usbPorts = const [];
   String? usbError;
@@ -67,6 +74,12 @@ class _PovadAppState extends State<PovadApp> {
       state == BridgeViewState.listening ||
       state == BridgeViewState.connected ||
       state == BridgeViewState.stopping;
+
+  bool get workerActive {
+    final snapshot = widget.session?.snapshot;
+    return snapshot != null &&
+        (!snapshot.finished || snapshot.serialOpen || snapshot.clientConnected);
+  }
 
   @override
   void initState() {
@@ -150,6 +163,23 @@ class _PovadAppState extends State<PovadApp> {
         core.BridgeState.fault => BridgeViewState.error,
       };
     });
+    unawaited(reflectPresence());
+  }
+
+  Future<void> reflectPresence() async {
+    if (presenceFailed || widget.presence == null) return;
+    try {
+      await widget.presence!.reflect(state, locale, workerActive: workerActive);
+    } catch (error) {
+      presenceFailed = true;
+      if (workerActive) unawaited(widget.session!.stop());
+      if (mounted) {
+        setState(() {
+          backgroundError = error.toString();
+          page = 2;
+        });
+      }
+    }
   }
 
   Future<void> loadPreferences() async {
@@ -163,6 +193,7 @@ class _PovadAppState extends State<PovadApp> {
         }
         if (savedAppearance != null) appearance = savedAppearance;
       });
+      unawaited(reflectPresence());
     } catch (error) {
       debugPrint('Unable to load UI preferences: $error');
     }
@@ -172,12 +203,34 @@ class _PovadAppState extends State<PovadApp> {
     settingsChanged = true;
     setState(() => locale = value);
     unawaited(saveLanguage(value.languageCode));
+    unawaited(reflectPresence());
   }
 
   void changeAppearance(PovadAppearance value) {
     settingsChanged = true;
     setState(() => appearance = value);
     unawaited(saveAppearance(value));
+  }
+
+  Future<void> sendFeedback() async {
+    const uri = 'https://github.com/ialexpovad/povad/issues/new/choose';
+    try {
+      if (await launchUrl(
+        Uri.parse(uri),
+        mode: LaunchMode.externalApplication,
+      )) {
+        if (mounted) setState(() => feedbackUnavailable = false);
+        return;
+      }
+    } catch (_) {
+      // The visible settings message below gives the user a direct URL.
+    }
+    if (mounted) {
+      setState(() {
+        feedbackUnavailable = true;
+        page = 3;
+      });
+    }
   }
 
   Future<void> saveLanguage(String languageCode) async {
@@ -198,6 +251,7 @@ class _PovadAppState extends State<PovadApp> {
 
   void act() {
     if (widget.session != null) {
+      if (startPending) return;
       if (state == BridgeViewState.stopped) {
         if (!configurationReady) {
           setState(() {
@@ -206,15 +260,7 @@ class _PovadAppState extends State<PovadApp> {
           });
           return;
         }
-        widget.session!.start(
-          core.BridgeConfig(
-            serialPort: serialPort.trim(),
-            baud: int.parse(baud),
-            tcpPort: int.parse(tcpPort),
-            bindAddress: allowLan ? '0.0.0.0' : '127.0.0.1',
-            allowLan: allowLan,
-          ),
-        );
+        unawaited(startLiveBridge());
       } else if (state == BridgeViewState.listening ||
           state == BridgeViewState.connected) {
         unawaited(widget.session!.stop());
@@ -234,6 +280,52 @@ class _PovadAppState extends State<PovadApp> {
         page = 2;
       }
     });
+  }
+
+  Future<void> startLiveBridge() async {
+    if (presenceFailed) {
+      setState(() => page = 2);
+      return;
+    }
+    setState(() => startPending = true);
+    try {
+      await widget.presence?.prepareStart(serialPort, locale);
+      if (!mounted) {
+        await widget.presence?.reflect(
+          BridgeViewState.stopped,
+          locale,
+          workerActive: false,
+        );
+        return;
+      }
+      widget.session!.start(
+        core.BridgeConfig(
+          serialPort: serialPort.trim(),
+          baud: int.parse(baud),
+          tcpPort: int.parse(tcpPort),
+          bindAddress: allowLan ? '0.0.0.0' : '127.0.0.1',
+          allowLan: allowLan,
+        ),
+      );
+    } catch (error) {
+      try {
+        await widget.presence?.reflect(
+          BridgeViewState.stopped,
+          locale,
+          workerActive: false,
+        );
+      } catch (_) {
+        // Preserve the original startup failure for the details screen.
+      }
+      if (mounted) {
+        setState(() {
+          backgroundError = error.toString();
+          page = 2;
+        });
+      }
+    } finally {
+      if (mounted) setState(() => startPending = false);
+    }
   }
 
   @override
@@ -328,7 +420,7 @@ class _PovadAppState extends State<PovadApp> {
                 ? l.errorDescription
                 : l.diagnosticsBody,
             previewMode: widget.session == null,
-            detail: widget.session?.errorMessage,
+            detail: backgroundError ?? widget.session?.errorMessage,
             previewState: widget.session == null ? state : null,
             onPreviewState: widget.session == null
                 ? (value) => setState(() => state = value)
@@ -339,6 +431,7 @@ class _PovadAppState extends State<PovadApp> {
             onLocaleChanged: changeLocale,
             appearance: appearance,
             onAppearanceChanged: changeAppearance,
+            feedbackError: feedbackUnavailable ? l.feedbackUnavailable : null,
           ),
         };
         return ColoredBox(
@@ -359,36 +452,63 @@ class _PovadAppState extends State<PovadApp> {
                           vertical: 12,
                         ),
                         child: Row(
-                          children: [const PovadBrandLockup(compact: true)],
-                        ),
-                      ),
-                      Expanded(child: content),
-                      Container(
-                        decoration: BoxDecoration(
-                          color: p.surface,
-                          border: Border(top: BorderSide(color: p.border)),
-                        ),
-                        padding: const EdgeInsets.fromLTRB(6, 5, 6, 8),
-                        child: Row(
                           children: [
-                            for (var i = 0; i < 4; i++)
-                              Expanded(
-                                child: _NavItem(
-                                  key: ValueKey('nav-$i'),
-                                  index: i,
-                                  selected: page == i,
-                                  compact: true,
-                                  icon: icons[i],
-                                  label: labels[i],
-                                  compactLabel: i == 2
-                                      ? l.diagnosticsNav
-                                      : null,
-                                  onTap: () => setState(() => page = i),
+                            const PovadBrandLockup(compact: true),
+                            const Spacer(),
+                            Builder(
+                              builder: (menuContext) => shad.GhostButton(
+                                key: const ValueKey('mobile-menu'),
+                                onPressed: () => shad.showOverlay<void>(
+                                  menuContext,
+                                  const shad.PopoverConfiguration(
+                                    alignment: Alignment.topRight,
+                                    anchorAlignment: Alignment.bottomRight,
+                                    offset: Offset(0, 6),
+                                  ),
+                                  adaptive: false,
+                                  builder: (_) => shad.DropdownMenu(
+                                    children: [
+                                      for (var i = 0; i < 4; i++)
+                                        shad.MenuButton(
+                                          leading: Icon(icons[i], size: 17),
+                                          onPressed: (_) =>
+                                              setState(() => page = i),
+                                          child: Text(
+                                            i == 2
+                                                ? l.diagnosticsNav
+                                                : labels[i],
+                                          ),
+                                        ),
+                                      shad.MenuButton(
+                                        leading: const Icon(
+                                          shad.LucideIcons.messageSquare,
+                                          size: 17,
+                                        ),
+                                        onPressed: (_) =>
+                                            unawaited(sendFeedback()),
+                                        child: Text(l.sendFeedback),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                child: Semantics(
+                                  label: l.menu,
+                                  button: true,
+                                  child: const SizedBox(
+                                    width: 44,
+                                    height: 44,
+                                    child: Icon(
+                                      shad.LucideIcons.menu,
+                                      size: 22,
+                                    ),
+                                  ),
                                 ),
                               ),
+                            ),
                           ],
                         ),
                       ),
+                      Expanded(child: content),
                     ],
                   );
                 }
@@ -414,12 +534,39 @@ class _PovadAppState extends State<PovadApp> {
                                 key: ValueKey('nav-$i'),
                                 index: i,
                                 selected: page == i,
-                                compact: false,
                                 icon: icons[i],
                                 label: labels[i],
                                 onTap: () => setState(() => page = i),
                               ),
                             ),
+                          const Spacer(),
+                          Padding(
+                            padding: const EdgeInsets.fromLTRB(12, 0, 12, 16),
+                            child: shad.GhostButton(
+                              onPressed: () => unawaited(sendFeedback()),
+                              child: Row(
+                                children: [
+                                  Icon(
+                                    shad.LucideIcons.messageSquare,
+                                    size: 18,
+                                    color: p.muted,
+                                  ),
+                                  const SizedBox(width: 13),
+                                  Expanded(
+                                    child: Text(
+                                      l.feedbackNav,
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: TextStyle(
+                                        color: p.foreground,
+                                        fontSize: 14,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
                         ],
                       ),
                     ),
@@ -440,17 +587,14 @@ class _NavItem extends StatelessWidget {
     super.key,
     required this.index,
     required this.selected,
-    required this.compact,
     required this.icon,
     required this.label,
-    this.compactLabel,
     required this.onTap,
   });
   final int index;
-  final bool selected, compact;
+  final bool selected;
   final IconData icon;
   final String label;
-  final String? compactLabel;
   final VoidCallback onTap;
 
   @override
@@ -467,58 +611,25 @@ class _NavItem extends StatelessWidget {
         ),
         child: shad.GhostButton(
           onPressed: onTap,
-          density: compact
-              ? shad.ButtonDensity.compact
-              : shad.ButtonDensity.normal,
+          density: shad.ButtonDensity.normal,
           child: Padding(
-            padding: EdgeInsets.symmetric(vertical: compact ? 8 : 7),
-            child: compact
-                ? Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(
-                        icon,
-                        size: 19,
-                        color: selected ? p.primary : p.muted,
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        compactLabel ?? label,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                          fontSize: 10,
-                          fontWeight: selected
-                              ? FontWeight.w600
-                              : FontWeight.w400,
-                          color: selected ? p.primary : p.muted,
-                        ),
-                      ),
-                    ],
-                  )
-                : Row(
-                    children: [
-                      Icon(
-                        icon,
-                        size: 18,
-                        color: selected ? p.primary : p.muted,
-                      ),
-                      const SizedBox(width: 13),
-                      Expanded(
-                        child: Text(
-                          label,
-                          style: TextStyle(
-                            fontSize: 14,
-                            fontWeight: selected
-                                ? FontWeight.w600
-                                : FontWeight.w400,
-                            color: selected ? p.primary : p.foreground,
-                          ),
-                        ),
-                      ),
-                    ],
+            padding: const EdgeInsets.symmetric(vertical: 7),
+            child: Row(
+              children: [
+                Icon(icon, size: 18, color: selected ? p.primary : p.muted),
+                const SizedBox(width: 13),
+                Expanded(
+                  child: Text(
+                    label,
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
+                      color: selected ? p.primary : p.foreground,
+                    ),
                   ),
+                ),
+              ],
+            ),
           ),
         ),
       ),

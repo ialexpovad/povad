@@ -28,6 +28,28 @@ class AppLocalizationsBe extends AppLocalizations {
   String get settings => 'Налады';
 
   @override
+  String get menu => 'Меню';
+
+  @override
+  String get sendFeedback => 'Адправіць водгук';
+
+  @override
+  String get feedbackNav => 'Водгук';
+
+  @override
+  String get feedbackUnavailable =>
+      'Не ўдалося адкрыць GitHub Issues. Адкрыйце github.com/ialexpovad/povad/issues.';
+
+  @override
+  String get openPovad => 'Адкрыць Povad';
+
+  @override
+  String get quitPovad => 'Выйсці з Povad';
+
+  @override
+  String get stopAndQuit => 'Спыніць мост і выйсці';
+
+  @override
   String get previewNotice => 'ПРАГЛЯД · Няма сапраўднага злучэння';
 
   @override
