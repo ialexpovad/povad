@@ -180,7 +180,7 @@ class _ConnectionDiagramState extends State<ConnectionDiagram>
                               ),
                             ),
                             Positioned(
-                              left: 168,
+                              left: 150,
                               top: 103,
                               child: _TerminalBadge(
                                 icon: shad.LucideIcons.network,
