@@ -25,6 +25,6 @@ int TcpServer::accept() { return 0; }
 bool TcpServer::connected() const { return false; }
 int64_t TcpServer::receive(uint8_t*, size_t) { return -1; }
 size_t TcpServer::send(const uint8_t*, size_t) { return 0; }
-void TcpServer::close() {}
+bool TcpServer::close() { return true; }
 
 } // namespace povad

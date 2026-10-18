@@ -205,6 +205,7 @@ struct TcpServer::Impl {
   SOCKET listener = INVALID_SOCKET;
   SOCKET client = INVALID_SOCKET;
   bool wsa = false;
+  bool close_uncertain = false;
 };
 
 TcpServer::TcpServer() : impl_(new Impl) {
@@ -221,7 +222,7 @@ TcpServer::~TcpServer() {
 }
 
 void TcpServer::listen(const char* address, uint16_t port) {
-  close();
+  if (!close()) throw TransportError(PV_NATIVE_FAILURE, "Previous TCP shutdown is uncertain");
   impl_->listener = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
   if (impl_->listener == INVALID_SOCKET) {
     throw TransportError(PV_NATIVE_FAILURE, "Cannot create TCP listener");
@@ -297,15 +298,19 @@ size_t TcpServer::send(const uint8_t* data, size_t length) {
   return static_cast<size_t>(count);
 }
 
-void TcpServer::close() {
+bool TcpServer::close() {
+  if (impl_->close_uncertain) return false;
+  bool closed = true;
   if (impl_->client != INVALID_SOCKET) {
-    closesocket(impl_->client);
+    closed = closesocket(impl_->client) == 0 && closed;
     impl_->client = INVALID_SOCKET;
   }
   if (impl_->listener != INVALID_SOCKET) {
-    closesocket(impl_->listener);
+    closed = closesocket(impl_->listener) == 0 && closed;
     impl_->listener = INVALID_SOCKET;
   }
+  impl_->close_uncertain = !closed;
+  return closed;
 }
 
 } // namespace povad

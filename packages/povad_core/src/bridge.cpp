@@ -204,22 +204,25 @@ void Bridge::run(pv_config config) noexcept {
   // Only the worker releases live handles. Windows OVERLAPPED cancellation
   // must complete inside SerialPort::close before finished_ becomes true.
   set_state(PV_STATE_STOPPING, serial != nullptr, tcp != nullptr && tcp->connected());
-  if (tcp) tcp->close();
-  if (serial) {
-    while (!serial->close()) {
-      // The worker keeps ownership until the handle is confirmed closed.
-      // A timeout in the Dart owner must not turn this into a clean stop.
-      {
-        std::lock_guard<std::mutex> lock(mutex_);
-        status_.state = PV_STATE_STOPPING;
-        status_.serial_open = 1;
-        status_.client_connected = 0;
-        status_.error_code = PV_NATIVE_FAILURE;
-        std::snprintf(status_.error_message, sizeof(status_.error_message), "%s",
-            "Serial shutdown could not be confirmed");
-      }
-      std::this_thread::sleep_for(std::chrono::milliseconds(100));
+  bool tcp_closed = tcp == nullptr || tcp->close();
+  bool serial_closed = serial == nullptr || serial->close();
+  while (!tcp_closed || !serial_closed) {
+    // The worker keeps ownership until every handle is confirmed closed.
+    // A timeout in the Dart owner must not turn this into a clean stop.
+    {
+      std::lock_guard<std::mutex> lock(mutex_);
+      status_.state = PV_STATE_STOPPING;
+      status_.serial_open = serial_closed ? 0u : 1u;
+      status_.client_connected = 0;
+      status_.error_code = PV_NATIVE_FAILURE;
+      std::snprintf(status_.error_message, sizeof(status_.error_message), "%s",
+          !tcp_closed && !serial_closed ? "Transport shutdown could not be confirmed" :
+          !tcp_closed ? "TCP shutdown could not be confirmed" :
+          "Serial shutdown could not be confirmed");
     }
+    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    if (!tcp_closed) tcp_closed = tcp->close();
+    if (!serial_closed) serial_closed = serial->close();
   }
   finish(final_state, error_code, message.c_str());
 }

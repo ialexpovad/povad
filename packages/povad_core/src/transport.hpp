@@ -46,7 +46,8 @@ class TcpServer final {
   // -1: would block, 0: peer closed, positive: byte count.
   int64_t receive(uint8_t* data, size_t capacity);
   size_t send(const uint8_t* data, size_t length);
-  void close();
+  // False means socket shutdown could not be confirmed.
+  bool close();
 
  private:
   struct Impl;
