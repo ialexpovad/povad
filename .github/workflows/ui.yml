@@ -23,6 +23,13 @@ jobs:
       - run: dart format --output=none --set-exit-if-changed lib test integration_test
       - run: flutter analyze
       - run: flutter test
+      - uses: actions/upload-artifact@v7
+        if: failure()
+        with:
+          name: ui-test-diffs
+          path: test/failures/
+          if-no-files-found: ignore
+          retention-days: 14
 
   macos-build:
     runs-on: macos-latest
