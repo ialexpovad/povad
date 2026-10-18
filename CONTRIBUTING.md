@@ -30,10 +30,16 @@ tests as well:
 cmake -S packages/povad_core -B build/native -DCMAKE_BUILD_TYPE=Debug
 cmake --build build/native --config Debug
 ctest --test-dir build/native --build-config Debug --output-on-failure
+cd packages/povad_core
+dart format --output=none --set-exit-if-changed hook lib test
+dart analyze --fatal-infos
+dart test
 ```
 
 The native C ABI is versioned. Changes to its structs or ownership rules need
 matching native and Dart regression tests before they are used by the app.
+Regenerate the committed bindings with `dart run ffigen --config ffigen.yaml`
+when the public C header changes, and review the resulting diff.
 
 Keep issue reports and pull requests in English. Do not post device payloads,
 secrets, serial numbers, or absolute local paths in public reports.

@@ -23,6 +23,12 @@ compact endpoints, and English and Belarusian UI. The preview does **not** open 
 serial port or TCP listener. Its state controls are for design review only.
 There is no public product release or verified hardware support yet.
 
+An embedded C++17 transport core and typed Dart FFI package are under
+development in `packages/povad_core`. Native contract tests exercise a
+transparent serial ↔ TCP session with a pseudo-terminal and loopback socket
+on desktop platforms. The app is not wired to the core yet; Android USB-OTG
+hosting remains unimplemented.
+
 Android USB-OTG hosting and GitHub-based update delivery are planned. Platform
 support will be published after each implementation passes build, UI, and real
 hardware validation.

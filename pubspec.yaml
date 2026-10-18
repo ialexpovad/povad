@@ -6,6 +6,9 @@ version: 0.1.0+1
 environment:
   sdk: ^3.13.1
 
+workspace:
+  - packages/povad_core
+
 dependencies:
   flutter:
     sdk: flutter
@@ -13,6 +16,8 @@ dependencies:
     sdk: flutter
   shadcn_flutter: 0.0.55
   shared_preferences: 2.5.5
+  povad_core:
+    path: packages/povad_core
 
 dev_dependencies:
   flutter_test:

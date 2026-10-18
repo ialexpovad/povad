@@ -1,0 +1,12 @@
+name: PovadCoreBindings
+description: Generated bindings for the versioned Povad C ABI.
+output: lib/povad_core_bindings_generated.dart
+headers:
+  entry-points:
+    - include/povad_core.h
+  include-directives:
+    - include/povad_core.h
+ffi-native:
+comments:
+  style: any
+  length: full

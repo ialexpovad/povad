@@ -26,3 +26,20 @@ jobs:
       - run: cmake -S packages/povad_core -B build/native -DCMAKE_BUILD_TYPE=Debug -DPOVAD_SANITIZE=${{ matrix.sanitize }}
       - run: cmake --build build/native --config Debug --parallel
       - run: ctest --test-dir build/native --build-config Debug --output-on-failure
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: 3.47.1
+          cache: true
+      - run: flutter pub get
+      - run: dart format --output=none --set-exit-if-changed hook lib test
+        working-directory: packages/povad_core
+      - run: dart analyze --fatal-infos
+        working-directory: packages/povad_core
+      - run: dart test
+        working-directory: packages/povad_core
+      - run: dart run ffigen --config ffigen.yaml
+        if: runner.os == 'Linux'
+        working-directory: packages/povad_core
+      - run: git diff --exit-code -- packages/povad_core/lib/povad_core_bindings_generated.dart
+        if: runner.os == 'Linux'
