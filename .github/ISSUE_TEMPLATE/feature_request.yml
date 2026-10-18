@@ -1,0 +1,24 @@
+name: Feature request
+description: Propose a transport, protocol, or usability improvement.
+body:
+  - type: textarea
+    id: use_case
+    attributes:
+      label: Use case
+      description: Describe the operator task and why the current behavior is insufficient.
+    validations:
+      required: true
+  - type: textarea
+    id: behavior
+    attributes:
+      label: Required behavior
+      description: Include relevant wire contract or virtual-port behavior, if applicable.
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Acceptance evidence
+      description: List available hardware, protocol documentation, and tests.
+    validations:
+      required: false

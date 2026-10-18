@@ -1,0 +1,20 @@
+.dart_tool/
+.packages
+build/
+artifacts/
+coverage/
+.flutter-plugins
+.flutter-plugins-dependencies
+windows/flutter/ephemeral/
+windows/flutter/generated_plugin_registrant.*
+windows/flutter/generated_plugins.cmake
+macos/Flutter/ephemeral/
+macos/Flutter/GeneratedPluginRegistrant.swift
+**/.plugin_symlinks/
+*.user
+*.suo
+# pubspec.lock MUST be committed after the first real dependency resolution.
+
+# Local engineering notes; never publish these files.
+/AGENTS.md
+/docs/

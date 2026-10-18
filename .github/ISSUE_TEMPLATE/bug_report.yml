@@ -1,0 +1,48 @@
+name: Bug report
+description: Report a reproducible problem without sharing private device data.
+body:
+  - type: input
+    id: version
+    attributes:
+      label: Povad version or commit
+      placeholder: e.g. commit SHA from an unreleased build
+    validations:
+      required: true
+  - type: dropdown
+    id: platform
+    attributes:
+      label: Platform
+      options:
+        - Windows
+        - macOS
+        - Linux
+        - Android
+    validations:
+      required: true
+  - type: textarea
+    id: environment
+    attributes:
+      label: Hardware and environment
+      description: Include adapter model and OS version. Omit serial numbers and local paths.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: Describe exactly what you did, without device payloads.
+    validations:
+      required: true
+  - type: textarea
+    id: result
+    attributes:
+      label: Expected and observed result
+    validations:
+      required: true
+  - type: checkboxes
+    id: privacy
+    attributes:
+      label: Privacy check
+      options:
+        - label: I removed secrets, captured payloads, serial numbers, and absolute local paths.
+          required: true
