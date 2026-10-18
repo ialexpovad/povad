@@ -84,7 +84,7 @@ SerialPort::SerialPort() : impl_(new Impl) {}
 SerialPort::~SerialPort() { close(); }
 
 void SerialPort::open(const pv_config& config) {
-  close();
+  if (!close()) throw TransportError(PV_NATIVE_FAILURE, "Previous serial shutdown is uncertain");
   WorkerEnv worker;
   JNIEnv* env = worker.get();
   jstring name = env->NewStringUTF(config.serial_port);
@@ -175,19 +175,23 @@ size_t SerialPort::write(const uint8_t* data, size_t length) {
 
 bool SerialPort::write_pending() const { return false; }
 
-void SerialPort::close() {
-  if (impl_->session == nullptr) return;
+bool SerialPort::close() {
+  if (impl_->session == nullptr) return true;
   try {
     WorkerEnv worker;
     JNIEnv* env = worker.get();
     env->CallVoidMethod(impl_->session, impl_->close);
-    java_failed(env);
-    env->DeleteGlobalRef(impl_->session);
+    const bool closed = !java_failed(env);
+    if (closed) {
+      env->DeleteGlobalRef(impl_->session);
+      impl_->session = nullptr;
+    }
+    return closed;
   } catch (...) {
-    // Android owns the Java VM for the process lifetime. If it has gone away,
-    // process teardown will reclaim the USB connection and global reference.
+    // Retain the reference so the worker can retry. An unconfirmed shutdown
+    // never becomes a clean stop.
+    return false;
   }
-  impl_->session = nullptr;
 }
 
 } // namespace povad

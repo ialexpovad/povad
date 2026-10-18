@@ -13,7 +13,7 @@ void SerialPort::open(const pv_config&) {
 size_t SerialPort::read(uint8_t*, size_t) { return 0; }
 size_t SerialPort::write(const uint8_t*, size_t) { return 0; }
 bool SerialPort::write_pending() const { return false; }
-void SerialPort::close() {}
+bool SerialPort::close() { return true; }
 
 struct TcpServer::Impl {};
 TcpServer::TcpServer() : impl_(new Impl) {}

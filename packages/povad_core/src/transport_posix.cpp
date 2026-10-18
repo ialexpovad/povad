@@ -37,13 +37,16 @@ speed_t baud_speed(uint32_t baud) {
 
 } // namespace
 
-struct SerialPort::Impl { int fd = -1; };
+struct SerialPort::Impl {
+  int fd = -1;
+  bool close_uncertain = false;
+};
 
 SerialPort::SerialPort() : impl_(new Impl) {}
 SerialPort::~SerialPort() { close(); }
 
 void SerialPort::open(const pv_config& config) {
-  close();
+  if (!close()) throw TransportError(PV_NATIVE_FAILURE, "Previous serial shutdown is uncertain");
   impl_->fd = ::open(config.serial_port, O_RDWR | O_NOCTTY | O_NONBLOCK | O_CLOEXEC);
   if (impl_->fd < 0) throw TransportError(PV_NATIVE_FAILURE, "Cannot open serial port exclusively");
   try {
@@ -112,12 +115,16 @@ size_t SerialPort::write(const uint8_t* data, size_t length) {
 
 bool SerialPort::write_pending() const { return false; }
 
-void SerialPort::close() {
+bool SerialPort::close() {
+  if (impl_->close_uncertain) return false;
   if (impl_->fd >= 0) {
     ioctl(impl_->fd, TIOCNXCL);
-    ::close(impl_->fd);
+    const bool closed = ::close(impl_->fd) == 0;
     impl_->fd = -1;
+    impl_->close_uncertain = !closed;
+    return closed;
   }
+  return true;
 }
 
 } // namespace povad

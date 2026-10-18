@@ -51,4 +51,16 @@ if(BUILD_TESTING)
     target_link_options(povad_core_tests PRIVATE -fsanitize=address,undefined)
   endif()
   add_test(NAME povad_core_contracts COMMAND povad_core_tests)
+
+  # Exercise the worker's failed-shutdown state with a deterministic fake
+  # transport; no physical serial adapter is required for this contract.
+  add_executable(povad_shutdown_tests tests/shutdown_tests.cpp src/bridge.cpp)
+  target_compile_features(povad_shutdown_tests PRIVATE cxx_std_17)
+  target_include_directories(povad_shutdown_tests PRIVATE include src)
+  target_link_libraries(povad_shutdown_tests PRIVATE Threads::Threads)
+  if(POVAD_SANITIZE)
+    target_compile_options(povad_shutdown_tests PRIVATE -fsanitize=address,undefined -fno-omit-frame-pointer)
+    target_link_options(povad_shutdown_tests PRIVATE -fsanitize=address,undefined)
+  endif()
+  add_test(NAME povad_shutdown_contracts COMMAND povad_shutdown_tests)
 endif()

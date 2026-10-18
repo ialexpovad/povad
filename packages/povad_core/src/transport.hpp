@@ -25,7 +25,8 @@ class SerialPort final {
   size_t read(uint8_t* data, size_t capacity);
   size_t write(const uint8_t* data, size_t length);
   bool write_pending() const;
-  void close();
+  // False means the serial handle's shutdown could not be confirmed.
+  bool close();
 
  private:
   struct Impl;

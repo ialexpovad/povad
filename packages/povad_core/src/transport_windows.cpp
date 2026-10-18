@@ -50,13 +50,14 @@ struct SerialPort::Impl {
   std::vector<uint8_t> write_buffer;
   bool reading = false;
   bool writing = false;
+  bool close_uncertain = false;
 };
 
 SerialPort::SerialPort() : impl_(new Impl) {}
 SerialPort::~SerialPort() { close(); }
 
 void SerialPort::open(const pv_config& config) {
-  close();
+  if (!close()) throw TransportError(PV_NATIVE_FAILURE, "Previous serial shutdown is uncertain");
   const std::wstring path = L"\\\\.\\" + wide(config.serial_port);
   impl_->port = CreateFileW(path.c_str(), GENERIC_READ | GENERIC_WRITE, 0,
       nullptr, OPEN_EXISTING, FILE_FLAG_OVERLAPPED, nullptr);
@@ -168,7 +169,9 @@ size_t SerialPort::write(const uint8_t* data, size_t length) {
 
 bool SerialPort::write_pending() const { return impl_->writing; }
 
-void SerialPort::close() {
+bool SerialPort::close() {
+  if (impl_->close_uncertain) return false;
+  bool closed = true;
   if (impl_->port != INVALID_HANDLE_VALUE) {
     // The worker waits for cancellation before OVERLAPPED buffers and events
     // are released. A broken driver keeps the worker active.
@@ -182,16 +185,20 @@ void SerialPort::close() {
       DWORD count = 0;
       GetOverlappedResult(impl_->port, &impl_->write_overlapped, &count, TRUE);
     }
-    CloseHandle(impl_->port);
+    closed = CloseHandle(impl_->port) != 0 && closed;
     impl_->port = INVALID_HANDLE_VALUE;
   }
-  if (impl_->read_overlapped.hEvent) CloseHandle(impl_->read_overlapped.hEvent);
-  if (impl_->write_overlapped.hEvent) CloseHandle(impl_->write_overlapped.hEvent);
+  if (impl_->read_overlapped.hEvent)
+    closed = CloseHandle(impl_->read_overlapped.hEvent) != 0 && closed;
+  if (impl_->write_overlapped.hEvent)
+    closed = CloseHandle(impl_->write_overlapped.hEvent) != 0 && closed;
   impl_->read_overlapped = {};
   impl_->write_overlapped = {};
   impl_->reading = false;
   impl_->writing = false;
   impl_->write_buffer.clear();
+  impl_->close_uncertain = !closed;
+  return closed;
 }
 
 struct TcpServer::Impl {

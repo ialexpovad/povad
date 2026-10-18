@@ -42,7 +42,8 @@ enum pv_state {
 };
 
 // All fields are fixed width. Strings are UTF-8 and must be NUL terminated.
-// This v1 contract currently defines desktop serial ports and IPv4 listeners.
+// This v1 contract defines local serial selections and IPv4 listeners.
+// Android selections use the usb:<device-name>:<port-index> form.
 typedef struct pv_config {
   uint32_t size;
   uint32_t abi;
