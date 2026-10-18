@@ -18,7 +18,7 @@ void main() {
       PovadApp(session: BridgeSession(), preferences: _MemoryPreferences()),
     );
     await tester.pumpAndSettle();
-    expect(find.text('Connection overview'), findsOneWidget);
+    expect(find.text('Bridge stopped'), findsOneWidget);
     expect(find.text('Configure bridge'), findsOneWidget);
 
     const host = AndroidUsbHost();
@@ -29,7 +29,7 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('USB serial devices'), findsOneWidget);
     expect(
-      find.textContaining('Choose a USB serial device and a TCP listener.'),
+      find.textContaining('Choose a USB serial device and TCP port.'),
       findsOneWidget,
     );
     expect(
@@ -49,7 +49,7 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Паслядоўныя USB-прылады'), findsOneWidget);
     expect(
-      find.textContaining('Выберыце паслядоўную USB-прыладу і TCP-сервер.'),
+      find.textContaining('Выберыце паслядоўную USB-прыладу і порт TCP.'),
       findsOneWidget,
     );
     expect(tester.takeException(), isNull);
@@ -76,11 +76,11 @@ class _MemoryPreferences implements UiPreferences {
   Future<String?> readLanguage() async => null;
 
   @override
-  Future<PovadSkin?> readSkin() async => null;
+  Future<PovadAppearance?> readAppearance() async => null;
 
   @override
   Future<void> saveLanguage(String languageCode) async {}
 
   @override
-  Future<void> saveSkin(PovadSkin value) async {}
+  Future<void> saveAppearance(PovadAppearance value) async {}
 }

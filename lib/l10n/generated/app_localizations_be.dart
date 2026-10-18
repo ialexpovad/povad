@@ -13,9 +13,6 @@ class AppLocalizationsBe extends AppLocalizations {
   String get appName => 'Povad';
 
   @override
-  String get appCaption => 'Сувязь з прыладамі';
-
-  @override
   String get overview => 'Агляд';
 
   @override
@@ -31,17 +28,7 @@ class AppLocalizationsBe extends AppLocalizations {
   String get settings => 'Налады';
 
   @override
-  String get moduleName => 'Мост паслядоўны порт ↔ TCP';
-
-  @override
-  String get pageTitle => 'Агляд злучэння';
-
-  @override
-  String get previewNotice =>
-      'ПАПЯРЭДНІ ПРАГЛЯД · Няма злучэння з портам або TCP';
-
-  @override
-  String get connectionStatus => 'Стан злучэння';
+  String get previewNotice => 'ПРАГЛЯД · Няма сапраўднага злучэння';
 
   @override
   String get stopped => 'Спынены';
@@ -65,42 +52,38 @@ class AppLocalizationsBe extends AppLocalizations {
   String get stoppedTitle => 'Мост спынены';
 
   @override
-  String get stoppedDescription => 'Паслядоўны порт і TCP-сервер закрытыя.';
+  String get stoppedDescription => 'Паслядоўны порт і TCP закрытыя.';
 
   @override
-  String get startingTitle => 'Адкрываем злучэнне';
+  String get startingTitle => 'Запуск моста';
 
   @override
-  String get startingDescription =>
-      'Мост адкрывае паслядоўны порт і запускае TCP-сервер.';
+  String get startingDescription => 'Адкрываем порт і TCP…';
 
   @override
   String get listeningTitle => 'Чакаем кліента';
 
   @override
-  String get listeningDescription =>
-      'Паслядоўны порт і TCP-сервер адкрытыя. Кліент яшчэ не падключыўся.';
+  String get listeningDescription => 'Порт гатовы · TCP чакае кліента';
 
   @override
   String get connectedTitle => 'Кліент падключаны';
 
   @override
   String get connectedDescription =>
-      'TCP-кліент падключыўся. Гэта не пацвярджае перадачу даных.';
+      'TCP-кліент падключаны · перадача даных не пацверджана';
 
   @override
-  String get stoppingTitle => 'Закрываем злучэнне';
+  String get stoppingTitle => 'Спыненне моста';
 
   @override
-  String get stoppingDescription =>
-      'Мост чакае, пакуль працоўны модуль бяспечна закрые злучэнне.';
+  String get stoppingDescription => 'Закрываем злучэнні…';
 
   @override
   String get errorTitle => 'Злучэнне патрабуе ўвагі';
 
   @override
-  String get errorDescription =>
-      'Працоўны модуль паведаміў пра памылку. Праверце падрабязнасці перад паўторнай спробай.';
+  String get errorDescription => 'Прычына — у раздзеле «Дэталі».';
 
   @override
   String get startBridge => 'Запусціць мост';
@@ -154,41 +137,25 @@ class AppLocalizationsBe extends AppLocalizations {
   String get tcpPortNumber => 'Порт TCP';
 
   @override
-  String get bridgeSetupIntro =>
-      'Выберыце лакальны паслядоўны порт і TCP-сервер. Да сеанса далучаецца адзін кліент; яго адключэнне завяршае сеанс.';
+  String get bridgeSetupIntro => 'Выберыце паслядоўную прыладу і порт TCP.';
 
   @override
   String get androidBridgeSetupIntro =>
-      'Выберыце паслядоўную USB-прыладу і TCP-сервер. Да сеанса далучаецца адзін кліент; яго адключэнне завяршае сеанс.';
+      'Выберыце паслядоўную USB-прыладу і порт TCP.';
 
   @override
-  String get loopbackNote =>
-      'Па змаўчанні TCP-сервер даступны толькі на гэтай прыладзе (127.0.0.1).';
+  String get loopbackNote => 'Па змаўчанні толькі гэта прылада (127.0.0.1).';
 
   @override
-  String get lanAccessTitle => 'Слухаць на ўсіх сеткавых інтэрфейсах';
+  String get lanAccessTitle => 'Дазволіць кліентаў лакальнай сеткі';
 
   @override
   String get lanAccessRisk =>
-      'Іншыя прылады, якія маюць доступ да гэтага TCP-порта, могуць адпраўляць байты ў паслядоўную прыладу. Праверкі доступу няма. Уключайце гэта толькі ў даверанай сетцы.';
+      'Кліенты сеткі могуць адпраўляць байты ў паслядоўную прыладу. Праверкі доступу няма. Выкарыстоўвайце давераную сетку.';
 
   @override
   String get invalidBridgeSettings =>
       'Увядзіце паслядоўны порт, хуткасць ад 300 да 4 000 000 і порт TCP ад 1 да 65 535.';
-
-  @override
-  String get bridgeUnverified =>
-      'Праца з абсталяваннем пакуль не праверана. Перш чым спадзявацца на мост, праверце яго з тэставым адаптарам і прыладай.';
-
-  @override
-  String get interruptedTitle => 'Сеанс завершаны';
-
-  @override
-  String get interruptedDescription =>
-      'Кліент адключыўся або дастаўка даных стала няпэўнай. Праверце падрабязнасці перад новым запускам.';
-
-  @override
-  String get serialDevice => 'Паслядоўная прылада';
 
   @override
   String get serialValue => 'Не настроена';
@@ -203,17 +170,7 @@ class AppLocalizationsBe extends AppLocalizations {
   String get serialLabel => 'ПОРТ';
 
   @override
-  String get bridgeLabel => 'POVAD';
-
-  @override
-  String get clientLabel => 'TCP-КЛІЕНТ';
-
-  @override
   String get previewStates => 'Паказаць станы злучэння';
-
-  @override
-  String get stateDisclaimer =>
-      'Адкрыты порт не пацвярджае спраўнасць прылады або перадачу даных.';
 
   @override
   String get bridgeSetupTitle => 'Налады моста';
@@ -242,13 +199,13 @@ class AppLocalizationsBe extends AppLocalizations {
   String get appearance => 'Выгляд';
 
   @override
-  String get appearanceSystem => 'Паводле налад сістэмы';
+  String get systemTheme => 'Сістэмная';
 
   @override
-  String get copperTheme => 'Графіт і медзь';
+  String get lightTheme => 'Светлая';
 
   @override
-  String get classicBlueTheme => 'Класічны сіні';
+  String get darkTheme => 'Цёмная';
 
   @override
   String get about => 'Аб праграме';

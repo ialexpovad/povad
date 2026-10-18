@@ -2,6 +2,7 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:povad/app/ui_preferences.dart';
+import 'package:povad/design/povad_mark.dart';
 import 'package:povad/design/povad_theme.dart';
 import 'package:povad/domain/bridge_session.dart';
 import 'package:povad/main.dart';
@@ -16,7 +17,7 @@ void main() {
       );
       await tester.pumpAndSettle();
       expect(find.text('Configure bridge'), findsOneWidget);
-      expect(find.textContaining('INTERFACE PREVIEW'), findsNothing);
+      expect(find.textContaining('PREVIEW'), findsNothing);
 
       await tester.tap(find.text('Configure bridge'));
       await tester.pumpAndSettle();
@@ -71,32 +72,67 @@ void main() {
     );
   });
 
+  testWidgets('core points follow confirmed bridge stages', (tester) async {
+    await tester.pumpWidget(PovadApp(preferences: MemoryUiPreferences()));
+    await tester.pumpAndSettle();
+
+    PovadMark core() => tester.widget<PovadMark>(find.byType(PovadMark).last);
+    expect(core().firstPoint, const Color(0xFFA1A1AA));
+    expect(core().secondPoint, const Color(0xFFA1A1AA));
+
+    await tester.tap(find.byKey(const ValueKey('nav-2')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Listening'));
+    await tester.tap(find.byKey(const ValueKey('nav-0')));
+    await tester.pumpAndSettle();
+    expect(core().firstPoint, const Color(0xFF2563EB));
+    expect(core().secondPoint, const Color(0xFFA1A1AA));
+
+    await tester.tap(find.byKey(const ValueKey('nav-2')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Connected'));
+    await tester.tap(find.byKey(const ValueKey('nav-0')));
+    await tester.pumpAndSettle();
+    expect(core().firstPoint, const Color(0xFF2563EB));
+    expect(core().secondPoint, const Color(0xFF2563EB));
+  });
+
+  testWidgets('reduced motion settles during bridge startup', (tester) async {
+    tester.platformDispatcher.accessibilityFeaturesTestValue =
+        const FakeAccessibilityFeatures(
+          disableAnimations: true,
+          reduceMotion: true,
+        );
+    addTearDown(tester.platformDispatcher.clearAccessibilityFeaturesTestValue);
+
+    await tester.pumpWidget(PovadApp(preferences: MemoryUiPreferences()));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Start bridge'));
+    await tester.pumpAndSettle();
+    expect(find.text('Starting bridge'), findsOneWidget);
+  });
+
   testWidgets('preview action never claims a live connection', (tester) async {
     await tester.pumpWidget(PovadApp(preferences: MemoryUiPreferences()));
-    expect(
-      find.text('INTERFACE PREVIEW · No serial or TCP connection'),
-      findsOneWidget,
-    );
+    expect(find.text('PREVIEW · No live connection'), findsOneWidget);
     expect(find.text('Bridge stopped'), findsOneWidget);
 
     await tester.tap(find.text('Start bridge'));
-    await tester.pumpAndSettle();
-    expect(find.text('Opening the connection'), findsOneWidget);
+    await tester.pump(const Duration(milliseconds: 100));
+    expect(find.text('Starting bridge'), findsOneWidget);
     expect(find.text('Starting…'), findsOneWidget);
-    expect(
-      find.text('INTERFACE PREVIEW · No serial or TCP connection'),
-      findsOneWidget,
-    );
+    expect(find.text('PREVIEW · No live connection'), findsOneWidget);
 
-    final connected = find.text('Connected');
-    await tester.ensureVisible(connected);
-    await tester.tap(connected);
+    await tester.tap(find.byKey(const ValueKey('nav-2')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Connected'));
+    await tester.tap(find.byKey(const ValueKey('nav-0')));
     await tester.pumpAndSettle();
     expect(find.text('Client connected'), findsOneWidget);
 
     await tester.tap(find.text('Stop bridge'));
-    await tester.pumpAndSettle();
-    expect(find.text('Closing the connection'), findsOneWidget);
+    await tester.pump(const Duration(milliseconds: 100));
+    expect(find.text('Stopping bridge'), findsOneWidget);
   });
 
   testWidgets('English and Belarusian are available in settings', (
@@ -111,7 +147,7 @@ void main() {
     await tester.tap(find.byKey(const ValueKey('nav-0')));
     await tester.pumpAndSettle();
     expect(find.text('Мост спынены'), findsOneWidget);
-    expect(find.textContaining('ПАПЯРЭДНІ ПРАГЛЯД'), findsOneWidget);
+    expect(find.textContaining('ПРАГЛЯД'), findsOneWidget);
   });
 
   testWidgets('small screen keeps Belarusian controls usable', (tester) async {
@@ -139,28 +175,34 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('switching skins updates the shadcn theme', (tester) async {
+  testWidgets('light and dark appearance update the shadcn theme', (
+    tester,
+  ) async {
     await tester.pumpWidget(PovadApp(preferences: MemoryUiPreferences()));
     await tester.tap(find.byKey(const ValueKey('nav-3')));
     await tester.pumpAndSettle();
 
-    await tester.tap(find.text('Classic blue'));
+    await tester.tap(find.text('Light'));
     await tester.pumpAndSettle();
-    final settings = tester.element(find.text('Classic blue'));
+    final settings = tester.element(find.text('Light'));
     expect(paletteOf(settings).primary, const Color(0xFF2563EB));
     expect(
       shad.Theme.of(settings).colorScheme.primary,
       const Color(0xFF2563EB),
     );
-    expect(find.text('ovad'), findsOneWidget);
+    await tester.tap(find.text('Dark'));
+    await tester.pumpAndSettle();
+    final darkSettings = tester.element(find.text('Dark'));
+    expect(paletteOf(darkSettings).primary, const Color(0xFF60A5FA));
+    expect(find.text('Povad'), findsOneWidget);
   });
 
-  testWidgets('language and skin survive an app restart', (tester) async {
+  testWidgets('language and appearance survive an app restart', (tester) async {
     final preferences = MemoryUiPreferences();
     await tester.pumpWidget(PovadApp(preferences: preferences));
     await tester.tap(find.byKey(const ValueKey('nav-3')));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Classic blue'));
+    await tester.tap(find.text('Dark'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Беларуская'));
     await tester.pumpAndSettle();
@@ -172,26 +214,27 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Мова'), findsOneWidget);
     expect(
-      paletteOf(tester.element(find.text('Класічны сіні'))).primary,
-      const Color(0xFF2563EB),
+      paletteOf(tester.element(find.text('Цёмная'))).primary,
+      const Color(0xFF60A5FA),
     );
   });
 }
 
 class MemoryUiPreferences implements UiPreferences {
   String? language;
-  PovadSkin? skin;
+  PovadAppearance? appearance;
 
   @override
   Future<String?> readLanguage() async => language;
 
   @override
-  Future<PovadSkin?> readSkin() async => skin;
+  Future<PovadAppearance?> readAppearance() async => appearance;
 
   @override
   Future<void> saveLanguage(String languageCode) async =>
       language = languageCode;
 
   @override
-  Future<void> saveSkin(PovadSkin value) async => skin = value;
+  Future<void> saveAppearance(PovadAppearance value) async =>
+      appearance = value;
 }

@@ -104,12 +104,6 @@ abstract class AppLocalizations {
   /// **'Povad'**
   String get appName;
 
-  /// No description provided for @appCaption.
-  ///
-  /// In en, this message translates to:
-  /// **'Device connectivity'**
-  String get appCaption;
-
   /// No description provided for @overview.
   ///
   /// In en, this message translates to:
@@ -140,29 +134,11 @@ abstract class AppLocalizations {
   /// **'Settings'**
   String get settings;
 
-  /// No description provided for @moduleName.
-  ///
-  /// In en, this message translates to:
-  /// **'Serial ↔ TCP Bridge'**
-  String get moduleName;
-
-  /// No description provided for @pageTitle.
-  ///
-  /// In en, this message translates to:
-  /// **'Connection overview'**
-  String get pageTitle;
-
   /// No description provided for @previewNotice.
   ///
   /// In en, this message translates to:
-  /// **'INTERFACE PREVIEW · No serial or TCP connection'**
+  /// **'PREVIEW · No live connection'**
   String get previewNotice;
-
-  /// No description provided for @connectionStatus.
-  ///
-  /// In en, this message translates to:
-  /// **'Connection status'**
-  String get connectionStatus;
 
   /// No description provided for @stopped.
   ///
@@ -209,19 +185,19 @@ abstract class AppLocalizations {
   /// No description provided for @stoppedDescription.
   ///
   /// In en, this message translates to:
-  /// **'The serial port and TCP listener are closed.'**
+  /// **'Serial and TCP are closed.'**
   String get stoppedDescription;
 
   /// No description provided for @startingTitle.
   ///
   /// In en, this message translates to:
-  /// **'Opening the connection'**
+  /// **'Starting bridge'**
   String get startingTitle;
 
   /// No description provided for @startingDescription.
   ///
   /// In en, this message translates to:
-  /// **'The bridge is opening the serial port and starting the TCP listener.'**
+  /// **'Opening serial and TCP…'**
   String get startingDescription;
 
   /// No description provided for @listeningTitle.
@@ -233,7 +209,7 @@ abstract class AppLocalizations {
   /// No description provided for @listeningDescription.
   ///
   /// In en, this message translates to:
-  /// **'The serial port and TCP listener are open. No client is connected yet.'**
+  /// **'Serial ready · TCP listening'**
   String get listeningDescription;
 
   /// No description provided for @connectedTitle.
@@ -245,19 +221,19 @@ abstract class AppLocalizations {
   /// No description provided for @connectedDescription.
   ///
   /// In en, this message translates to:
-  /// **'A TCP client is attached. This does not confirm data transfer.'**
+  /// **'TCP client attached · data transfer unconfirmed'**
   String get connectedDescription;
 
   /// No description provided for @stoppingTitle.
   ///
   /// In en, this message translates to:
-  /// **'Closing the connection'**
+  /// **'Stopping bridge'**
   String get stoppingTitle;
 
   /// No description provided for @stoppingDescription.
   ///
   /// In en, this message translates to:
-  /// **'The bridge is waiting for its worker to release the connection safely.'**
+  /// **'Closing connections…'**
   String get stoppingDescription;
 
   /// No description provided for @errorTitle.
@@ -269,7 +245,7 @@ abstract class AppLocalizations {
   /// No description provided for @errorDescription.
   ///
   /// In en, this message translates to:
-  /// **'The worker reported a failure. Check details before trying again.'**
+  /// **'Open Details for the cause.'**
   String get errorDescription;
 
   /// No description provided for @startBridge.
@@ -371,31 +347,31 @@ abstract class AppLocalizations {
   /// No description provided for @bridgeSetupIntro.
   ///
   /// In en, this message translates to:
-  /// **'Choose a local serial port and a TCP listener. The first session accepts one client; disconnect ends the session.'**
+  /// **'Choose a serial device and TCP port.'**
   String get bridgeSetupIntro;
 
   /// No description provided for @androidBridgeSetupIntro.
   ///
   /// In en, this message translates to:
-  /// **'Choose a USB serial device and a TCP listener. The first session accepts one client; disconnect ends the session.'**
+  /// **'Choose a USB serial device and TCP port.'**
   String get androidBridgeSetupIntro;
 
   /// No description provided for @loopbackNote.
   ///
   /// In en, this message translates to:
-  /// **'By default, the listener is limited to this device (127.0.0.1).'**
+  /// **'Local only (127.0.0.1) by default.'**
   String get loopbackNote;
 
   /// No description provided for @lanAccessTitle.
   ///
   /// In en, this message translates to:
-  /// **'Listen on all network interfaces'**
+  /// **'Allow LAN clients'**
   String get lanAccessTitle;
 
   /// No description provided for @lanAccessRisk.
   ///
   /// In en, this message translates to:
-  /// **'Other devices that can reach this TCP port can send bytes to the serial device. There is no authentication. Enable this only on a trusted network.'**
+  /// **'LAN clients can send bytes to the serial device. No authentication. Use a trusted network.'**
   String get lanAccessRisk;
 
   /// No description provided for @invalidBridgeSettings.
@@ -403,30 +379,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Enter a serial port, baud rate from 300 to 4,000,000, and TCP port from 1 to 65,535.'**
   String get invalidBridgeSettings;
-
-  /// No description provided for @bridgeUnverified.
-  ///
-  /// In en, this message translates to:
-  /// **'Hardware behavior is not verified yet. Use a test adapter and device before relying on this bridge.'**
-  String get bridgeUnverified;
-
-  /// No description provided for @interruptedTitle.
-  ///
-  /// In en, this message translates to:
-  /// **'Session ended'**
-  String get interruptedTitle;
-
-  /// No description provided for @interruptedDescription.
-  ///
-  /// In en, this message translates to:
-  /// **'The client disconnected or delivery became uncertain. Review details before restarting.'**
-  String get interruptedDescription;
-
-  /// No description provided for @serialDevice.
-  ///
-  /// In en, this message translates to:
-  /// **'Serial device'**
-  String get serialDevice;
 
   /// No description provided for @serialValue.
   ///
@@ -452,29 +404,11 @@ abstract class AppLocalizations {
   /// **'SERIAL'**
   String get serialLabel;
 
-  /// No description provided for @bridgeLabel.
-  ///
-  /// In en, this message translates to:
-  /// **'POVAD'**
-  String get bridgeLabel;
-
-  /// No description provided for @clientLabel.
-  ///
-  /// In en, this message translates to:
-  /// **'TCP CLIENT'**
-  String get clientLabel;
-
   /// No description provided for @previewStates.
   ///
   /// In en, this message translates to:
   /// **'Preview connection states'**
   String get previewStates;
-
-  /// No description provided for @stateDisclaimer.
-  ///
-  /// In en, this message translates to:
-  /// **'An open port does not confirm that a device is healthy or sending data.'**
-  String get stateDisclaimer;
 
   /// No description provided for @bridgeSetupTitle.
   ///
@@ -524,23 +458,23 @@ abstract class AppLocalizations {
   /// **'Appearance'**
   String get appearance;
 
-  /// No description provided for @appearanceSystem.
+  /// No description provided for @systemTheme.
   ///
   /// In en, this message translates to:
-  /// **'Follows your system setting'**
-  String get appearanceSystem;
+  /// **'System'**
+  String get systemTheme;
 
-  /// No description provided for @copperTheme.
+  /// No description provided for @lightTheme.
   ///
   /// In en, this message translates to:
-  /// **'Graphite + copper'**
-  String get copperTheme;
+  /// **'Light'**
+  String get lightTheme;
 
-  /// No description provided for @classicBlueTheme.
+  /// No description provided for @darkTheme.
   ///
   /// In en, this message translates to:
-  /// **'Classic blue'**
-  String get classicBlueTheme;
+  /// **'Dark'**
+  String get darkTheme;
 
   /// No description provided for @about.
   ///

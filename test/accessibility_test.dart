@@ -52,11 +52,11 @@ class _MemoryPreferences implements UiPreferences {
   Future<String?> readLanguage() async => null;
 
   @override
-  Future<PovadSkin?> readSkin() async => null;
+  Future<PovadAppearance?> readAppearance() async => null;
 
   @override
   Future<void> saveLanguage(String languageCode) async {}
 
   @override
-  Future<void> saveSkin(PovadSkin value) async {}
+  Future<void> saveAppearance(PovadAppearance value) async {}
 }

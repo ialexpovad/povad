@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
 import 'package:shadcn_flutter/shadcn_flutter.dart' as shad;
 
@@ -13,15 +12,14 @@ class OverviewPage extends StatelessWidget {
     super.key,
     required this.state,
     required this.onAction,
-    required this.onPreviewState,
     this.previewMode = true,
     this.configured = true,
     this.serialValue,
     this.tcpValue,
   });
+
   final BridgeViewState state;
   final VoidCallback onAction;
-  final ValueChanged<BridgeViewState> onPreviewState;
   final bool previewMode, configured;
   final String? serialValue, tcpValue;
 
@@ -30,264 +28,89 @@ class OverviewPage extends StatelessWidget {
     final l = AppLocalizations.of(context)!;
     final colors = paletteOf(context);
     final copy = StateCopy.of(state, l);
-    final active = [
-      BridgeViewState.starting,
-      BridgeViewState.listening,
-      BridgeViewState.connected,
-      BridgeViewState.stopping,
-    ].contains(state);
-    final statusColor = state == BridgeViewState.error
-        ? colors.error
-        : active
-        ? colors.primary
-        : colors.muted;
-    final canAct =
-        (previewMode ? kDebugMode : true) &&
-        state != BridgeViewState.starting &&
-        state != BridgeViewState.stopping;
+    final busy =
+        state == BridgeViewState.starting || state == BridgeViewState.stopping;
+    final active =
+        state == BridgeViewState.listening ||
+        state == BridgeViewState.connected;
+    final actionLabel = state == BridgeViewState.stopped && !configured
+        ? l.configureBridge
+        : copy.action;
+
     return LayoutBuilder(
-      builder: (context, constraints) {
-        final narrow = constraints.maxWidth < 480;
+      builder: (context, box) {
+        final narrow = box.maxWidth < 480;
+        final padding = narrow ? 22.0 : 36.0;
         return SingleChildScrollView(
-          padding: EdgeInsets.fromLTRB(
-            narrow ? 16 : 32,
-            28,
-            narrow ? 16 : 32,
-            40,
-          ),
-          child: Center(
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 760),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Text(
-                    l.moduleName.toUpperCase(),
-                    style: TextStyle(
-                      fontSize: 12,
-                      letterSpacing: 1.6,
-                      fontWeight: FontWeight.w700,
-                      color: colors.primary,
-                    ),
-                  ),
-                  const SizedBox(height: 9),
-                  Text(
-                    l.pageTitle,
-                    style: TextStyle(
-                      fontSize: narrow ? 26 : 30,
-                      fontWeight: FontWeight.w700,
-                      letterSpacing: -0.6,
-                      color: colors.foreground,
-                    ),
-                  ),
-                  const SizedBox(height: 20),
-                  if (previewMode) ...[
-                    PreviewNotice(label: l.previewNotice),
-                    const SizedBox(height: 16),
-                  ],
-                  shad.Card(
-                    padding: EdgeInsets.zero,
-                    borderColor: colors.border,
-                    borderRadius: BorderRadius.circular(14),
-                    clipBehavior: Clip.antiAlias,
-                    child: Column(
-                      children: [
-                        Padding(
-                          padding: EdgeInsets.fromLTRB(
-                            narrow ? 18 : 28,
-                            24,
-                            narrow ? 18 : 28,
-                            0,
-                          ),
-                          child: Row(
-                            children: [
-                              Expanded(
-                                child: Text(
-                                  l.connectionStatus.toUpperCase(),
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w700,
-                                    letterSpacing: 1.2,
-                                    color: colors.muted,
-                                  ),
-                                ),
-                              ),
-                              DecoratedBox(
-                                decoration: BoxDecoration(
-                                  border: Border.all(color: statusColor),
-                                  borderRadius: BorderRadius.circular(30),
-                                ),
-                                child: Padding(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 11,
-                                    vertical: 6,
-                                  ),
-                                  child: Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      Container(
-                                        width: 9,
-                                        height: 9,
-                                        decoration: BoxDecoration(
-                                          color: statusColor,
-                                          shape: BoxShape.circle,
-                                        ),
-                                      ),
-                                      const SizedBox(width: 7),
-                                      Text(
-                                        copy.badge,
-                                        style: TextStyle(
-                                          color: statusColor,
-                                          fontSize: 12,
-                                          fontWeight: FontWeight.w700,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
+          padding: EdgeInsets.fromLTRB(padding, 28, padding, 32),
+          child: ConstrainedBox(
+            constraints: BoxConstraints(
+              minHeight: (box.maxHeight - 60).clamp(0, double.infinity),
+            ),
+            child: Center(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 530),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    if (previewMode) ...[
+                      Center(child: PreviewNotice(label: l.previewNotice)),
+                      const SizedBox(height: 18),
+                    ],
+                    ConnectionDiagram(state: state),
+                    const SizedBox(height: 18),
+                    Semantics(
+                      liveRegion: true,
+                      child: Text(
+                        copy.title,
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          color: state == BridgeViewState.error
+                              ? colors.error
+                              : colors.foreground,
+                          fontSize: narrow ? 28 : 32,
+                          height: 1.15,
+                          letterSpacing: -0.8,
+                          fontWeight: FontWeight.w600,
                         ),
-                        Padding(
-                          padding: EdgeInsets.symmetric(
-                            horizontal: narrow ? 8 : 30,
-                          ),
-                          child: ConnectionDiagram(state: state),
-                        ),
-                        Padding(
-                          padding: EdgeInsets.fromLTRB(
-                            narrow ? 18 : 32,
-                            0,
-                            narrow ? 18 : 32,
-                            26,
-                          ),
-                          child: Column(
-                            children: [
-                              Semantics(
-                                liveRegion: true,
-                                child: Text(
-                                  copy.title,
-                                  textAlign: TextAlign.center,
-                                  style: TextStyle(
-                                    fontSize: 24,
-                                    fontWeight: FontWeight.w700,
-                                    color: colors.foreground,
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(height: 9),
-                              Text(
-                                copy.description,
-                                textAlign: TextAlign.center,
-                                style: TextStyle(
-                                  color: colors.muted,
-                                  height: 1.45,
-                                ),
-                              ),
-                              const SizedBox(height: 25),
-                              SizedBox(
-                                width: 190,
-                                height: 48,
-                                child:
-                                    state == BridgeViewState.listening ||
-                                        state == BridgeViewState.connected
-                                    ? shad.OutlineButton(
-                                        onPressed: canAct ? onAction : null,
-                                        child: Center(child: Text(copy.action)),
-                                      )
-                                    : shad.PrimaryButton(
-                                        onPressed: canAct ? onAction : null,
-                                        child: Center(
-                                          child: Text(
-                                            state == BridgeViewState.stopped &&
-                                                    !configured
-                                                ? l.configureBridge
-                                                : copy.action,
-                                          ),
-                                        ),
-                                      ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        Container(height: 1, color: colors.border),
-                        if (narrow)
-                          Column(
-                            children: [
-                              Endpoint(
-                                icon: shad.LucideIcons.usb,
-                                label: l.serialDevice,
-                                value: serialValue ?? l.serialValue,
-                              ),
-                              Container(height: 1, color: colors.border),
-                              Endpoint(
-                                icon: shad.LucideIcons.globe,
-                                label: l.tcpListener,
-                                value: tcpValue ?? l.tcpValue,
-                              ),
-                            ],
-                          )
-                        else
-                          Row(
-                            children: [
-                              Expanded(
-                                child: Endpoint(
-                                  icon: shad.LucideIcons.usb,
-                                  label: l.serialDevice,
-                                  value: serialValue ?? l.serialValue,
-                                ),
-                              ),
-                              Container(
-                                height: 72,
-                                width: 1,
-                                color: colors.border,
-                              ),
-                              Expanded(
-                                child: Endpoint(
-                                  icon: shad.LucideIcons.globe,
-                                  label: l.tcpListener,
-                                  value: tcpValue ?? l.tcpValue,
-                                ),
-                              ),
-                            ],
-                          ),
-                      ],
-                    ),
-                  ),
-                  if (previewMode && kDebugMode) ...[
-                    const SizedBox(height: 24),
-                    Text(
-                      l.previewStates,
-                      style: TextStyle(
-                        fontWeight: FontWeight.w600,
-                        color: colors.muted,
                       ),
                     ),
-                    const SizedBox(height: 8),
-                    Wrap(
-                      spacing: 8,
-                      runSpacing: 8,
-                      children: [
-                        for (final candidate in BridgeViewState.values)
-                          candidate == state
-                              ? shad.PrimaryButton(
-                                  onPressed: () => onPreviewState(candidate),
-                                  child: Text(StateCopy.of(candidate, l).badge),
-                                )
-                              : shad.OutlineButton(
-                                  onPressed: () => onPreviewState(candidate),
-                                  child: Text(StateCopy.of(candidate, l).badge),
-                                ),
-                      ],
+                    const SizedBox(height: 10),
+                    Text(
+                      copy.description,
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        color: colors.muted,
+                        fontSize: 14,
+                        height: 1.45,
+                      ),
+                    ),
+                    const SizedBox(height: 28),
+                    Center(
+                      child: SizedBox(
+                        width: 224,
+                        height: 50,
+                        child: active || state == BridgeViewState.error
+                            ? shad.OutlineButton(
+                                onPressed: busy ? null : onAction,
+                                child: Center(child: Text(actionLabel)),
+                              )
+                            : shad.PrimaryButton(
+                                onPressed: busy ? null : onAction,
+                                child: Center(child: Text(actionLabel)),
+                              ),
+                      ),
+                    ),
+                    const SizedBox(height: 42),
+                    _EndpointSummary(
+                      serialLabel: l.serialLabel,
+                      serialValue: serialValue ?? l.serialValue,
+                      tcpLabel: l.tcpListener,
+                      tcpValue: tcpValue ?? l.tcpValue,
                     ),
                   ],
-                  const SizedBox(height: 18),
-                  Text(
-                    l.stateDisclaimer,
-                    style: TextStyle(fontSize: 12, color: colors.muted),
-                  ),
-                ],
+                ),
               ),
             ),
           ),
@@ -297,56 +120,107 @@ class OverviewPage extends StatelessWidget {
   }
 }
 
-class Endpoint extends StatelessWidget {
-  const Endpoint({
-    super.key,
+class _EndpointSummary extends StatelessWidget {
+  const _EndpointSummary({
+    required this.serialLabel,
+    required this.serialValue,
+    required this.tcpLabel,
+    required this.tcpValue,
+  });
+
+  final String serialLabel, serialValue, tcpLabel, tcpValue;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = paletteOf(context);
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: colors.surface,
+        border: Border.all(color: colors.border),
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 15),
+        child: Row(
+          children: [
+            Expanded(
+              child: _Endpoint(
+                icon: shad.LucideIcons.usb,
+                label: serialLabel,
+                value: serialValue,
+              ),
+            ),
+            Container(
+              width: 1,
+              height: 38,
+              margin: const EdgeInsets.symmetric(horizontal: 14),
+              color: colors.border,
+            ),
+            Expanded(
+              child: _Endpoint(
+                icon: shad.LucideIcons.globe,
+                label: tcpLabel,
+                value: tcpValue,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _Endpoint extends StatelessWidget {
+  const _Endpoint({
     required this.icon,
     required this.label,
     required this.value,
   });
+
   final IconData icon;
   final String label, value;
+
   @override
   Widget build(BuildContext context) {
     final colors = paletteOf(context);
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 23, vertical: 16),
-      child: Row(
-        children: [
-          Icon(icon, size: 26, color: colors.foreground),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  label.toUpperCase(),
-                  style: TextStyle(
-                    fontSize: 11,
-                    letterSpacing: 0.7,
-                    color: colors.muted,
-                  ),
+    return Row(
+      children: [
+        Icon(icon, size: 18, color: colors.muted),
+        const SizedBox(width: 9),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(color: colors.muted, fontSize: 11),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                value,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  color: colors.foreground,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
                 ),
-                const SizedBox(height: 3),
-                Text(
-                  value,
-                  style: const TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ],
-            ),
+              ),
+            ],
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 }
 
 class StateCopy {
   const StateCopy(this.badge, this.title, this.description, this.action);
+
   final String badge, title, description, action;
+
   factory StateCopy.of(BridgeViewState state, AppLocalizations l) =>
       switch (state) {
         BridgeViewState.stopped => StateCopy(

@@ -13,9 +13,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get appName => 'Povad';
 
   @override
-  String get appCaption => 'Device connectivity';
-
-  @override
   String get overview => 'Overview';
 
   @override
@@ -31,16 +28,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get settings => 'Settings';
 
   @override
-  String get moduleName => 'Serial ↔ TCP Bridge';
-
-  @override
-  String get pageTitle => 'Connection overview';
-
-  @override
-  String get previewNotice => 'INTERFACE PREVIEW · No serial or TCP connection';
-
-  @override
-  String get connectionStatus => 'Connection status';
+  String get previewNotice => 'PREVIEW · No live connection';
 
   @override
   String get stopped => 'Stopped';
@@ -64,43 +52,38 @@ class AppLocalizationsEn extends AppLocalizations {
   String get stoppedTitle => 'Bridge stopped';
 
   @override
-  String get stoppedDescription =>
-      'The serial port and TCP listener are closed.';
+  String get stoppedDescription => 'Serial and TCP are closed.';
 
   @override
-  String get startingTitle => 'Opening the connection';
+  String get startingTitle => 'Starting bridge';
 
   @override
-  String get startingDescription =>
-      'The bridge is opening the serial port and starting the TCP listener.';
+  String get startingDescription => 'Opening serial and TCP…';
 
   @override
   String get listeningTitle => 'Waiting for a client';
 
   @override
-  String get listeningDescription =>
-      'The serial port and TCP listener are open. No client is connected yet.';
+  String get listeningDescription => 'Serial ready · TCP listening';
 
   @override
   String get connectedTitle => 'Client connected';
 
   @override
   String get connectedDescription =>
-      'A TCP client is attached. This does not confirm data transfer.';
+      'TCP client attached · data transfer unconfirmed';
 
   @override
-  String get stoppingTitle => 'Closing the connection';
+  String get stoppingTitle => 'Stopping bridge';
 
   @override
-  String get stoppingDescription =>
-      'The bridge is waiting for its worker to release the connection safely.';
+  String get stoppingDescription => 'Closing connections…';
 
   @override
   String get errorTitle => 'Connection needs attention';
 
   @override
-  String get errorDescription =>
-      'The worker reported a failure. Check details before trying again.';
+  String get errorDescription => 'Open Details for the cause.';
 
   @override
   String get startBridge => 'Start bridge';
@@ -152,41 +135,25 @@ class AppLocalizationsEn extends AppLocalizations {
   String get tcpPortNumber => 'TCP port';
 
   @override
-  String get bridgeSetupIntro =>
-      'Choose a local serial port and a TCP listener. The first session accepts one client; disconnect ends the session.';
+  String get bridgeSetupIntro => 'Choose a serial device and TCP port.';
 
   @override
   String get androidBridgeSetupIntro =>
-      'Choose a USB serial device and a TCP listener. The first session accepts one client; disconnect ends the session.';
+      'Choose a USB serial device and TCP port.';
 
   @override
-  String get loopbackNote =>
-      'By default, the listener is limited to this device (127.0.0.1).';
+  String get loopbackNote => 'Local only (127.0.0.1) by default.';
 
   @override
-  String get lanAccessTitle => 'Listen on all network interfaces';
+  String get lanAccessTitle => 'Allow LAN clients';
 
   @override
   String get lanAccessRisk =>
-      'Other devices that can reach this TCP port can send bytes to the serial device. There is no authentication. Enable this only on a trusted network.';
+      'LAN clients can send bytes to the serial device. No authentication. Use a trusted network.';
 
   @override
   String get invalidBridgeSettings =>
       'Enter a serial port, baud rate from 300 to 4,000,000, and TCP port from 1 to 65,535.';
-
-  @override
-  String get bridgeUnverified =>
-      'Hardware behavior is not verified yet. Use a test adapter and device before relying on this bridge.';
-
-  @override
-  String get interruptedTitle => 'Session ended';
-
-  @override
-  String get interruptedDescription =>
-      'The client disconnected or delivery became uncertain. Review details before restarting.';
-
-  @override
-  String get serialDevice => 'Serial device';
 
   @override
   String get serialValue => 'Not configured';
@@ -201,17 +168,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get serialLabel => 'SERIAL';
 
   @override
-  String get bridgeLabel => 'POVAD';
-
-  @override
-  String get clientLabel => 'TCP CLIENT';
-
-  @override
   String get previewStates => 'Preview connection states';
-
-  @override
-  String get stateDisclaimer =>
-      'An open port does not confirm that a device is healthy or sending data.';
 
   @override
   String get bridgeSetupTitle => 'Bridge setup';
@@ -240,13 +197,13 @@ class AppLocalizationsEn extends AppLocalizations {
   String get appearance => 'Appearance';
 
   @override
-  String get appearanceSystem => 'Follows your system setting';
+  String get systemTheme => 'System';
 
   @override
-  String get copperTheme => 'Graphite + copper';
+  String get lightTheme => 'Light';
 
   @override
-  String get classicBlueTheme => 'Classic blue';
+  String get darkTheme => 'Dark';
 
   @override
   String get about => 'About';

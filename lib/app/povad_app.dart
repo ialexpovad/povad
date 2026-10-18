@@ -31,7 +31,7 @@ class PovadApp extends StatefulWidget {
 
 class _PovadAppState extends State<PovadApp> {
   Locale locale = const Locale('en');
-  PovadSkin skin = PovadSkin.copper;
+  PovadAppearance appearance = PovadAppearance.system;
   BridgeViewState state = BridgeViewState.stopped;
   int page = 0;
   late final UiPreferences preferences;
@@ -155,13 +155,13 @@ class _PovadAppState extends State<PovadApp> {
   Future<void> loadPreferences() async {
     try {
       final savedLanguage = await preferences.readLanguage();
-      final savedSkin = await preferences.readSkin();
+      final savedAppearance = await preferences.readAppearance();
       if (!mounted || settingsChanged) return;
       setState(() {
         if (savedLanguage == 'en' || savedLanguage == 'be') {
           locale = Locale(savedLanguage!);
         }
-        if (savedSkin != null) skin = savedSkin;
+        if (savedAppearance != null) appearance = savedAppearance;
       });
     } catch (error) {
       debugPrint('Unable to load UI preferences: $error');
@@ -174,10 +174,10 @@ class _PovadAppState extends State<PovadApp> {
     unawaited(saveLanguage(value.languageCode));
   }
 
-  void changeSkin(PovadSkin value) {
+  void changeAppearance(PovadAppearance value) {
     settingsChanged = true;
-    setState(() => skin = value);
-    unawaited(saveSkin(value));
+    setState(() => appearance = value);
+    unawaited(saveAppearance(value));
   }
 
   Future<void> saveLanguage(String languageCode) async {
@@ -188,9 +188,9 @@ class _PovadAppState extends State<PovadApp> {
     }
   }
 
-  Future<void> saveSkin(PovadSkin value) async {
+  Future<void> saveAppearance(PovadAppearance value) async {
     try {
-      await preferences.saveSkin(value);
+      await preferences.saveAppearance(value);
     } catch (error) {
       debugPrint('Unable to save UI theme: $error');
     }
@@ -246,197 +246,191 @@ class _PovadAppState extends State<PovadApp> {
       AppLocalizations.delegate,
       PovadShadcnDelegate(),
     ],
-    theme: PovadPalette(skin, false).toShadcn(),
-    darkTheme: PovadPalette(skin, true).toShadcn(),
-    home: PovadSkinScope(
-      skin: skin,
-      child: Builder(
-        builder: (context) {
-          final l = AppLocalizations.of(context)!;
-          final p = paletteOf(context);
-          final labels = [l.overview, l.bridge, l.diagnostics, l.settings];
-          const icons = [
-            shad.LucideIcons.layoutDashboard,
-            shad.LucideIcons.cable,
-            shad.LucideIcons.activity,
-            shad.LucideIcons.settings,
-          ];
-          final content = switch (page) {
-            0 => OverviewPage(
-              state: state,
-              onAction: act,
-              onPreviewState: (value) => setState(() => state = value),
-              previewMode: widget.session == null,
-              configured: widget.session == null || configurationReady,
-              serialValue: serialPort.isEmpty
-                  ? l.serialValue
-                  : selectedUsbLabel ?? serialPort,
-              tcpValue: serialPort.isEmpty
-                  ? l.tcpValue
-                  : '${allowLan ? '0.0.0.0' : '127.0.0.1'}:$tcpPort',
-            ),
-            1 =>
-              widget.session == null
-                  ? EmptyPage(
-                      icon: shad.LucideIcons.cable,
-                      title: l.bridgeSetupTitle,
-                      body: l.bridgeSetupBody,
-                    )
-                  : BridgeSetupPage(
-                      serialPort: serialPort,
-                      baud: baud,
-                      tcpPort: tcpPort,
-                      onSerialPortChanged: (value) => setState(() {
-                        serialPort = value;
-                        invalidBridgeSettings = false;
-                      }),
-                      onBaudChanged: (value) => setState(() {
-                        baud = value;
-                        invalidBridgeSettings = false;
-                      }),
-                      onTcpPortChanged: (value) => setState(() {
-                        tcpPort = value;
-                        invalidBridgeSettings = false;
-                      }),
-                      allowLan: allowLan,
-                      onAllowLanChanged: (value) =>
-                          setState(() => allowLan = value),
-                      error: invalidBridgeSettings
-                          ? l.invalidBridgeSettings
-                          : null,
-                      running: running,
-                      usbMode: androidHost,
-                      usbPorts: usbPorts,
-                      usbLoading: usbLoading,
-                      usbMessage: switch (usbError) {
-                        'unavailable' => l.usbUnavailable,
-                        'denied' => l.usbPermissionDenied,
-                        'scanFailed' => l.usbScanFailed,
-                        _ => null,
-                      },
-                      onRefreshUsb: () => unawaited(refreshUsbPorts()),
-                      onUsbPortSelected: (port) =>
-                          unawaited(selectUsbPort(port)),
-                    ),
-            2 => EmptyPage(
-              icon: shad.LucideIcons.activity,
-              title: state == BridgeViewState.error
-                  ? l.errorTitle
-                  : l.diagnosticsTitle,
-              body: state == BridgeViewState.error
-                  ? l.errorDescription
-                  : l.diagnosticsBody,
-              previewMode: widget.session == null,
-              detail: widget.session?.errorMessage,
-            ),
-            _ => SettingsPage(
-              locale: locale,
-              onLocaleChanged: changeLocale,
-              skin: skin,
-              onSkinChanged: changeSkin,
-            ),
-          };
-          return ColoredBox(
-            color: p.background,
-            child: SafeArea(
-              child: LayoutBuilder(
-                builder: (context, box) {
-                  if (box.maxWidth < 760) {
-                    return Column(
-                      children: [
-                        Container(
-                          decoration: BoxDecoration(
-                            color: p.surface,
-                            border: Border(bottom: BorderSide(color: p.border)),
-                          ),
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 18,
-                            vertical: 12,
-                          ),
-                          child: Row(
-                            children: [const PovadBrandLockup(compact: true)],
-                          ),
-                        ),
-                        Expanded(child: content),
-                        Container(
-                          decoration: BoxDecoration(
-                            color: p.surface,
-                            border: Border(top: BorderSide(color: p.border)),
-                          ),
-                          padding: const EdgeInsets.fromLTRB(6, 5, 6, 8),
-                          child: Row(
-                            children: [
-                              for (var i = 0; i < 4; i++)
-                                Expanded(
-                                  child: _NavItem(
-                                    key: ValueKey('nav-$i'),
-                                    index: i,
-                                    selected: page == i,
-                                    compact: true,
-                                    icon: icons[i],
-                                    label: labels[i],
-                                    compactLabel: i == 2
-                                        ? l.diagnosticsNav
-                                        : null,
-                                    onTap: () => setState(() => page = i),
-                                  ),
-                                ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    );
-                  }
-                  return Row(
+    theme: const PovadPalette(false).toShadcn(),
+    darkTheme: const PovadPalette(true).toShadcn(),
+    themeMode: switch (appearance) {
+      PovadAppearance.system => shad.ThemeMode.system,
+      PovadAppearance.light => shad.ThemeMode.light,
+      PovadAppearance.dark => shad.ThemeMode.dark,
+    },
+    home: Builder(
+      builder: (context) {
+        final l = AppLocalizations.of(context)!;
+        final p = paletteOf(context);
+        final labels = [l.overview, l.bridge, l.diagnostics, l.settings];
+        const icons = [
+          shad.LucideIcons.layoutDashboard,
+          shad.LucideIcons.cable,
+          shad.LucideIcons.activity,
+          shad.LucideIcons.settings,
+        ];
+        final content = switch (page) {
+          0 => OverviewPage(
+            state: state,
+            onAction: act,
+            previewMode: widget.session == null,
+            configured: widget.session == null || configurationReady,
+            serialValue: serialPort.isEmpty
+                ? l.serialValue
+                : selectedUsbLabel ?? serialPort,
+            tcpValue: serialPort.isEmpty
+                ? l.tcpValue
+                : '${allowLan ? '0.0.0.0' : '127.0.0.1'}:$tcpPort',
+          ),
+          1 =>
+            widget.session == null
+                ? EmptyPage(
+                    icon: shad.LucideIcons.cable,
+                    title: l.bridgeSetupTitle,
+                    body: l.bridgeSetupBody,
+                  )
+                : BridgeSetupPage(
+                    serialPort: serialPort,
+                    baud: baud,
+                    tcpPort: tcpPort,
+                    onSerialPortChanged: (value) => setState(() {
+                      serialPort = value;
+                      invalidBridgeSettings = false;
+                    }),
+                    onBaudChanged: (value) => setState(() {
+                      baud = value;
+                      invalidBridgeSettings = false;
+                    }),
+                    onTcpPortChanged: (value) => setState(() {
+                      tcpPort = value;
+                      invalidBridgeSettings = false;
+                    }),
+                    allowLan: allowLan,
+                    onAllowLanChanged: (value) =>
+                        setState(() => allowLan = value),
+                    error: invalidBridgeSettings
+                        ? l.invalidBridgeSettings
+                        : null,
+                    running: running,
+                    usbMode: androidHost,
+                    usbPorts: usbPorts,
+                    usbLoading: usbLoading,
+                    usbMessage: switch (usbError) {
+                      'unavailable' => l.usbUnavailable,
+                      'denied' => l.usbPermissionDenied,
+                      'scanFailed' => l.usbScanFailed,
+                      _ => null,
+                    },
+                    onRefreshUsb: () => unawaited(refreshUsbPorts()),
+                    onUsbPortSelected: (port) => unawaited(selectUsbPort(port)),
+                  ),
+          2 => EmptyPage(
+            icon: shad.LucideIcons.activity,
+            title: state == BridgeViewState.error
+                ? l.errorTitle
+                : l.diagnosticsTitle,
+            body: state == BridgeViewState.error
+                ? l.errorDescription
+                : l.diagnosticsBody,
+            previewMode: widget.session == null,
+            detail: widget.session?.errorMessage,
+            previewState: widget.session == null ? state : null,
+            onPreviewState: widget.session == null
+                ? (value) => setState(() => state = value)
+                : null,
+          ),
+          _ => SettingsPage(
+            locale: locale,
+            onLocaleChanged: changeLocale,
+            appearance: appearance,
+            onAppearanceChanged: changeAppearance,
+          ),
+        };
+        return ColoredBox(
+          color: p.background,
+          child: SafeArea(
+            child: LayoutBuilder(
+              builder: (context, box) {
+                if (box.maxWidth < 760) {
+                  return Column(
                     children: [
                       Container(
-                        width: 220,
+                        decoration: BoxDecoration(
+                          color: p.background,
+                          border: Border(bottom: BorderSide(color: p.border)),
+                        ),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 18,
+                          vertical: 12,
+                        ),
+                        child: Row(
+                          children: [const PovadBrandLockup(compact: true)],
+                        ),
+                      ),
+                      Expanded(child: content),
+                      Container(
                         decoration: BoxDecoration(
                           color: p.surface,
-                          border: Border(right: BorderSide(color: p.border)),
+                          border: Border(top: BorderSide(color: p.border)),
                         ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                        padding: const EdgeInsets.fromLTRB(6, 5, 6, 8),
+                        child: Row(
                           children: [
-                            Padding(
-                              padding: const EdgeInsets.fromLTRB(
-                                20,
-                                30,
-                                14,
-                                36,
-                              ),
-                              child: PovadBrandLockup(caption: l.appCaption),
-                            ),
                             for (var i = 0; i < 4; i++)
-                              Padding(
-                                padding: const EdgeInsets.fromLTRB(
-                                  12,
-                                  0,
-                                  12,
-                                  5,
-                                ),
+                              Expanded(
                                 child: _NavItem(
                                   key: ValueKey('nav-$i'),
                                   index: i,
                                   selected: page == i,
-                                  compact: false,
+                                  compact: true,
                                   icon: icons[i],
                                   label: labels[i],
+                                  compactLabel: i == 2
+                                      ? l.diagnosticsNav
+                                      : null,
                                   onTap: () => setState(() => page = i),
                                 ),
                               ),
                           ],
                         ),
                       ),
-                      Expanded(child: content),
                     ],
                   );
-                },
-              ),
+                }
+                return Row(
+                  children: [
+                    Container(
+                      width: 192,
+                      decoration: BoxDecoration(
+                        color: p.surface,
+                        border: Border(right: BorderSide(color: p.border)),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          Padding(
+                            padding: const EdgeInsets.fromLTRB(18, 22, 14, 28),
+                            child: const PovadBrandLockup(),
+                          ),
+                          for (var i = 0; i < 4; i++)
+                            Padding(
+                              padding: const EdgeInsets.fromLTRB(12, 0, 12, 5),
+                              child: _NavItem(
+                                key: ValueKey('nav-$i'),
+                                index: i,
+                                selected: page == i,
+                                compact: false,
+                                icon: icons[i],
+                                label: labels[i],
+                                onTap: () => setState(() => page = i),
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
+                    Expanded(child: content),
+                  ],
+                );
+              },
             ),
-          );
-        },
-      ),
+          ),
+        );
+      },
     ),
   );
 }

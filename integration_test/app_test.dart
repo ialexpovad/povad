@@ -17,7 +17,7 @@ void main() {
         PovadApp(session: BridgeSession(), preferences: _MemoryPreferences()),
       );
       await tester.pumpAndSettle();
-      expect(find.text('Connection overview'), findsOneWidget);
+      expect(find.text('Bridge stopped'), findsOneWidget);
       expect(find.text('Configure bridge'), findsOneWidget);
       expect(find.textContaining('INTERFACE PREVIEW'), findsNothing);
 
@@ -40,12 +40,11 @@ void main() {
       await tester.pumpAndSettle();
       await tester.tap(find.text('Беларуская'));
       await tester.pumpAndSettle();
-      await tester.tap(find.text('Класічны сіні'));
+      await tester.tap(find.text('Цёмная'));
       await tester.pumpAndSettle();
       await tester.tap(find.byKey(const ValueKey('nav-0')));
       await tester.pumpAndSettle();
 
-      expect(find.text('Агляд злучэння'), findsOneWidget);
       expect(find.text('Злучэнне патрабуе ўвагі'), findsOneWidget);
       expect(tester.takeException(), isNull);
     },
@@ -57,11 +56,11 @@ class _MemoryPreferences implements UiPreferences {
   Future<String?> readLanguage() async => null;
 
   @override
-  Future<PovadSkin?> readSkin() async => null;
+  Future<PovadAppearance?> readAppearance() async => null;
 
   @override
   Future<void> saveLanguage(String languageCode) async {}
 
   @override
-  Future<void> saveSkin(PovadSkin value) async {}
+  Future<void> saveAppearance(PovadAppearance value) async {}
 }

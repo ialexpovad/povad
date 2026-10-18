@@ -4,7 +4,9 @@ import 'package:shadcn_flutter/shadcn_flutter.dart' as shad;
 import '../design/povad_theme.dart';
 import '../design/preview_notice.dart';
 import '../domain/android_usb_host.dart';
+import '../domain/bridge_view_state.dart';
 import '../l10n/generated/app_localizations.dart';
+import 'overview_page.dart';
 
 class EmptyPage extends StatelessWidget {
   const EmptyPage({
@@ -14,11 +16,15 @@ class EmptyPage extends StatelessWidget {
     required this.body,
     this.previewMode = true,
     this.detail,
+    this.previewState,
+    this.onPreviewState,
   });
   final IconData icon;
   final String title, body;
   final bool previewMode;
   final String? detail;
+  final BridgeViewState? previewState;
+  final ValueChanged<BridgeViewState>? onPreviewState;
   @override
   Widget build(BuildContext context) {
     final l = AppLocalizations.of(context)!;
@@ -57,6 +63,28 @@ class EmptyPage extends StatelessWidget {
               ],
               const SizedBox(height: 30),
               if (previewMode) PreviewNotice(label: l.previewNotice),
+              if (previewState != null && onPreviewState != null) ...[
+                const SizedBox(height: 24),
+                Text(l.previewStates, style: TextStyle(color: colors.muted)),
+                const SizedBox(height: 10),
+                Wrap(
+                  alignment: WrapAlignment.center,
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    for (final candidate in BridgeViewState.values)
+                      candidate == previewState
+                          ? shad.PrimaryButton(
+                              onPressed: () => onPreviewState!(candidate),
+                              child: Text(StateCopy.of(candidate, l).badge),
+                            )
+                          : shad.OutlineButton(
+                              onPressed: () => onPreviewState!(candidate),
+                              child: Text(StateCopy.of(candidate, l).badge),
+                            ),
+                  ],
+                ),
+              ],
             ],
           ),
         ),
@@ -224,15 +252,14 @@ class BridgeSetupPage extends StatelessWidget {
                 ],
               ),
               const SizedBox(height: 8),
-              Text(l.lanAccessRisk, style: TextStyle(color: colors.muted)),
+              Text(
+                allowLan ? l.lanAccessRisk : l.loopbackNote,
+                style: TextStyle(color: colors.muted, fontSize: 13),
+              ),
               if (error != null) ...[
                 const SizedBox(height: 18),
                 Text(error!, style: TextStyle(color: colors.error)),
               ],
-              const SizedBox(height: 24),
-              Text(l.loopbackNote, style: TextStyle(color: colors.muted)),
-              const SizedBox(height: 12),
-              Text(l.bridgeUnverified, style: TextStyle(color: colors.muted)),
             ],
           ),
         ),
@@ -288,13 +315,13 @@ class SettingsPage extends StatelessWidget {
     super.key,
     required this.locale,
     required this.onLocaleChanged,
-    required this.skin,
-    required this.onSkinChanged,
+    required this.appearance,
+    required this.onAppearanceChanged,
   });
   final Locale locale;
   final ValueChanged<Locale> onLocaleChanged;
-  final PovadSkin skin;
-  final ValueChanged<PovadSkin> onSkinChanged;
+  final PovadAppearance appearance;
+  final ValueChanged<PovadAppearance> onAppearanceChanged;
   @override
   Widget build(BuildContext context) {
     final l = AppLocalizations.of(context)!;
@@ -353,24 +380,23 @@ class SettingsPage extends StatelessWidget {
                   color: colors.foreground,
                 ),
               ),
-              const SizedBox(height: 7),
-              Text(l.appearanceSystem, style: TextStyle(color: colors.muted)),
-              const SizedBox(height: 16),
+              const SizedBox(height: 12),
               Wrap(
                 spacing: 8,
                 runSpacing: 8,
                 children: [
                   for (final (option, label) in [
-                    (PovadSkin.copper, l.copperTheme),
-                    (PovadSkin.classicBlue, l.classicBlueTheme),
+                    (PovadAppearance.system, l.systemTheme),
+                    (PovadAppearance.light, l.lightTheme),
+                    (PovadAppearance.dark, l.darkTheme),
                   ])
-                    option == skin
+                    option == appearance
                         ? shad.PrimaryButton(
-                            onPressed: () => onSkinChanged(option),
+                            onPressed: () => onAppearanceChanged(option),
                             child: Text(label),
                           )
                         : shad.OutlineButton(
-                            onPressed: () => onSkinChanged(option),
+                            onPressed: () => onAppearanceChanged(option),
                             child: Text(label),
                           ),
                 ],

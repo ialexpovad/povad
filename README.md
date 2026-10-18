@@ -13,7 +13,7 @@ in both directions without changing the byte stream.
 The platform is designed to grow with other transports, protocols, and virtual
 ports as each capability is specified and tested.
 
-![Povad interface preview](assets/preview/overview.png)
+![Povad desktop interface](assets/preview/overview.png)
 
 ## Current status
 

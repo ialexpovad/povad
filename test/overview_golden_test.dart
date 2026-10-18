@@ -4,6 +4,7 @@ import 'package:alchemist/alchemist.dart';
 import 'package:flutter/widgets.dart';
 import 'package:povad/app/ui_preferences.dart';
 import 'package:povad/design/povad_theme.dart';
+import 'package:povad/domain/bridge_session.dart';
 import 'package:povad/main.dart';
 
 void main() {
@@ -23,19 +24,29 @@ void main() {
 
 void _registerGoldens() {
   goldenTest(
-    'desktop overview in graphite and copper',
-    fileName: 'overview_desktop_copper',
+    'desktop overview in light mode',
+    fileName: 'overview_desktop_light',
     constraints: const BoxConstraints.tightFor(width: 800, height: 600),
     builder: () =>
-        PovadApp(preferences: _GoldenPreferences('en', PovadSkin.copper)),
+        PovadApp(preferences: _GoldenPreferences('en', PovadAppearance.light)),
   );
 
   goldenTest(
-    'desktop overview in classic blue',
-    fileName: 'overview_desktop_blue',
+    'desktop live overview',
+    fileName: 'overview_desktop_live',
+    constraints: const BoxConstraints.tightFor(width: 800, height: 600),
+    builder: () => PovadApp(
+      session: BridgeSession(),
+      preferences: _GoldenPreferences('en', PovadAppearance.light),
+    ),
+  );
+
+  goldenTest(
+    'desktop overview in dark mode',
+    fileName: 'overview_desktop_dark',
     constraints: const BoxConstraints.tightFor(width: 800, height: 600),
     builder: () =>
-        PovadApp(preferences: _GoldenPreferences('en', PovadSkin.classicBlue)),
+        PovadApp(preferences: _GoldenPreferences('en', PovadAppearance.dark)),
   );
 
   goldenTest(
@@ -43,25 +54,25 @@ void _registerGoldens() {
     fileName: 'overview_mobile_be',
     constraints: const BoxConstraints.tightFor(width: 360, height: 700),
     builder: () =>
-        PovadApp(preferences: _GoldenPreferences('be', PovadSkin.copper)),
+        PovadApp(preferences: _GoldenPreferences('be', PovadAppearance.light)),
   );
 }
 
 class _GoldenPreferences implements UiPreferences {
-  _GoldenPreferences(this.language, this.skin);
+  _GoldenPreferences(this.language, this.appearance);
 
   final String language;
-  final PovadSkin skin;
+  final PovadAppearance appearance;
 
   @override
   Future<String?> readLanguage() async => language;
 
   @override
-  Future<PovadSkin?> readSkin() async => skin;
+  Future<PovadAppearance?> readAppearance() async => appearance;
 
   @override
   Future<void> saveLanguage(String languageCode) async {}
 
   @override
-  Future<void> saveSkin(PovadSkin value) async {}
+  Future<void> saveAppearance(PovadAppearance value) async {}
 }
