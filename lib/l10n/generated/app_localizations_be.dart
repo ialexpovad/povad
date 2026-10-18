@@ -184,7 +184,7 @@ class AppLocalizationsBe extends AppLocalizations {
 
   @override
   String get diagnosticsBody =>
-      'Звесткі аб злучэнні і памылках з’явяцца тут, калі іх паведаміць працоўны модуль.';
+      'Звесткі аб злучэнні з’явяцца пасля запуску моста.';
 
   @override
   String get language => 'Мова';

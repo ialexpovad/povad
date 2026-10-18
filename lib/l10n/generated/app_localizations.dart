@@ -431,7 +431,7 @@ abstract class AppLocalizations {
   /// No description provided for @diagnosticsBody.
   ///
   /// In en, this message translates to:
-  /// **'Connection details and failures will appear here when reported by the transport worker.'**
+  /// **'Connection details appear when the bridge runs.'**
   String get diagnosticsBody;
 
   /// No description provided for @language.

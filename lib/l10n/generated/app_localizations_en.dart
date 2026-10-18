@@ -182,7 +182,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get diagnosticsBody =>
-      'Connection details and failures will appear here when reported by the transport worker.';
+      'Connection details appear when the bridge runs.';
 
   @override
   String get language => 'Language';

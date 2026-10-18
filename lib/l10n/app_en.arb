@@ -55,7 +55,7 @@
   "bridgeSetupTitle": "Bridge setup",
   "bridgeSetupBody": "Serial and TCP configuration will appear here when the transport worker is integrated. This preview does not open a port.",
   "diagnosticsTitle": "No active session",
-  "diagnosticsBody": "Connection details and failures will appear here when reported by the transport worker.",
+  "diagnosticsBody": "Connection details appear when the bridge runs.",
   "language": "Language",
   "english": "English",
   "belarusian": "Беларуская",
