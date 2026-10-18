@@ -87,6 +87,13 @@ jobs:
       - run: flutter build apk --debug
       - run: unzip -Z1 build/app/outputs/flutter-apk/app-debug.apk | grep -Fx 'lib/arm64-v8a/libpovad_core.so'
       - run: unzip -Z1 build/app/outputs/flutter-apk/app-debug.apk | grep -Fx 'lib/x86_64/libpovad_core.so'
+      - uses: actions/upload-artifact@v7
+        if: github.event_name == 'pull_request'
+        with:
+          name: android-pr-debug-apk
+          path: build/app/outputs/flutter-apk/app-debug.apk
+          if-no-files-found: error
+          retention-days: 7
 
   android-emulator:
     runs-on: ubuntu-24.04
@@ -116,3 +123,10 @@ jobs:
           emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim
           disable-animations: true
           script: flutter test integration_test/android_native_test.dart -d emulator-5554
+      - uses: actions/upload-artifact@v7
+        if: github.event_name == 'pull_request'
+        with:
+          name: android-pr-integration-apk
+          path: build/app/outputs/flutter-apk/app-debug.apk
+          if-no-files-found: error
+          retention-days: 7

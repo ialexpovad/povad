@@ -26,14 +26,15 @@ The UI is available in English and Belarusian.
 Native contract tests exercise bidirectional binary transfer with a
 pseudo-terminal and loopback socket on desktop platforms. This is developer
 functionality: physical serial adapters, instrument behavior, and the full
-shutdown matrix still need hardware validation. An Android USB Host adapter
-is being integrated; its Kotlin and arm64 native layers compile, but no
-physical Android device or USB-serial adapter has been tested. There is no
-public product release yet.
+shutdown matrix still need hardware validation. Android includes USB Host
+device selection and permission handling backed by the same native worker.
+CI builds Android APKs with arm64 and x86_64 libraries and checks the app,
+USB channel, and JNI worker on an emulator. Physical USB-serial permission,
+detach, and byte-transfer behavior has not been validated. There is no public
+product release yet.
 
-Android USB-OTG hosting and GitHub-based update delivery are planned. Platform
-support will be published after each implementation passes build, UI, and real
-hardware validation.
+GitHub-based update delivery is planned. Platform support will be published
+after each implementation passes build, UI, and real hardware validation.
 
 ## Run a developer build
 
