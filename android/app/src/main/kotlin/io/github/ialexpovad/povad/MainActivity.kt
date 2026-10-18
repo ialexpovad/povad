@@ -5,6 +5,7 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
+import android.content.pm.PackageManager
 import android.hardware.usb.UsbDevice
 import android.hardware.usb.UsbManager
 import android.os.Build
@@ -61,7 +62,10 @@ class MainActivity : FlutterActivity() {
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "povad/usb_host")
             .setMethodCallHandler { call, result ->
                 when (call.method) {
-                    "available" -> result.success(nativeLibraryAvailable)
+                    "available" -> result.success(
+                        nativeLibraryAvailable &&
+                            packageManager.hasSystemFeature(PackageManager.FEATURE_USB_HOST)
+                    )
                     "list" -> result.success(PovadUsbHost.deviceList())
                     "permission" -> {
                         val name = call.argument<String>("deviceName")
