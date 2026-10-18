@@ -1,7 +1,11 @@
 #include "povad_core.h"
+#include "bridge.hpp"
 
 #include <cstdio>
 #include <cstring>
+#include <new>
+
+struct pv_handle { povad::Bridge core; };
 
 namespace {
 
@@ -41,6 +45,7 @@ extern "C" {
 uint32_t pv_abi_version(void) { return PV_ABI_VERSION; }
 uint32_t pv_config_size(void) { return sizeof(pv_config); }
 uint32_t pv_error_size(void) { return sizeof(pv_error); }
+uint32_t pv_snapshot_size(void) { return sizeof(pv_snapshot); }
 
 int32_t pv_config_validate(const pv_config* config, pv_error* error) {
   if (error != nullptr && error->size != sizeof(pv_error)) return PV_ABI_MISMATCH;
@@ -81,6 +86,59 @@ int32_t pv_config_validate(const pv_config* config, pv_error* error) {
     error->message[0] = '\0';
   }
   return PV_OK;
+}
+
+pv_handle* pv_create(void) {
+  try {
+    return new pv_handle();
+  } catch (...) {
+    return nullptr;
+  }
+}
+
+int32_t pv_start(pv_handle* handle, const pv_config* config, pv_error* error) {
+  if (handle == nullptr) return fail(error, PV_INVALID_HANDLE, "Null bridge handle");
+  const int32_t validated = pv_config_validate(config, error);
+  if (validated != PV_OK) return validated;
+  try {
+    const int32_t result = handle->core.start(*config);
+    if (result != PV_OK) return fail(error, result, "Bridge is already running or could not start");
+    return PV_OK;
+  } catch (...) {
+    return fail(error, PV_NATIVE_FAILURE, "Cannot start bridge worker");
+  }
+}
+
+int32_t pv_request_stop(pv_handle* handle) {
+  if (handle == nullptr) return PV_INVALID_HANDLE;
+  try {
+    handle->core.request_stop();
+    return PV_OK;
+  } catch (...) {
+    return PV_NATIVE_FAILURE;
+  }
+}
+
+int32_t pv_read_snapshot(pv_handle* handle, pv_snapshot* snapshot) {
+  if (handle == nullptr) return PV_INVALID_HANDLE;
+  if (snapshot == nullptr || snapshot->size != sizeof(pv_snapshot)) return PV_ABI_MISMATCH;
+  try {
+    handle->core.snapshot(snapshot);
+    return PV_OK;
+  } catch (...) {
+    return PV_NATIVE_FAILURE;
+  }
+}
+
+int32_t pv_destroy(pv_handle* handle) {
+  if (handle == nullptr) return PV_OK;
+  try {
+    if (!handle->core.finished()) return PV_BUSY;
+    delete handle;
+    return PV_OK;
+  } catch (...) {
+    return PV_NATIVE_FAILURE;
+  }
 }
 
 } // extern "C"
