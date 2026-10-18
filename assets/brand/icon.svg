@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-labelledby="title desc">
+  <title id="title">Povad</title>
+  <desc id="desc">An open cable forms the letter P and ends in two copper connection points.</desc>
+  <rect width="64" height="64" rx="13" fill="#171b21"/>
+  <path d="M17 52V25c0-9 7-14 16-14h3c8 0 13 6 13 13s-5 13-13 13H26"
+        fill="none" stroke="#f3f4f6" stroke-width="4.5"
+        stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="17" cy="52" r="4" fill="#ff8c6b"/>
+  <circle cx="26" cy="37" r="4" fill="#ff8c6b"/>
+</svg>

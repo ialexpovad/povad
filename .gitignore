@@ -18,3 +18,20 @@ macos/Flutter/GeneratedPluginRegistrant.swift
 # Local engineering notes; never publish these files.
 /AGENTS.md
 /docs/
+
+# Generated platform and editor files.
+*.log
+.DS_Store
+.idea/
+*.iml
+.swiftpm/
+.pub-cache/
+.pub/
+/android/local.properties
+/android/.gradle/
+/android/app/debug/
+/android/app/profile/
+/android/app/release/
+/linux/flutter/ephemeral/
+/widget_preview/
+.widget_preview/

@@ -1,0 +1,190 @@
+// ignore: unused_import
+import 'package:intl/intl.dart' as intl;
+
+import 'app_localizations.dart';
+
+// ignore_for_file: type=lint
+
+/// The translations for English (`en`).
+class AppLocalizationsEn extends AppLocalizations {
+  AppLocalizationsEn([String locale = 'en']) : super(locale);
+
+  @override
+  String get appName => 'Povad';
+
+  @override
+  String get appCaption => 'Device connectivity';
+
+  @override
+  String get overview => 'Overview';
+
+  @override
+  String get bridge => 'Bridge';
+
+  @override
+  String get diagnostics => 'Diagnostics';
+
+  @override
+  String get settings => 'Settings';
+
+  @override
+  String get moduleName => 'Serial ↔ TCP Bridge';
+
+  @override
+  String get pageTitle => 'Connection overview';
+
+  @override
+  String get previewNotice => 'INTERFACE PREVIEW · No serial or TCP connection';
+
+  @override
+  String get connectionStatus => 'Connection status';
+
+  @override
+  String get stopped => 'Stopped';
+
+  @override
+  String get starting => 'Starting';
+
+  @override
+  String get listening => 'Listening';
+
+  @override
+  String get connected => 'Connected';
+
+  @override
+  String get stopping => 'Stopping';
+
+  @override
+  String get error => 'Error';
+
+  @override
+  String get stoppedTitle => 'Bridge stopped';
+
+  @override
+  String get stoppedDescription =>
+      'The serial port and TCP listener are closed.';
+
+  @override
+  String get startingTitle => 'Opening the connection';
+
+  @override
+  String get startingDescription =>
+      'The bridge is opening the serial port and starting the TCP listener.';
+
+  @override
+  String get listeningTitle => 'Waiting for a client';
+
+  @override
+  String get listeningDescription =>
+      'The serial port and TCP listener are open. No client is connected yet.';
+
+  @override
+  String get connectedTitle => 'Client connected';
+
+  @override
+  String get connectedDescription =>
+      'A TCP client is attached. This does not confirm data transfer.';
+
+  @override
+  String get stoppingTitle => 'Closing the connection';
+
+  @override
+  String get stoppingDescription =>
+      'The bridge is waiting for its worker to release the connection safely.';
+
+  @override
+  String get errorTitle => 'Connection needs attention';
+
+  @override
+  String get errorDescription =>
+      'The worker reported a failure. Check details before trying again.';
+
+  @override
+  String get startBridge => 'Start bridge';
+
+  @override
+  String get stopBridge => 'Stop bridge';
+
+  @override
+  String get startingAction => 'Starting…';
+
+  @override
+  String get stoppingAction => 'Stopping…';
+
+  @override
+  String get reviewDetails => 'Review details';
+
+  @override
+  String get serialDevice => 'Serial device';
+
+  @override
+  String get serialValue => 'Not configured';
+
+  @override
+  String get tcpListener => 'TCP listener';
+
+  @override
+  String get tcpValue => 'Not configured';
+
+  @override
+  String get serialLabel => 'SERIAL';
+
+  @override
+  String get bridgeLabel => 'POVAD';
+
+  @override
+  String get clientLabel => 'TCP CLIENT';
+
+  @override
+  String get previewStates => 'Preview connection states';
+
+  @override
+  String get stateDisclaimer =>
+      'An open port does not confirm that a device is healthy or sending data.';
+
+  @override
+  String get bridgeSetupTitle => 'Bridge setup';
+
+  @override
+  String get bridgeSetupBody =>
+      'Serial and TCP configuration will appear here when the transport worker is integrated. This preview does not open a port.';
+
+  @override
+  String get diagnosticsTitle => 'No active session';
+
+  @override
+  String get diagnosticsBody =>
+      'Connection details and failures will appear here when reported by the transport worker.';
+
+  @override
+  String get language => 'Language';
+
+  @override
+  String get english => 'English';
+
+  @override
+  String get belarusian => 'Беларуская';
+
+  @override
+  String get appearance => 'Appearance';
+
+  @override
+  String get appearanceSystem => 'Follows your system setting';
+
+  @override
+  String get copperTheme => 'Graphite + copper';
+
+  @override
+  String get classicBlueTheme => 'Classic blue';
+
+  @override
+  String get about => 'About';
+
+  @override
+  String get aboutDescription =>
+      'Povad is in development. Serial ↔ TCP Bridge is its first planned module.';
+
+  @override
+  String get connectionDiagram =>
+      'Serial device, Povad bridge, and TCP client connection diagram';
+}
