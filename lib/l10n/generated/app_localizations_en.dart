@@ -153,6 +153,10 @@ class AppLocalizationsEn extends AppLocalizations {
       'Choose a local serial port and a TCP listener. The first session accepts one client; disconnect ends the session.';
 
   @override
+  String get androidBridgeSetupIntro =>
+      'Choose a USB serial device and a TCP listener. The first session accepts one client; disconnect ends the session.';
+
+  @override
   String get loopbackNote =>
       'By default, the listener is limited to this device (127.0.0.1).';
 

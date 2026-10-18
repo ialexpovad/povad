@@ -121,7 +121,10 @@ class BridgeSetupPage extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 10),
-              Text(l.bridgeSetupIntro, style: TextStyle(color: colors.muted)),
+              Text(
+                usbMode ? l.androidBridgeSetupIntro : l.bridgeSetupIntro,
+                style: TextStyle(color: colors.muted),
+              ),
               const SizedBox(height: 26),
               if (usbMode) ...[
                 Text(

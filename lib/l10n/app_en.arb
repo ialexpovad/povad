@@ -45,6 +45,7 @@
   "baudRate": "Baud rate",
   "tcpPortNumber": "TCP port",
   "bridgeSetupIntro": "Choose a local serial port and a TCP listener. The first session accepts one client; disconnect ends the session.",
+  "androidBridgeSetupIntro": "Choose a USB serial device and a TCP listener. The first session accepts one client; disconnect ends the session.",
   "loopbackNote": "By default, the listener is limited to this device (127.0.0.1).",
   "lanAccessTitle": "Listen on all network interfaces",
   "lanAccessRisk": "Other devices that can reach this TCP port can send bytes to the serial device. There is no authentication. Enable this only on a trusted network.",

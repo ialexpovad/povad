@@ -155,6 +155,10 @@ class AppLocalizationsBe extends AppLocalizations {
       'Выберыце лакальны паслядоўны порт і TCP-сервер. Да сеанса далучаецца адзін кліент; яго адключэнне завяршае сеанс.';
 
   @override
+  String get androidBridgeSetupIntro =>
+      'Выберыце паслядоўную USB-прыладу і TCP-сервер. Да сеанса далучаецца адзін кліент; яго адключэнне завяршае сеанс.';
+
+  @override
   String get loopbackNote =>
       'Па змаўчанні TCP-сервер даступны толькі на гэтай прыладзе (127.0.0.1).';
 

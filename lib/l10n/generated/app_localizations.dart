@@ -368,6 +368,12 @@ abstract class AppLocalizations {
   /// **'Choose a local serial port and a TCP listener. The first session accepts one client; disconnect ends the session.'**
   String get bridgeSetupIntro;
 
+  /// No description provided for @androidBridgeSetupIntro.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose a USB serial device and a TCP listener. The first session accepts one client; disconnect ends the session.'**
+  String get androidBridgeSetupIntro;
+
   /// No description provided for @loopbackNote.
   ///
   /// In en, this message translates to:
