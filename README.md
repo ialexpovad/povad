@@ -26,8 +26,9 @@ The UI is available in English and Belarusian.
 Native contract tests exercise bidirectional binary transfer with a
 pseudo-terminal and loopback socket on desktop platforms. This is developer
 functionality: physical serial adapters, instrument behavior, and the full
-shutdown matrix still need hardware validation. Android USB-OTG hosting is not
-implemented and the Android build is an interface build only. There is no
+shutdown matrix still need hardware validation. An Android USB Host adapter
+is being integrated; its Kotlin and arm64 native layers compile, but no
+physical Android device or USB-serial adapter has been tested. There is no
 public product release yet.
 
 Android USB-OTG hosting and GitHub-based update delivery are planned. Platform
@@ -44,8 +45,9 @@ flutter run -d macos
 ```
 
 Open **Bridge** to enter a local serial port, then use **Overview** to start
-the listener. The initial endpoint is limited to `127.0.0.1`; LAN listening
-is not yet exposed in the app. The macOS build was checked with Flutter 3.47.1.
+the listener. The default endpoint is `127.0.0.1`. The operator can explicitly
+enable listening on all network interfaces; the TCP bridge has no client
+authentication. The macOS build was checked with Flutter 3.47.1.
 Run `flutter analyze` and `flutter test` before submitting a change. UI tests use
 [Alchemist](https://pub.dev/packages/alchemist) to compare the overview with
 committed reference images in English and Belarusian at desktop and narrow

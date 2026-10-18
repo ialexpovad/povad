@@ -23,7 +23,7 @@ jobs:
       - run: flutter pub get
       - run: dart format --output=none --set-exit-if-changed lib test integration_test
       - run: flutter analyze
-      - run: flutter test
+      - run: flutter test --concurrency=1
       - uses: actions/upload-artifact@v7
         if: failure()
         with:
@@ -85,3 +85,4 @@ jobs:
           cache: true
       - run: flutter pub get
       - run: flutter build apk --debug
+      - run: unzip -Z1 build/app/outputs/flutter-apk/app-debug.apk | grep -E '^lib/arm64-v8a/libpovad_core\.so$'

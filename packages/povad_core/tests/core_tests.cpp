@@ -64,7 +64,13 @@ void test_abi_and_validation() {
   require(pv_config_validate(&value, &error) == PV_LAN_CONSENT_REQUIRED, "LAN consent");
   value.allow_lan = 1;
   require(pv_config_validate(&value, &error) == PV_OK, "Explicit LAN consent");
-  for (const char* address : {"0.0.0.0", "224.0.0.1", "169.254.1.2",
+  std::strcpy(value.bind_address, "0.0.0.0");
+  value.allow_lan = 0;
+  require(pv_config_validate(&value, &error) == PV_LAN_CONSENT_REQUIRED,
+          "Wildcard bind requires consent");
+  value.allow_lan = 1;
+  require(pv_config_validate(&value, &error) == PV_OK, "Wildcard bind with consent");
+  for (const char* address : {"0.0.0.1", "224.0.0.1", "169.254.1.2",
                               "127.0.0.01", "example.org", "1.2.3.256"}) {
     std::strcpy(value.bind_address, address);
     require(pv_config_validate(&value, &error) == PV_INVALID_CONFIG, "Unsafe bind address");

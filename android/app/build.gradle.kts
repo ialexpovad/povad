@@ -67,3 +67,7 @@ kotlin {
 flutter {
     source = "../.."
 }
+
+dependencies {
+    implementation("com.github.mik3y:usb-serial-for-android:3.11.0")
+}

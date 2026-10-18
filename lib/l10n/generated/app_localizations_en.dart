@@ -121,6 +121,28 @@ class AppLocalizationsEn extends AppLocalizations {
   String get serialPortPath => 'Serial port';
 
   @override
+  String get usbPortsTitle => 'USB serial devices';
+
+  @override
+  String get scanUsbDevices => 'Refresh devices';
+
+  @override
+  String get scanningUsbDevices => 'Scanning for USB serial devices…';
+
+  @override
+  String get noUsbDevices => 'No supported USB serial device is connected.';
+
+  @override
+  String get usbPermissionDenied => 'USB access was not granted.';
+
+  @override
+  String get usbUnavailable =>
+      'USB Host is unavailable on this Android device or build.';
+
+  @override
+  String get usbScanFailed => 'Could not list USB serial devices.';
+
+  @override
   String get baudRate => 'Baud rate';
 
   @override
@@ -132,7 +154,14 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get loopbackNote =>
-      'The listener is limited to this computer (127.0.0.1). LAN access is not available in this setup yet.';
+      'By default, the listener is limited to this device (127.0.0.1).';
+
+  @override
+  String get lanAccessTitle => 'Listen on all network interfaces';
+
+  @override
+  String get lanAccessRisk =>
+      'Other devices that can reach this TCP port can send bytes to the serial device. There is no authentication. Enable this only on a trusted network.';
 
   @override
   String get invalidBridgeSettings =>

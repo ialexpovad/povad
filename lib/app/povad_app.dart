@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
@@ -9,6 +10,7 @@ import '../design/povad_mark.dart';
 import '../design/povad_theme.dart';
 import '../domain/bridge_view_state.dart';
 import '../domain/bridge_session.dart';
+import '../domain/android_usb_host.dart';
 import '../features/overview_page.dart';
 import '../features/secondary_pages.dart';
 import '../l10n/generated/app_localizations.dart';
@@ -37,7 +39,16 @@ class _PovadAppState extends State<PovadApp> {
   String serialPort = '';
   String baud = '115200';
   String tcpPort = '9268';
+  bool allowLan = false;
   bool invalidBridgeSettings = false;
+  final AndroidUsbHost usbHost = const AndroidUsbHost();
+  List<AndroidUsbPort> usbPorts = const [];
+  String? usbError;
+  String? selectedUsbLabel;
+  bool usbLoading = false;
+
+  bool get androidHost =>
+      !kIsWeb && Platform.isAndroid && widget.session != null;
 
   bool get configurationReady {
     final speed = int.tryParse(baud);
@@ -63,6 +74,60 @@ class _PovadAppState extends State<PovadApp> {
     preferences = widget.preferences ?? DeviceUiPreferences();
     widget.session?.addListener(onNativeState);
     unawaited(loadPreferences());
+    if (androidHost) unawaited(refreshUsbPorts());
+  }
+
+  Future<void> refreshUsbPorts() async {
+    if (!mounted) return;
+    setState(() {
+      usbLoading = true;
+      usbError = null;
+    });
+    try {
+      if (!await usbHost.available()) {
+        if (mounted) setState(() => usbError = 'unavailable');
+        return;
+      }
+      final discovered = await usbHost.listPorts();
+      if (!mounted) return;
+      setState(() {
+        usbPorts = discovered;
+        if (serialPort.isNotEmpty &&
+            !discovered.any((port) => port.nativeSelection == serialPort)) {
+          serialPort = '';
+          selectedUsbLabel = null;
+        }
+      });
+    } catch (_) {
+      if (mounted) setState(() => usbError = 'scanFailed');
+    } finally {
+      if (mounted) setState(() => usbLoading = false);
+    }
+  }
+
+  Future<void> selectUsbPort(AndroidUsbPort port) async {
+    if (!mounted) return;
+    setState(() {
+      usbLoading = true;
+      usbError = null;
+    });
+    try {
+      final allowed = await usbHost.requestPermission(port);
+      if (!mounted) return;
+      setState(() {
+        if (allowed) {
+          serialPort = port.nativeSelection;
+          selectedUsbLabel = port.label;
+          invalidBridgeSettings = false;
+        } else {
+          usbError = 'denied';
+        }
+      });
+    } catch (_) {
+      if (mounted) setState(() => usbError = 'scanFailed');
+    } finally {
+      if (mounted) setState(() => usbLoading = false);
+    }
   }
 
   @override
@@ -146,6 +211,8 @@ class _PovadAppState extends State<PovadApp> {
             serialPort: serialPort.trim(),
             baud: int.parse(baud),
             tcpPort: int.parse(tcpPort),
+            bindAddress: allowLan ? '0.0.0.0' : '127.0.0.1',
+            allowLan: allowLan,
           ),
         );
       } else if (state == BridgeViewState.listening ||
@@ -201,8 +268,12 @@ class _PovadAppState extends State<PovadApp> {
               onPreviewState: (value) => setState(() => state = value),
               previewMode: widget.session == null,
               configured: widget.session == null || configurationReady,
-              serialValue: serialPort.isEmpty ? l.serialValue : serialPort,
-              tcpValue: serialPort.isEmpty ? l.tcpValue : '127.0.0.1:$tcpPort',
+              serialValue: serialPort.isEmpty
+                  ? l.serialValue
+                  : selectedUsbLabel ?? serialPort,
+              tcpValue: serialPort.isEmpty
+                  ? l.tcpValue
+                  : '${allowLan ? '0.0.0.0' : '127.0.0.1'}:$tcpPort',
             ),
             1 =>
               widget.session == null
@@ -227,10 +298,25 @@ class _PovadAppState extends State<PovadApp> {
                         tcpPort = value;
                         invalidBridgeSettings = false;
                       }),
+                      allowLan: allowLan,
+                      onAllowLanChanged: (value) =>
+                          setState(() => allowLan = value),
                       error: invalidBridgeSettings
                           ? l.invalidBridgeSettings
                           : null,
                       running: running,
+                      usbMode: androidHost,
+                      usbPorts: usbPorts,
+                      usbLoading: usbLoading,
+                      usbMessage: switch (usbError) {
+                        'unavailable' => l.usbUnavailable,
+                        'denied' => l.usbPermissionDenied,
+                        'scanFailed' => l.usbScanFailed,
+                        _ => null,
+                      },
+                      onRefreshUsb: () => unawaited(refreshUsbPorts()),
+                      onUsbPortSelected: (port) =>
+                          unawaited(selectUsbPort(port)),
                     ),
             2 => EmptyPage(
               icon: shad.LucideIcons.activity,

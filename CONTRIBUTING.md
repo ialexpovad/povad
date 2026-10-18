@@ -15,7 +15,7 @@ For interface changes, use Flutter 3.47.1 and run:
 flutter pub get
 dart format lib test integration_test
 flutter analyze
-flutter test
+flutter test --concurrency=1
 ```
 
 On macOS, run `flutter test integration_test/app_test.dart -d macos` to check

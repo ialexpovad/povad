@@ -12,6 +12,10 @@ void main(List<String> args) async {
       OS.windows => ['src/transport_windows.cpp'],
       OS.macOS ||
       OS.linux => ['src/transport_posix.cpp', 'src/transport_tcp_posix.cpp'],
+      OS.android => [
+        'src/transport_android.cpp',
+        'src/transport_tcp_posix.cpp',
+      ],
       _ => ['src/transport_unavailable.cpp'],
     };
     final builder = CBuilder.library(

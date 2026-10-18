@@ -3,6 +3,7 @@ import 'package:shadcn_flutter/shadcn_flutter.dart' as shad;
 
 import '../design/povad_theme.dart';
 import '../design/preview_notice.dart';
+import '../domain/android_usb_host.dart';
 import '../l10n/generated/app_localizations.dart';
 
 class EmptyPage extends StatelessWidget {
@@ -73,16 +74,31 @@ class BridgeSetupPage extends StatelessWidget {
     required this.onSerialPortChanged,
     required this.onBaudChanged,
     required this.onTcpPortChanged,
+    required this.allowLan,
+    required this.onAllowLanChanged,
     required this.error,
     required this.running,
+    this.usbMode = false,
+    this.usbPorts = const [],
+    this.usbLoading = false,
+    this.usbMessage,
+    this.onRefreshUsb,
+    this.onUsbPortSelected,
   });
 
   final String serialPort, baud, tcpPort;
   final ValueChanged<String> onSerialPortChanged;
   final ValueChanged<String> onBaudChanged;
   final ValueChanged<String> onTcpPortChanged;
+  final bool allowLan;
+  final ValueChanged<bool> onAllowLanChanged;
   final String? error;
   final bool running;
+  final bool usbMode, usbLoading;
+  final List<AndroidUsbPort> usbPorts;
+  final String? usbMessage;
+  final VoidCallback? onRefreshUsb;
+  final ValueChanged<AndroidUsbPort>? onUsbPortSelected;
 
   @override
   Widget build(BuildContext context) {
@@ -107,13 +123,65 @@ class BridgeSetupPage extends StatelessWidget {
               const SizedBox(height: 10),
               Text(l.bridgeSetupIntro, style: TextStyle(color: colors.muted)),
               const SizedBox(height: 26),
-              _SettingField(
-                label: l.serialPortPath,
-                value: serialPort,
-                onChanged: onSerialPortChanged,
-                enabled: !running,
-                placeholder: '/dev/cu.usbserial-…',
-              ),
+              if (usbMode) ...[
+                Text(
+                  l.usbPortsTitle,
+                  style: TextStyle(
+                    fontWeight: FontWeight.w600,
+                    color: colors.foreground,
+                  ),
+                ),
+                const SizedBox(height: 10),
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: shad.OutlineButton(
+                    onPressed: usbLoading || running ? null : onRefreshUsb,
+                    child: Text(l.scanUsbDevices),
+                  ),
+                ),
+                if (usbMessage != null) ...[
+                  const SizedBox(height: 10),
+                  Text(usbMessage!, style: TextStyle(color: colors.error)),
+                ],
+                if (usbLoading && usbPorts.isEmpty) ...[
+                  const SizedBox(height: 10),
+                  Text(l.scanningUsbDevices, style: TextStyle(color: colors.muted)),
+                ],
+                if (usbPorts.isEmpty && usbMessage == null && !usbLoading) ...[
+                  const SizedBox(height: 10),
+                  Text(l.noUsbDevices, style: TextStyle(color: colors.muted)),
+                ],
+                if (usbPorts.isNotEmpty) ...[
+                  const SizedBox(height: 12),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      for (final port in usbPorts)
+                        port.nativeSelection == serialPort
+                            ? shad.PrimaryButton(
+                                onPressed: running || usbLoading
+                                    ? null
+                                    : () => onUsbPortSelected?.call(port),
+                                child: Text(port.label),
+                              )
+                            : shad.OutlineButton(
+                                onPressed: running || usbLoading
+                                    ? null
+                                    : () => onUsbPortSelected?.call(port),
+                                child: Text(port.label),
+                              ),
+                    ],
+                  ),
+                ],
+              ] else
+                _SettingField(
+                  label: l.serialPortPath,
+                  value: serialPort,
+                  onChanged: onSerialPortChanged,
+                  enabled: !running,
+                  placeholder: '/dev/cu.usbserial-…',
+                ),
               const SizedBox(height: 20),
               _SettingField(
                 label: l.baudRate,
@@ -130,6 +198,27 @@ class BridgeSetupPage extends StatelessWidget {
                 enabled: !running,
                 keyboardType: TextInputType.number,
               ),
+              const SizedBox(height: 20),
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      l.lanAccessTitle,
+                      style: TextStyle(
+                        fontWeight: FontWeight.w600,
+                        color: colors.foreground,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  shad.Switch(
+                    value: allowLan,
+                    onChanged: running ? null : onAllowLanChanged,
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              Text(l.lanAccessRisk, style: TextStyle(color: colors.muted)),
               if (error != null) ...[
                 const SizedBox(height: 18),
                 Text(error!, style: TextStyle(color: colors.error)),

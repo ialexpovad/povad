@@ -29,6 +29,8 @@ dev_dependencies:
 
 flutter:
   generate: true
+  assets:
+    - THIRD_PARTY_NOTICES.md
   fonts:
     - family: Inter
       fonts:
