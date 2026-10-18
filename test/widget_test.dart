@@ -122,6 +122,9 @@ void main() {
     expect(find.text('Starting bridge'), findsOneWidget);
     expect(find.text('Starting…'), findsOneWidget);
     expect(find.text('PREVIEW · No live connection'), findsOneWidget);
+    final startingCore = tester.widget<PovadMark>(find.byType(PovadMark).last);
+    expect(startingCore.firstPoint, const Color(0xFFA1A1AA));
+    expect(startingCore.secondPoint, const Color(0xFFA1A1AA));
 
     await tester.tap(find.byKey(const ValueKey('nav-2')));
     await tester.pumpAndSettle();

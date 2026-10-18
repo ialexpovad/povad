@@ -142,12 +142,12 @@ class _ConnectionDiagramState extends State<ConnectionDiagram>
                           ink: const Color(0xFF18181B),
                           firstPoint: fault
                               ? colors.error
-                              : serialReady || pulse.isAnimating
+                              : serialReady
                               ? colors.primary
                               : colors.inactive,
                           secondPoint: fault
                               ? colors.error
-                              : clientReady || pulse.isAnimating
+                              : clientReady
                               ? colors.primary
                               : colors.inactive,
                         ),
