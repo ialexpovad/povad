@@ -48,7 +48,13 @@ final class DesktopPresence
   }
 
   @override
-  Future<void> prepareStart(String serialSelection, Locale locale) async {}
+  Future<void> prepareStart(String serialSelection, Locale locale) async {
+    // Keep a close racing with native startup from terminating the session.
+    _workerActive = true;
+    _state = BridgeViewState.starting;
+    _locale = locale;
+    await _updateMenuSafely();
+  }
 
   @override
   Future<void> reflect(
@@ -62,7 +68,19 @@ final class DesktopPresence
     _state = state;
     _locale = locale;
     _workerActive = workerActive;
-    await _updateMenu();
+    await _updateMenuSafely();
+  }
+
+  Future<void> _updateMenuSafely() async {
+    try {
+      await _updateMenu();
+    } catch (error) {
+      _trayReady = false;
+      trayManager.removeListener(this);
+      debugPrint('System tray unavailable: $error');
+      // A hidden window must become reachable if its tray icon disappears.
+      await windowManager.show();
+    }
   }
 
   Future<void> _updateMenu() async {
