@@ -3,31 +3,53 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 import 'package:povad/app/ui_preferences.dart';
 import 'package:povad/design/povad_theme.dart';
+import 'package:povad/domain/bridge_session.dart';
 import 'package:povad/main.dart';
+import 'package:shadcn_flutter/shadcn_flutter.dart' as shad;
 
 void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
 
-  testWidgets('desktop app opens and switches language and palette', (
-    tester,
-  ) async {
-    await tester.pumpWidget(PovadApp(preferences: _MemoryPreferences()));
-    await tester.pumpAndSettle();
-    expect(find.text('Connection overview'), findsOneWidget);
+  testWidgets(
+    'macOS app starts its native bridge and switches UI preferences',
+    (tester) async {
+      await tester.pumpWidget(
+        PovadApp(session: BridgeSession(), preferences: _MemoryPreferences()),
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('Connection overview'), findsOneWidget);
+      expect(find.text('Configure bridge'), findsOneWidget);
+      expect(find.textContaining('INTERFACE PREVIEW'), findsNothing);
 
-    await tester.tap(find.byKey(const ValueKey('nav-3')));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Беларуская'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Класічны сіні'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.byKey(const ValueKey('nav-0')));
-    await tester.pumpAndSettle();
+      await tester.tap(find.text('Configure bridge'));
+      await tester.pumpAndSettle();
+      await tester.enterText(
+        find.byType(shad.TextField).first,
+        '/dev/povad-test-port-does-not-exist',
+      );
+      await tester.tap(find.byKey(const ValueKey('nav-0')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Start bridge'));
+      await tester.pump(const Duration(seconds: 1));
+      expect(find.text('Connection needs attention'), findsOneWidget);
+      await tester.tap(find.text('Review details'));
+      await tester.pumpAndSettle();
+      expect(find.text('Cannot open serial port exclusively'), findsOneWidget);
 
-    expect(find.text('Агляд злучэння'), findsOneWidget);
-    expect(find.text('Мост спынены'), findsOneWidget);
-    expect(tester.takeException(), isNull);
-  });
+      await tester.tap(find.byKey(const ValueKey('nav-3')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Беларуская'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Класічны сіні'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const ValueKey('nav-0')));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Агляд злучэння'), findsOneWidget);
+      expect(find.text('Злучэнне патрабуе ўвагі'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    },
+  );
 }
 
 class _MemoryPreferences implements UiPreferences {

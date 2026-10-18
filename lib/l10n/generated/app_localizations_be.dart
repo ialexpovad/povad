@@ -25,6 +25,9 @@ class AppLocalizationsBe extends AppLocalizations {
   String get diagnostics => 'Дыягностыка';
 
   @override
+  String get diagnosticsNav => 'Дэталі';
+
+  @override
   String get settings => 'Налады';
 
   @override
@@ -121,6 +124,30 @@ class AppLocalizationsBe extends AppLocalizations {
   String get serialPortPath => 'Паслядоўны порт';
 
   @override
+  String get usbPortsTitle => 'Паслядоўныя USB-прылады';
+
+  @override
+  String get scanUsbDevices => 'Абнавіць спіс прылад';
+
+  @override
+  String get scanningUsbDevices => 'Шукаем паслядоўныя USB-прылады…';
+
+  @override
+  String get noUsbDevices =>
+      'Падтрымліваемая паслядоўная USB-прылада не падключана.';
+
+  @override
+  String get usbPermissionDenied => 'Доступ да USB-прылады не дазволены.';
+
+  @override
+  String get usbUnavailable =>
+      'USB Host недаступны на гэтай Android-прыладзе або ў гэтай зборцы.';
+
+  @override
+  String get usbScanFailed =>
+      'Не ўдалося атрымаць спіс паслядоўных USB-прылад.';
+
+  @override
   String get baudRate => 'Хуткасць перадачы';
 
   @override
@@ -131,8 +158,19 @@ class AppLocalizationsBe extends AppLocalizations {
       'Выберыце лакальны паслядоўны порт і TCP-сервер. Да сеанса далучаецца адзін кліент; яго адключэнне завяршае сеанс.';
 
   @override
+  String get androidBridgeSetupIntro =>
+      'Выберыце паслядоўную USB-прыладу і TCP-сервер. Да сеанса далучаецца адзін кліент; яго адключэнне завяршае сеанс.';
+
+  @override
   String get loopbackNote =>
-      'TCP-сервер даступны толькі на гэтым камп’ютары (127.0.0.1). Доступ праз лакальную сетку пакуль не прадугледжаны.';
+      'Па змаўчанні TCP-сервер даступны толькі на гэтай прыладзе (127.0.0.1).';
+
+  @override
+  String get lanAccessTitle => 'Слухаць на ўсіх сеткавых інтэрфейсах';
+
+  @override
+  String get lanAccessRisk =>
+      'Іншыя прылады, якія маюць доступ да гэтага TCP-порта, могуць адпраўляць байты ў паслядоўную прыладу. Праверкі доступу няма. Уключайце гэта толькі ў даверанай сетцы.';
 
   @override
   String get invalidBridgeSettings =>
@@ -217,7 +255,7 @@ class AppLocalizationsBe extends AppLocalizations {
 
   @override
   String get aboutDescription =>
-      'Povad знаходзіцца ў распрацоўцы. Мост паслядоўны порт ↔ TCP — першы запланаваны модуль.';
+      'Povad аб’ядноўвае падключэнні прылад. Мост паслядоўны порт ↔ TCP — першы модуль.';
 
   @override
   String get connectionDiagram =>

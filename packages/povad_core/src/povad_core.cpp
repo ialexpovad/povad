@@ -74,11 +74,13 @@ int32_t pv_config_validate(const pv_config* config, pv_error* error) {
     return fail(error, PV_INVALID_CONFIG, "Invalid listener or queue setting");
   }
   uint8_t octets[4]{};
-  if (!ipv4(config->bind_address, octets) || octets[0] == 0 ||
+  if (!ipv4(config->bind_address, octets) ||
+      (octets[0] == 0 && std::strcmp(config->bind_address, "0.0.0.0") != 0) ||
       octets[0] >= 224 || (octets[0] == 169 && octets[1] == 254)) {
     return fail(error, PV_INVALID_CONFIG, "Select a concrete IPv4 unicast address");
   }
-  if (octets[0] != 127 && config->allow_lan == 0) {
+  if ((octets[0] != 127 || std::strcmp(config->bind_address, "0.0.0.0") == 0) &&
+      config->allow_lan == 0) {
     return fail(error, PV_LAN_CONSENT_REQUIRED, "LAN listening requires explicit consent");
   }
   if (error != nullptr) {

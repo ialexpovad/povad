@@ -64,7 +64,13 @@ void test_abi_and_validation() {
   require(pv_config_validate(&value, &error) == PV_LAN_CONSENT_REQUIRED, "LAN consent");
   value.allow_lan = 1;
   require(pv_config_validate(&value, &error) == PV_OK, "Explicit LAN consent");
-  for (const char* address : {"0.0.0.0", "224.0.0.1", "169.254.1.2",
+  std::strcpy(value.bind_address, "0.0.0.0");
+  value.allow_lan = 0;
+  require(pv_config_validate(&value, &error) == PV_LAN_CONSENT_REQUIRED,
+          "Wildcard bind requires consent");
+  value.allow_lan = 1;
+  require(pv_config_validate(&value, &error) == PV_OK, "Wildcard bind with consent");
+  for (const char* address : {"0.0.0.1", "224.0.0.1", "169.254.1.2",
                               "127.0.0.01", "example.org", "1.2.3.256"}) {
     std::strcpy(value.bind_address, address);
     require(pv_config_validate(&value, &error) == PV_INVALID_CONFIG, "Unsafe bind address");
@@ -239,6 +245,37 @@ struct Rig {
   }
 };
 
+void reject_second_client(const Rig& rig) {
+  const int second = socket(AF_INET, SOCK_STREAM, 0);
+  require(second >= 0, "Create second TCP client");
+  try {
+    sockaddr_in address{};
+    address.sin_family = AF_INET;
+    address.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
+    address.sin_port = htons(static_cast<uint16_t>(rig.settings.tcp_port));
+    require(connect(second, reinterpret_cast<sockaddr*>(&address), sizeof(address)) == 0,
+            "Connect second TCP client");
+    require(fcntl(second, F_SETFL, fcntl(second, F_GETFL) | O_NONBLOCK) == 0,
+            "Make second TCP client nonblocking");
+    until([&] {
+      uint8_t byte = 0;
+      const ssize_t count = recv(second, &byte, 1, 0);
+      if (count == 0) return true;
+      if (count > 0) throw std::runtime_error("Second client received bridge data");
+      if (errno == ECONNRESET) return true;
+      require(errno == EAGAIN || errno == EWOULDBLOCK || errno == EINTR,
+              "Second client read failed unexpectedly");
+      return false;
+    }, "Second TCP client was not rejected");
+    require(snapshot(rig.handle).state == PV_STATE_CONNECTED,
+            "First TCP client remains active after rejection");
+  } catch (...) {
+    ::close(second);
+    throw;
+  }
+  ::close(second);
+}
+
 void test_transparent_bridge() {
   Rig rig;
   rig.start();
@@ -249,6 +286,7 @@ void test_transparent_bridge() {
   receive_exact(rig.master, request.data(), request.size());
   send_all(rig.master, response.data(), response.size(), false);
   receive_exact(rig.client, response.data(), response.size());
+  reject_second_client(rig);
   std::vector<uint8_t> bulk(8192);
   for (size_t index = 0; index < bulk.size(); ++index) bulk[index] = static_cast<uint8_t>(index);
   send_all(rig.client, bulk.data(), bulk.size(), true);

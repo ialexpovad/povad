@@ -128,6 +128,12 @@ abstract class AppLocalizations {
   /// **'Diagnostics'**
   String get diagnostics;
 
+  /// No description provided for @diagnosticsNav.
+  ///
+  /// In en, this message translates to:
+  /// **'Details'**
+  String get diagnosticsNav;
+
   /// No description provided for @settings.
   ///
   /// In en, this message translates to:
@@ -308,6 +314,48 @@ abstract class AppLocalizations {
   /// **'Serial port'**
   String get serialPortPath;
 
+  /// No description provided for @usbPortsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'USB serial devices'**
+  String get usbPortsTitle;
+
+  /// No description provided for @scanUsbDevices.
+  ///
+  /// In en, this message translates to:
+  /// **'Refresh devices'**
+  String get scanUsbDevices;
+
+  /// No description provided for @scanningUsbDevices.
+  ///
+  /// In en, this message translates to:
+  /// **'Scanning for USB serial devices…'**
+  String get scanningUsbDevices;
+
+  /// No description provided for @noUsbDevices.
+  ///
+  /// In en, this message translates to:
+  /// **'No supported USB serial device is connected.'**
+  String get noUsbDevices;
+
+  /// No description provided for @usbPermissionDenied.
+  ///
+  /// In en, this message translates to:
+  /// **'USB access was not granted.'**
+  String get usbPermissionDenied;
+
+  /// No description provided for @usbUnavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'USB Host is unavailable on this Android device or build.'**
+  String get usbUnavailable;
+
+  /// No description provided for @usbScanFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not list USB serial devices.'**
+  String get usbScanFailed;
+
   /// No description provided for @baudRate.
   ///
   /// In en, this message translates to:
@@ -326,11 +374,29 @@ abstract class AppLocalizations {
   /// **'Choose a local serial port and a TCP listener. The first session accepts one client; disconnect ends the session.'**
   String get bridgeSetupIntro;
 
+  /// No description provided for @androidBridgeSetupIntro.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose a USB serial device and a TCP listener. The first session accepts one client; disconnect ends the session.'**
+  String get androidBridgeSetupIntro;
+
   /// No description provided for @loopbackNote.
   ///
   /// In en, this message translates to:
-  /// **'The listener is limited to this computer (127.0.0.1). LAN access is not available in this setup yet.'**
+  /// **'By default, the listener is limited to this device (127.0.0.1).'**
   String get loopbackNote;
+
+  /// No description provided for @lanAccessTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Listen on all network interfaces'**
+  String get lanAccessTitle;
+
+  /// No description provided for @lanAccessRisk.
+  ///
+  /// In en, this message translates to:
+  /// **'Other devices that can reach this TCP port can send bytes to the serial device. There is no authentication. Enable this only on a trusted network.'**
+  String get lanAccessRisk;
 
   /// No description provided for @invalidBridgeSettings.
   ///
@@ -485,7 +551,7 @@ abstract class AppLocalizations {
   /// No description provided for @aboutDescription.
   ///
   /// In en, this message translates to:
-  /// **'Povad is in development. Serial ↔ TCP Bridge is its first planned module.'**
+  /// **'Povad brings device connections together. Serial ↔ TCP Bridge is its first module.'**
   String get aboutDescription;
 
   /// No description provided for @connectionDiagram.

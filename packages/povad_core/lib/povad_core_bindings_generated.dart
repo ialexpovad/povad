@@ -114,7 +114,8 @@ enum pv_state {
 }
 
 /// All fields are fixed width. Strings are UTF-8 and must be NUL terminated.
-/// This v1 contract currently defines desktop serial ports and IPv4 listeners.
+/// This v1 contract defines local serial selections and IPv4 listeners.
+/// Android selections use the usb:<device-name>:<port-index> form.
 final class pv_config extends ffi.Struct {
   @ffi.Uint32()
   external int size;

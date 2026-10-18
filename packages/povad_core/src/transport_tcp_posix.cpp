@@ -23,13 +23,17 @@ void make_nonblocking(int fd) {
 
 } // namespace
 
-struct TcpServer::Impl { int listener = -1; int client = -1; };
+struct TcpServer::Impl {
+  int listener = -1;
+  int client = -1;
+  bool close_uncertain = false;
+};
 
 TcpServer::TcpServer() : impl_(new Impl) {}
 TcpServer::~TcpServer() { close(); }
 
 void TcpServer::listen(const char* address, uint16_t port) {
-  close();
+  if (!close()) throw TransportError(PV_NATIVE_FAILURE, "Previous TCP shutdown is uncertain");
   impl_->listener = socket(AF_INET, SOCK_STREAM, 0);
   if (impl_->listener < 0) throw TransportError(PV_NATIVE_FAILURE, "Cannot create TCP listener");
   try {
@@ -102,15 +106,19 @@ size_t TcpServer::send(const uint8_t* data, size_t length) {
   return static_cast<size_t>(count);
 }
 
-void TcpServer::close() {
+bool TcpServer::close() {
+  if (impl_->close_uncertain) return false;
+  bool closed = true;
   if (impl_->client >= 0) {
-    ::close(impl_->client);
+    closed = ::close(impl_->client) == 0 && closed;
     impl_->client = -1;
   }
   if (impl_->listener >= 0) {
-    ::close(impl_->listener);
+    closed = ::close(impl_->listener) == 0 && closed;
     impl_->listener = -1;
   }
+  impl_->close_uncertain = !closed;
+  return closed;
 }
 
 } // namespace povad
