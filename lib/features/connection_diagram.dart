@@ -25,10 +25,11 @@ class ConnectionDiagram extends StatelessWidget {
       shad.LucideIcons.cable,
       shad.LucideIcons.computer,
     ];
+    final labelSize = MediaQuery.textScalerOf(context).scale(11);
     return Semantics(
       label: l.connectionDiagram,
       child: SizedBox(
-        height: 144,
+        height: 122 + labelSize * 2,
         child: Stack(
           children: [
             Positioned.fill(

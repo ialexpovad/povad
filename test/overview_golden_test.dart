@@ -26,27 +26,24 @@ void _registerGoldens() {
     'desktop overview in graphite and copper',
     fileName: 'overview_desktop_copper',
     constraints: const BoxConstraints.tightFor(width: 800, height: 600),
-    builder: () => PovadApp(
-      preferences: _GoldenPreferences('en', PovadSkin.copper),
-    ),
+    builder: () =>
+        PovadApp(preferences: _GoldenPreferences('en', PovadSkin.copper)),
   );
 
   goldenTest(
     'desktop overview in classic blue',
     fileName: 'overview_desktop_blue',
     constraints: const BoxConstraints.tightFor(width: 800, height: 600),
-    builder: () => PovadApp(
-      preferences: _GoldenPreferences('en', PovadSkin.classicBlue),
-    ),
+    builder: () =>
+        PovadApp(preferences: _GoldenPreferences('en', PovadSkin.classicBlue)),
   );
 
   goldenTest(
     'small Belarusian overview',
     fileName: 'overview_mobile_be',
     constraints: const BoxConstraints.tightFor(width: 360, height: 700),
-    builder: () => PovadApp(
-      preferences: _GoldenPreferences('be', PovadSkin.copper),
-    ),
+    builder: () =>
+        PovadApp(preferences: _GoldenPreferences('be', PovadSkin.copper)),
   );
 }
 

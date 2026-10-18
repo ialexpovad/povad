@@ -165,9 +165,7 @@ class _PovadAppState extends State<PovadApp> {
                             vertical: 12,
                           ),
                           child: Row(
-                            children: [
-                              const PovadBrandLockup(compact: true),
-                            ],
+                            children: [const PovadBrandLockup(compact: true)],
                           ),
                         ),
                         Expanded(child: content),

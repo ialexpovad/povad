@@ -270,10 +270,7 @@ class OverviewPage extends StatelessWidget {
                   const SizedBox(height: 18),
                   Text(
                     l.stateDisclaimer,
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: colors.muted,
-                    ),
+                    style: TextStyle(fontSize: 12, color: colors.muted),
                   ),
                 ],
               ),

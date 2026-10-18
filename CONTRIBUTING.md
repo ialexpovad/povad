@@ -7,8 +7,21 @@ and clear reproduction steps.
 
 Please discuss a new transport or protocol module in an issue before opening a
 pull request. Its data handling, ownership, and acceptance tests need to be
-specified first. Build and test instructions will be added when the application
-source is published here.
+specified first.
+
+For interface changes, use Flutter 3.47.1 and run:
+
+```sh
+flutter pub get
+dart format lib test integration_test
+flutter analyze
+flutter test
+```
+
+On macOS, run `flutter test integration_test/app_test.dart -d macos` to check
+the application in its desktop runner. Review changed golden images before
+updating their references. CI also compiles the other platform runners; a
+successful build does not prove hardware behavior.
 
 Keep issue reports and pull requests in English. Do not post device payloads,
 secrets, serial numbers, or absolute local paths in public reports.

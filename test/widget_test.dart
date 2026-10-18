@@ -6,14 +6,37 @@ import 'package:povad/main.dart';
 import 'package:shadcn_flutter/shadcn_flutter.dart' as shad;
 
 void main() {
+  testWidgets('narrow overview remains usable with large system text', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(360, 700);
+    tester.view.devicePixelRatio = 1;
+    tester.platformDispatcher.textScaleFactorTestValue = 2;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
+
+    await tester.pumpWidget(PovadApp(preferences: MemoryUiPreferences()));
+    await tester.pumpAndSettle();
+    expect(find.text('Bridge stopped'), findsOneWidget);
+    expect(find.byKey(const ValueKey('nav-3')), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('primary action label is centered in the button', (tester) async {
     await tester.pumpWidget(PovadApp(preferences: MemoryUiPreferences()));
     await tester.pumpAndSettle();
 
     final label = find.text('Start bridge');
-    final button = find.ancestor(of: label, matching: find.byType(shad.PrimaryButton));
+    final button = find.ancestor(
+      of: label,
+      matching: find.byType(shad.PrimaryButton),
+    );
     expect(button, findsOneWidget);
-    expect((tester.getCenter(label).dx - tester.getCenter(button).dx).abs(), lessThan(1));
+    expect(
+      (tester.getCenter(label).dx - tester.getCenter(button).dx).abs(),
+      lessThan(1),
+    );
   });
 
   testWidgets('preview action never claims a live connection', (tester) async {
@@ -107,8 +130,10 @@ void main() {
     await tester.tap(find.byKey(const ValueKey('nav-3')));
     await tester.pumpAndSettle();
     expect(find.text('Мова'), findsOneWidget);
-    expect(paletteOf(tester.element(find.text('Класічны сіні'))).primary,
-        const Color(0xFF2563EB));
+    expect(
+      paletteOf(tester.element(find.text('Класічны сіні'))).primary,
+      const Color(0xFF2563EB),
+    );
   });
 }
 
@@ -123,7 +148,8 @@ class MemoryUiPreferences implements UiPreferences {
   Future<PovadSkin?> readSkin() async => skin;
 
   @override
-  Future<void> saveLanguage(String languageCode) async => language = languageCode;
+  Future<void> saveLanguage(String languageCode) async =>
+      language = languageCode;
 
   @override
   Future<void> saveSkin(PovadSkin value) async => skin = value;

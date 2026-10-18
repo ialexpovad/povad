@@ -123,10 +123,7 @@ class SettingsPage extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 7),
-              Text(
-                l.appearanceSystem,
-                style: TextStyle(color: colors.muted),
-              ),
+              Text(l.appearanceSystem, style: TextStyle(color: colors.muted)),
               const SizedBox(height: 16),
               Wrap(
                 spacing: 8,
@@ -157,10 +154,7 @@ class SettingsPage extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 7),
-              Text(
-                l.aboutDescription,
-                style: TextStyle(color: colors.muted),
-              ),
+              Text(l.aboutDescription, style: TextStyle(color: colors.muted)),
             ],
           ),
         ),

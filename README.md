@@ -13,6 +13,8 @@ port and TCP in both directions without changing the byte stream.
 The platform is designed to grow with other transports, protocols, and virtual
 ports as each capability is specified and tested.
 
+![Povad interface preview](assets/preview/overview.png)
+
 ## Current status
 
 The repository contains a working macOS Flutter **interface preview** and
@@ -39,9 +41,12 @@ The macOS build was checked with Flutter 3.47.1. Run `flutter analyze` and
 [Alchemist](https://pub.dev/packages/alchemist) to compare the overview with
 committed reference images in English and Belarusian at desktop and narrow
 screen sizes. A widget test checks the primary action's label alignment.
-GitHub Actions runs these checks on every push and pull request, then builds
-the macOS app. After an intentional visual change, inspect the generated
-images and update the references with `flutter test --update-goldens`.
+GitHub Actions runs formatting, analysis, widget, visual, and accessibility
+checks on every push and pull request. It also runs a macOS app smoke test and
+builds interface previews for macOS, Linux, Windows, and Android. A successful
+build does not establish serial hardware support. After an intentional visual
+change, inspect the generated images and update the references with
+`flutter test --update-goldens`.
 
 ## Feedback
 
