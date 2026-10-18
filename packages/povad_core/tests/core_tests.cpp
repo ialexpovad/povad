@@ -16,6 +16,7 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
+#include <termios.h>
 #include <unistd.h>
 #ifdef __APPLE__
 #include <util.h>
@@ -316,6 +317,33 @@ void test_stop_releases_handles() {
   require(snapshot(rig.handle).serial_open == 0, "Serial handle was not released");
 }
 
+void test_serial_disconnect_is_reported() {
+  Rig rig;
+  // An inherited VMIN=0 setting must not make an idle device look detached.
+  const int slave = ::open(rig.settings.serial_port, O_RDWR | O_NOCTTY);
+  require(slave >= 0, "Open serial peer for inherited termios setting");
+  termios settings{};
+  require(tcgetattr(slave, &settings) == 0, "Read inherited serial settings");
+  settings.c_cc[VMIN] = 0;
+  settings.c_cc[VTIME] = 0;
+  require(tcsetattr(slave, TCSANOW, &settings) == 0,
+          "Apply inherited zero-minimum serial setting");
+  ::close(slave);
+  rig.start();
+  rig.connect_client();
+  std::this_thread::sleep_for(std::chrono::milliseconds(50));
+  require(snapshot(rig.handle).state == PV_STATE_CONNECTED,
+          "Idle serial port must not look disconnected");
+  ::close(rig.master);
+  rig.master = -1;
+  until([&] { return snapshot(rig.handle).state == PV_STATE_FAULT; },
+        "Disconnected serial port did not stop the worker");
+  const auto failed = snapshot(rig.handle);
+  require(failed.error_code == PV_NATIVE_FAILURE && failed.serial_open == 0 &&
+          failed.client_connected == 0,
+          "Serial disconnect fault and confirmed cleanup");
+}
+
 void test_open_failure_is_reported() {
   Rig rig;
   std::strcpy(rig.settings.serial_port, "/dev/povad-device-that-does-not-exist");
@@ -340,6 +368,7 @@ int main() {
 #ifndef _WIN32
     test_transparent_bridge();
     test_stop_releases_handles();
+    test_serial_disconnect_is_reported();
     test_open_failure_is_reported();
 #endif
     std::cout << "PASS Povad core ABI, config, queue, and transport contracts\n";
