@@ -5,6 +5,10 @@ import 'package:povad/app/ui_preferences.dart';
 import 'package:povad/design/povad_mark.dart';
 import 'package:povad/design/povad_theme.dart';
 import 'package:povad/domain/bridge_session.dart';
+import 'package:povad/domain/bridge_view_state.dart';
+import 'package:povad/features/connection_diagram.dart';
+import 'package:povad/l10n/generated/app_localizations.dart';
+import 'package:povad/l10n/shadcn_localizations_be.dart';
 import 'package:povad/main.dart';
 import 'package:shadcn_flutter/shadcn_flutter.dart' as shad;
 
@@ -130,6 +134,74 @@ void main() {
     expect(core().firstPoint, const Color(0xFF2563EB));
     expect(core().secondPoint, const Color(0xFF2563EB));
     expect(core().activeProgress, closeTo(1, 0.001));
+  });
+
+  testWidgets('signal travels only after observed bytes, in source direction', (
+    tester,
+  ) async {
+    Widget diagram({int serial = 0, int tcp = 0}) => shad.ShadcnApp(
+      locale: const Locale('en'),
+      supportedLocales: AppLocalizations.supportedLocales,
+      localizationsDelegates: const [
+        AppLocalizations.delegate,
+        PovadShadcnDelegate(),
+      ],
+      theme: const PovadPalette(false).toShadcn(),
+      home: Center(
+        child: ConnectionDiagram(
+          state: BridgeViewState.connected,
+          serialReceived: serial,
+          tcpReceived: tcp,
+        ),
+      ),
+    );
+    PovadMark mark() => tester.widget<PovadMark>(find.byType(PovadMark));
+
+    await tester.pumpWidget(diagram());
+    await tester.pumpAndSettle();
+    expect(mark().signalProgress, isNull);
+
+    await tester.pumpWidget(diagram(serial: 1));
+    await tester.pump(const Duration(milliseconds: 120));
+    expect(mark().signalProgress, isNotNull);
+    expect(mark().signalReverse, isFalse);
+    await tester.pumpAndSettle();
+    expect(mark().signalProgress, isNull);
+
+    await tester.pumpWidget(diagram(serial: 1, tcp: 1));
+    await tester.pump(const Duration(milliseconds: 120));
+    expect(mark().signalProgress, isNotNull);
+    expect(mark().signalReverse, isTrue);
+  });
+
+  testWidgets('reduced motion suppresses observed-byte signal', (tester) async {
+    tester.platformDispatcher.accessibilityFeaturesTestValue =
+        const FakeAccessibilityFeatures(reduceMotion: true);
+    addTearDown(tester.platformDispatcher.clearAccessibilityFeaturesTestValue);
+
+    Widget diagram(int received) => shad.ShadcnApp(
+      locale: const Locale('en'),
+      supportedLocales: AppLocalizations.supportedLocales,
+      localizationsDelegates: const [
+        AppLocalizations.delegate,
+        PovadShadcnDelegate(),
+      ],
+      theme: const PovadPalette(false).toShadcn(),
+      home: Center(
+        child: ConnectionDiagram(
+          state: BridgeViewState.connected,
+          serialReceived: received,
+        ),
+      ),
+    );
+    await tester.pumpWidget(diagram(0));
+    await tester.pumpAndSettle();
+    await tester.pumpWidget(diagram(1));
+    await tester.pump(const Duration(milliseconds: 120));
+    expect(
+      tester.widget<PovadMark>(find.byType(PovadMark)).signalProgress,
+      isNull,
+    );
   });
 
   testWidgets('reduced motion settles during bridge startup', (tester) async {

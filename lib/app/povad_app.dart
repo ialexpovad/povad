@@ -386,6 +386,8 @@ class _PovadAppState extends State<PovadApp> {
           0 => OverviewPage(
             state: state,
             onAction: act,
+            tcpReceived: widget.session?.snapshot?.tcpReceived ?? 0,
+            serialReceived: widget.session?.snapshot?.serialReceived ?? 0,
             previewMode: widget.session == null,
             configured: widget.session == null || configurationReady,
             serialValue: serialPort.isEmpty

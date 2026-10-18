@@ -16,12 +16,15 @@ class OverviewPage extends StatelessWidget {
     this.configured = true,
     this.serialValue,
     this.tcpValue,
+    this.tcpReceived = 0,
+    this.serialReceived = 0,
   });
 
   final BridgeViewState state;
   final VoidCallback onAction;
   final bool previewMode, configured;
   final String? serialValue, tcpValue;
+  final int tcpReceived, serialReceived;
 
   @override
   Widget build(BuildContext context) {
@@ -58,7 +61,11 @@ class OverviewPage extends StatelessWidget {
                       Center(child: PreviewNotice(label: l.previewNotice)),
                       const SizedBox(height: 18),
                     ],
-                    ConnectionDiagram(state: state),
+                    ConnectionDiagram(
+                      state: state,
+                      tcpReceived: tcpReceived,
+                      serialReceived: serialReceived,
+                    ),
                     const SizedBox(height: 18),
                     Semantics(
                       liveRegion: true,

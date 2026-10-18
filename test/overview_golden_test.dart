@@ -5,6 +5,11 @@ import 'package:flutter/widgets.dart';
 import 'package:povad/app/ui_preferences.dart';
 import 'package:povad/design/povad_theme.dart';
 import 'package:povad/domain/bridge_session.dart';
+import 'package:povad/domain/bridge_view_state.dart';
+import 'package:povad/features/connection_diagram.dart';
+import 'package:povad/l10n/generated/app_localizations.dart';
+import 'package:povad/l10n/shadcn_localizations_be.dart';
+import 'package:shadcn_flutter/shadcn_flutter.dart' as shad;
 import 'package:povad/main.dart';
 
 void main() {
@@ -23,6 +28,28 @@ void main() {
 }
 
 void _registerGoldens() {
+  goldenTest(
+    'connected mark in dark mode',
+    fileName: 'connected_mark_dark',
+    constraints: const BoxConstraints.tightFor(width: 280, height: 280),
+    builder: () => shad.ShadcnApp(
+      debugShowCheckedModeBanner: false,
+      locale: const Locale('en'),
+      supportedLocales: AppLocalizations.supportedLocales,
+      localizationsDelegates: const [
+        AppLocalizations.delegate,
+        PovadShadcnDelegate(),
+      ],
+      theme: const PovadPalette(true).toShadcn(),
+      home: const ColoredBox(
+        color: Color(0xFF0B0B0D),
+        child: Center(
+          child: ConnectionDiagram(state: BridgeViewState.connected),
+        ),
+      ),
+    ),
+  );
+
   goldenTest(
     'desktop overview in light mode',
     fileName: 'overview_desktop_light',

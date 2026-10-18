@@ -1,6 +1,7 @@
 import 'dart:ui' as ui;
 
 import 'package:flutter/widgets.dart';
+import 'package:shadcn_flutter/shadcn_flutter.dart' as shad;
 
 import '../design/povad_mark.dart';
 import '../design/povad_theme.dart';
@@ -9,20 +10,49 @@ import '../l10n/generated/app_localizations.dart';
 
 /// The brand mark shows confirmed connection stages, never inferred data flow.
 class ConnectionDiagram extends StatefulWidget {
-  const ConnectionDiagram({super.key, required this.state});
+  const ConnectionDiagram({
+    super.key,
+    required this.state,
+    this.tcpReceived = 0,
+    this.serialReceived = 0,
+  });
 
   final BridgeViewState state;
+  final int tcpReceived, serialReceived;
 
   @override
   State<ConnectionDiagram> createState() => _ConnectionDiagramState();
 }
 
 class _ConnectionDiagramState extends State<ConnectionDiagram>
-    with SingleTickerProviderStateMixin {
+    with TickerProviderStateMixin {
   late final AnimationController pulse = AnimationController(
     vsync: this,
     duration: const Duration(milliseconds: 1100),
   );
+  late final AnimationController signal = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 680),
+  )..addStatusListener(_onSignalStatus);
+  bool signalReverse = false;
+  bool? queuedReverse;
+
+  void _onSignalStatus(AnimationStatus status) {
+    if (status != AnimationStatus.completed || queuedReverse == null) return;
+    signalReverse = queuedReverse!;
+    queuedReverse = null;
+    signal.forward(from: 0);
+  }
+
+  void _queueSignal(bool reverse) {
+    if (reduceMotion || widget.state != BridgeViewState.connected) return;
+    if (signal.isAnimating) {
+      queuedReverse = reverse;
+    } else {
+      signalReverse = reverse;
+      signal.forward(from: 0);
+    }
+  }
 
   bool get reduceMotion =>
       (MediaQuery.maybeOf(context)?.disableAnimations ?? false) ||
@@ -42,6 +72,12 @@ class _ConnectionDiagramState extends State<ConnectionDiagram>
   void didUpdateWidget(covariant ConnectionDiagram oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.state != widget.state) _syncMotion();
+    if (widget.serialReceived > oldWidget.serialReceived) {
+      _queueSignal(false);
+    }
+    if (widget.tcpReceived > oldWidget.tcpReceived) {
+      _queueSignal(true);
+    }
   }
 
   void _syncMotion() {
@@ -54,11 +90,16 @@ class _ConnectionDiagramState extends State<ConnectionDiagram>
       pulse.stop();
       pulse.value = 0;
     }
+    if (reduceMotion || widget.state != BridgeViewState.connected) {
+      signal.stop();
+      queuedReverse = null;
+    }
   }
 
   @override
   void dispose() {
     pulse.dispose();
+    signal.dispose();
     super.dispose();
   }
 
@@ -79,7 +120,7 @@ class _ConnectionDiagramState extends State<ConnectionDiagram>
       child: ExcludeSemantics(
         child: Center(
           child: SizedBox.square(
-            dimension: 148,
+            dimension: 212,
             child: TweenAnimationBuilder<double>(
               tween: Tween(end: serialReady ? 1 : 0),
               duration: transitionDuration,
@@ -90,7 +131,7 @@ class _ConnectionDiagramState extends State<ConnectionDiagram>
                     duration: transitionDuration,
                     curve: Curves.easeOutCubic,
                     builder: (context, clientProgress, _) => AnimatedBuilder(
-                      animation: pulse,
+                      animation: Listenable.merge([pulse, signal]),
                       builder: (context, child) => CustomPaint(
                         painter: _TerminalPulse(
                           color: colors.primary,
@@ -98,24 +139,59 @@ class _ConnectionDiagramState extends State<ConnectionDiagram>
                           first: widget.state == BridgeViewState.starting,
                           second: widget.state == BridgeViewState.stopping,
                         ),
-                        child: Center(
-                          child: PovadMark(
-                            size: 128,
-                            ink: colors.foreground,
-                            activeInk: colors.primary,
-                            activeProgress:
-                                0.54 * serialProgress + 0.46 * clientProgress,
-                            firstPoint: fault
-                                ? colors.error
-                                : serialReady
-                                ? colors.primary
-                                : colors.inactive,
-                            secondPoint: fault
-                                ? colors.error
-                                : clientReady
-                                ? colors.primary
-                                : colors.inactive,
-                          ),
+                        child: Stack(
+                          children: [
+                            Center(
+                              child: PovadMark(
+                                size: 192,
+                                strokeWidth: 6.2,
+                                pointRadius: 3.5,
+                                ink: colors.foreground,
+                                activeInk: colors.primary,
+                                activeProgress:
+                                    0.54 * serialProgress +
+                                    0.46 * clientProgress,
+                                signalProgress: signal.isAnimating
+                                    ? signal.value
+                                    : null,
+                                signalReverse: signalReverse,
+                                firstPoint: fault
+                                    ? colors.error
+                                    : serialReady
+                                    ? colors.primary
+                                    : colors.inactive,
+                                secondPoint: fault
+                                    ? colors.error
+                                    : clientReady
+                                    ? colors.primary
+                                    : colors.inactive,
+                              ),
+                            ),
+                            Positioned(
+                              left: 7,
+                              top: 148,
+                              child: _TerminalBadge(
+                                icon: shad.LucideIcons.usb,
+                                color: fault
+                                    ? colors.error
+                                    : serialReady
+                                    ? colors.primary
+                                    : colors.inactive,
+                              ),
+                            ),
+                            Positioned(
+                              left: 168,
+                              top: 103,
+                              child: _TerminalBadge(
+                                icon: shad.LucideIcons.network,
+                                color: fault
+                                    ? colors.error
+                                    : clientReady
+                                    ? colors.primary
+                                    : colors.inactive,
+                              ),
+                            ),
+                          ],
                         ),
                       ),
                     ),
@@ -143,13 +219,13 @@ class _TerminalPulse extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     if (!first && !second) return;
-    final markOrigin = (size.width - 128) / 2;
+    final markOrigin = (size.width - 192) / 2;
     final center = first
-        ? Offset(markOrigin + 34, markOrigin + 104)
-        : Offset(markOrigin + 52, markOrigin + 74);
+        ? Offset(markOrigin + 51, markOrigin + 156)
+        : Offset(markOrigin + 78, markOrigin + 111);
     canvas.drawCircle(
       center,
-      ui.lerpDouble(14, 21, progress)!,
+      ui.lerpDouble(20, 29, progress)!,
       Paint()
         ..color = color.withValues(alpha: ui.lerpDouble(0.16, 0.02, progress)!)
         ..style = PaintingStyle.stroke
@@ -163,4 +239,26 @@ class _TerminalPulse extends CustomPainter {
       old.progress != progress ||
       old.first != first ||
       old.second != second;
+}
+
+class _TerminalBadge extends StatelessWidget {
+  const _TerminalBadge({required this.icon, required this.color});
+
+  final IconData icon;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = paletteOf(context);
+    return Container(
+      width: 36,
+      height: 36,
+      decoration: BoxDecoration(
+        color: colors.background,
+        shape: BoxShape.circle,
+        border: Border.all(color: color, width: 1.5),
+      ),
+      child: Center(child: Icon(icon, size: 17, color: color)),
+    );
+  }
 }
