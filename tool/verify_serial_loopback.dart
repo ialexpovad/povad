@@ -89,8 +89,9 @@ Future<void> main(List<String> args) async {
   try {
     final result = await verifySerialLoopback(host: host, port: port);
     stdout.writeln(
-      'PASS: ${result.bytes} binary bytes matched through serial loopback '
-      'in ${result.elapsed.inMilliseconds} ms.',
+      'PASS: ${result.bytes} binary bytes echoed by the TCP endpoint '
+      'in ${result.elapsed.inMilliseconds} ms. Confirm the physical TX/RX '
+      'fixture before recording serial hardware acceptance.',
     );
   } on Object catch (error) {
     stderr.writeln('FAIL: $error');
