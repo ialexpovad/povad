@@ -105,6 +105,7 @@ final class UpdateInstaller implements AppUpdater {
     DetachedStarter? start,
     MethodChannel? channel,
     int? processId,
+    this.helperReadyTimeout = const Duration(seconds: 10),
   }) : _os = operatingSystem ?? Platform.operatingSystem,
        _executable = executable ?? Platform.resolvedExecutable,
        _workDirectory = workRoot,
@@ -120,6 +121,7 @@ final class UpdateInstaller implements AppUpdater {
   final DetachedStarter _start;
   final MethodChannel _channel;
   final int _pid;
+  final Duration helperReadyTimeout;
 
   @override
   InstallMethod get method => switch (_os) {
@@ -260,6 +262,8 @@ final class UpdateInstaller implements AppUpdater {
     switch (method) {
       case InstallMethod.windowsZip:
         final script = File('$directory\\install.ps1');
+        final ready = File('$directory\\helper.ready');
+        if (await ready.exists()) await ready.delete();
         await script.writeAsString(windowsInstallScript, flush: true);
         await _start('powershell.exe', [
           '-NoProfile',
@@ -280,6 +284,16 @@ final class UpdateInstaller implements AppUpdater {
           '-Relaunch',
           relaunch ? '1' : '0',
         ]);
+        final deadline = DateTime.now().add(helperReadyTimeout);
+        while (!await ready.exists()) {
+          if (DateTime.now().isAfter(deadline)) {
+            throw const UpdateError(
+              UpdateFailure.installerUnavailable,
+              'Windows update helper did not start',
+            );
+          }
+          await Future<void>.delayed(const Duration(milliseconds: 100));
+        }
         return true;
       case InstallMethod.linuxTarXz:
         final script = File('$directory/install.sh');
@@ -403,7 +417,19 @@ Future<DownloadResponse> _openHttps(Uri uri) async {
 }
 
 Future<void> _startDetached(String executable, List<String> arguments) async {
-  await Process.start(executable, arguments, mode: ProcessStartMode.detached);
+  // PowerShell exits before running -File when started with DETACHED_PROCESS
+  // on Windows. A normal child keeps running after Povad exits.
+  final process = await Process.start(
+    executable,
+    arguments,
+    mode: Platform.isWindows
+        ? ProcessStartMode.normal
+        : ProcessStartMode.detached,
+  );
+  if (Platform.isWindows) {
+    unawaited(process.stdout.drain<void>());
+    unawaited(process.stderr.drain<void>());
+  }
 }
 
 /// Remembers an update across the restart so the next launch can report
@@ -469,6 +495,8 @@ $log = Join-Path $work 'install.log'
 function Write-Log([string]$Message) {
   Add-Content -LiteralPath $log -Value ("{0:o} {1}" -f (Get-Date), $Message)
 }
+Write-Log 'Started'
+Set-Content -LiteralPath (Join-Path $work 'helper.ready') -Value 'ready'
 function Copy-Tree([string]$From, [string]$To) {
   & robocopy $From $To /E /R:2 /W:1 /NFL /NDL /NJH /NJS /NP | Out-Null
   if ($LASTEXITCODE -ge 8) { throw "robocopy failed with $LASTEXITCODE" }

@@ -172,7 +172,7 @@ void main() {
       }
     });
 
-    test('launches the detached installer used by the app', () async {
+    test('launches the Windows helper used by the app', () async {
       final target = '${root.path}\\app';
       write('$target\\povad.exe', 'old');
       final archive = await pack({'povad.exe': 'new'});
@@ -194,37 +194,49 @@ void main() {
         isTrue,
       );
       final log = File('${root.path}\\work\\install.log');
-      for (var i = 0; i < 100 && !log.existsSync(); i++) {
+      for (
+        var i = 0;
+        i < 100 &&
+            (!log.existsSync() ||
+                !log.readAsStringSync().contains('Installed'));
+        i++
+      ) {
         await Future<void>.delayed(const Duration(milliseconds: 200));
       }
-      if (!log.existsSync()) {
-        final result = await Process.run('powershell.exe', [
-          '-NoProfile',
-          '-ExecutionPolicy',
-          'Bypass',
-          '-WindowStyle',
-          'Hidden',
-          '-File',
-          '${root.path}\\work\\install.ps1',
-          '-ProcessId',
-          '2147483647',
-          '-Archive',
-          archive,
-          '-Target',
-          target,
-          '-Executable',
-          'povad.exe',
-          '-Relaunch',
-          '0',
-        ]);
-        fail(
-          'Detached PowerShell did not create install.log. '
-          'Foreground exit: ${result.exitCode}; '
-          'stdout: ${result.stdout}; stderr: ${result.stderr}',
-        );
-      }
+      expect(log.existsSync(), isTrue);
       expect(log.readAsStringSync(), contains('Installed'));
       expect(File('$target\\povad.exe').readAsStringSync(), 'new');
+    });
+
+    test('does not quit when the Windows helper never starts', () async {
+      final target = '${root.path}\\app';
+      write('$target\\povad.exe', 'old');
+      final archive = await pack({'povad.exe': 'new'});
+      final installer = UpdateInstaller(
+        operatingSystem: 'windows',
+        executable: '$target\\povad.exe',
+        processId: 2147483647,
+        start: (_, _) async {},
+        helperReadyTimeout: const Duration(milliseconds: 100),
+      );
+      await expectLater(
+        installer.launch(
+          StagedUpdate(
+            version: '0.1.0-rc.2',
+            file: File(archive),
+            sha256: sha256.convert(File(archive).readAsBytesSync()).toString(),
+          ),
+          relaunch: false,
+        ),
+        throwsA(
+          isA<UpdateError>().having(
+            (error) => error.failure,
+            'failure',
+            UpdateFailure.installerUnavailable,
+          ),
+        ),
+      );
+      expect(File('$target\\povad.exe').readAsStringSync(), 'old');
     });
 
     test('keeps the app folder when the update is unusable', () async {
