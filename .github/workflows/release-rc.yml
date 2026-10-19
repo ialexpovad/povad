@@ -102,20 +102,18 @@ jobs:
           unzip -Z1 "$apk" | grep -Fx 'lib/arm64-v8a/libpovad_core.so'
           apksigner=$(find "$ANDROID_HOME/build-tools" -maxdepth 2 -type f -name apksigner | sort -V | tail -n 1)
           test -x "$apksigner"
-          "$apksigner" verify --verbose "$apk"
-          mkdir -p dist
-          cp "$apk" "dist/Povad-$RC_TAG-android-arm64.apk"
           certificate_output=$("$apksigner" verify --verbose --print-certs "$apk")
           printf '%s\n' "$certificate_output"
           actual_certificate=$(printf '%s\n' "$certificate_output" |
-            sed -n 's/^Signer #1 certificate SHA-256 digest: //p' | tr '[:upper:]' '[:lower:]' | tr -d '\r\n')
+            sed -n 's/^.*certificate SHA-256 digest: //p' | tr '[:upper:]' '[:lower:]' | tr -d '\r\n')
           expected_certificate=$(tr -d '\r\n' < release/android-certificate.sha256)
           printf 'Expected certificate SHA-256: %s\n' "$expected_certificate"
           printf 'APK certificate SHA-256: %s\n' "$actual_certificate"
           test -n "$actual_certificate"
           test "$actual_certificate" = "$expected_certificate"
+          mkdir -p dist
+          cp "$apk" "dist/Povad-$RC_TAG-android-arm64.apk"
       - uses: actions/upload-artifact@v7
-        if: always()
         with:
           name: rc-android
           path: dist/*
