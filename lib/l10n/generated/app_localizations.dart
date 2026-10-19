@@ -584,6 +584,18 @@ abstract class AppLocalizations {
   /// **'Appearance'**
   String get appearance;
 
+  /// No description provided for @connectionAnimation.
+  ///
+  /// In en, this message translates to:
+  /// **'Connection animation'**
+  String get connectionAnimation;
+
+  /// No description provided for @connectionAnimationDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Animate the bridge and bytes on Overview.'**
+  String get connectionAnimationDescription;
+
   /// No description provided for @systemTheme.
   ///
   /// In en, this message translates to:

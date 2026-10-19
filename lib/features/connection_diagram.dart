@@ -27,11 +27,13 @@ class ConnectionDiagram extends StatefulWidget {
   const ConnectionDiagram({
     super.key,
     required this.state,
+    this.animateConnection = true,
     this.tcpReceived = 0,
     this.serialReceived = 0,
   });
 
   final BridgeViewState state;
+  final bool animateConnection;
   final int tcpReceived, serialReceived;
 
   @override
@@ -96,6 +98,7 @@ class _ConnectionDiagramState extends State<ConnectionDiagram>
   };
 
   bool get reduceMotion =>
+      !widget.animateConnection ||
       (MediaQuery.maybeOf(context)?.disableAnimations ?? false) ||
       WidgetsBinding
           .instance
@@ -127,6 +130,9 @@ class _ConnectionDiagramState extends State<ConnectionDiagram>
     super.didUpdateWidget(oldWidget);
     if (oldWidget.state != widget.state) {
       _onStage(oldWidget.state, widget.state);
+      _syncMotion();
+    }
+    if (oldWidget.animateConnection != widget.animateConnection) {
       _syncMotion();
     }
     if (widget.serialReceived > oldWidget.serialReceived) {

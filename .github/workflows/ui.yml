@@ -137,3 +137,18 @@ jobs:
           script: |
             flutter test integration_test/android_native_test.dart -d emulator-5554
             flutter test integration_test/bonjour_android_test.dart -d emulator-5554
+            keytool -genkeypair -noprompt -keystore android/app/ci-release.jks -storepass testonly123 -keypass testonly123 -alias ci -keyalg RSA -keysize 2048 -validity 2 -dname 'CN=Povad CI'
+            printf 'storeFile=ci-release.jks\nstorePassword=testonly123\nkeyAlias=ci\nkeyPassword=testonly123\n' > android/key.properties
+            flutter build apk --release --target-platform android-x64 --target tool/android_release_preferences_smoke.dart
+            adb uninstall io.github.ialexpovad.povad
+            adb install build/app/outputs/flutter-apk/app-release.apk
+            adb logcat -c
+            adb shell am start -n io.github.ialexpovad.povad/.MainActivity
+            for attempt in $(seq 1 45); do
+              logs=$(adb logcat -d -s flutter:I '*:S')
+              if printf '%s' "$logs" | grep -q POVAD_RELEASE_PREFERENCES_PASS; then exit 0; fi
+              if printf '%s' "$logs" | grep -q POVAD_RELEASE_PREFERENCES_FAIL; then printf '%s\n' "$logs"; exit 1; fi
+              sleep 1
+            done
+            adb logcat -d -s flutter:I '*:S'
+            exit 1

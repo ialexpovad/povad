@@ -1,26 +1,26 @@
-# Povad 0.1.0-rc.2
+# Povad 0.1.0-rc.3
 
-This candidate improves the bridge setup and desktop experience while keeping
-Serial ↔ TCP traffic byte-transparent.
+This candidate repairs update delivery and refines the compact interface.
 
-- The compact header keeps Help and Menu at the right edge. Select the Povad
-  brand to return to Overview from any page.
-- Windows now discovers current COM ports and lets you refresh the list,
-  alongside existing macOS and Linux port discovery.
-- Serial setup exposes None, Even, and Odd parity with standard 8N1, 8E1,
-  and 8O1 framing. The selection is remembered locally.
-- Desktop starts in a compact window and restores its saved size and position.
-  When a bridge is active, closing the window offers to keep it running in the
-  tray, stop and quit, or cancel.
-- Monochrome tray icons show stopped, listening, connected, and error states.
-- Optional **Wait for next client** accepts three or more sequential clients
-  without reopening the serial port. It is off by default because late device
-  responses can be ambiguous across clients.
-- A second client is closed immediately and counted as a busy rejection.
-- Optional exact IPv4 allowlist restricts LAN clients. The Bridge page shows
-  QR codes with `povad-bridge://` addresses.
-- When LAN access is enabled and the bridge is listening, DNS-SD advertises
-  `_povad-bridge._tcp` with `v`, `mode`, `port`, `serial`, and `busy` TXT fields.
+- Android release builds use the last working `shared_preferences_android`
+  implementation. The newer 2.5.0 version fails after R8 optimization, which
+  prevented settings from loading and left the in-app update action stuck.
+- The Android updater continues to the system installer if saving the pending
+  update state fails, and reports an installer error instead of waiting forever.
+- Android release builds preserve the JNI entry points used by the USB worker.
+  This restores USB–Serial discovery and opening, including the STM32 Virtual
+  ComPort tested on a physical phone.
+- Windows waits for its PowerShell update helper to start before closing Povad.
+  If the helper cannot start, the application stays open and shows the failure.
+- macOS QA builds now detect new releases and provide the release-page link.
+  The unsigned QA ZIP still requires manual installation.
+- The compact header places a single Menu button at the right edge. Help is
+  available from that menu, and the Povad brand returns to Overview.
+- Windows tray icons now include size-specific 16–256 px frames and clearer
+  status shapes at small taskbar sizes.
+- Settings offers a persistent **Connection animation** switch. When off, the
+  active bridge and observed byte counts remain visible without moving
+  signals in the Overview mark. System reduced-motion settings still apply.
 
 ## Download
 
@@ -31,16 +31,25 @@ Serial ↔ TCP traffic byte-transparent.
 - macOS: unsigned QA ZIP for developer testing only. Public macOS distribution
   requires Developer ID signing and notarization.
 
+**Upgrading from rc.1 or rc.2:** The Android and Windows in-app updaters in
+those candidates may fail. Install rc.3 from this release page once; the
+release is signed with the same Android certificate, so it can replace an
+existing Android installation without clearing its data. On macOS, install
+the new QA ZIP manually.
+
 Povad checks GitHub for newer releases. On Windows, Linux, and Android it can
-download a matching package, verify it against `SHA256SUMS.txt`, and install it
-after the active bridge stops. Android installation needs system confirmation.
-The macOS QA bundle is excluded from update offers.
+download a matching package and verify it against `SHA256SUMS.txt` before
+installation. Android installation needs system confirmation. An active bridge
+must stop before installation.
 
 ## Validation status
 
-Automated checks cover the Flutter UI, native C ABI, simulated binary traffic,
-desktop builds, Android packaging, and an emulator smoke test. A real
-USB–Serial adapter and instrument have not yet been tested. Raw bridge mode
-does not interpret Modbus, choose a bus address, or change CRC byte order.
+Automated checks cover Flutter UI and accessibility, native C ABI, simulated
+binary traffic, desktop builds, Android packaging, an emulator smoke test,
+and Android release-mode preference/JNI access. A physical Android phone was
+used to verify that the signed APK replaces rc.1 without clearing app data,
+discovers an STM32 USB Virtual ComPort, opens it, and reaches TCP listening.
+Instrument byte exchange has not yet been validated. Raw bridge mode does not
+interpret Modbus, choose a bus address, or change CRC byte order.
 
 Use the attached `SHA256SUMS.txt` to verify downloaded assets.

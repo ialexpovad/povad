@@ -15,6 +15,8 @@ class SettingsPage extends StatelessWidget {
     required this.onLocaleChanged,
     required this.appearance,
     required this.onAppearanceChanged,
+    required this.animateConnection,
+    required this.onAnimateConnectionChanged,
     this.feedbackError,
     this.versionLabel,
     this.updateChecking = false,
@@ -44,6 +46,8 @@ class SettingsPage extends StatelessWidget {
   final ValueChanged<Locale> onLocaleChanged;
   final PovadAppearance appearance;
   final ValueChanged<PovadAppearance> onAppearanceChanged;
+  final bool animateConnection;
+  final ValueChanged<bool> onAnimateConnectionChanged;
   final String? feedbackError;
   final String? versionLabel;
   final bool updateChecking;
@@ -182,6 +186,16 @@ class SettingsPage extends StatelessWidget {
                 ],
                 value: appearance,
                 onChanged: onAppearanceChanged,
+              ),
+            ),
+            SectionRow(
+              label: l.connectionAnimation,
+              description: l.connectionAnimationDescription,
+              stackBelow: 0,
+              trailing: shad.Switch(
+                key: const ValueKey('connection-animation'),
+                value: animateConnection,
+                onChanged: onAnimateConnectionChanged,
               ),
             ),
           ],

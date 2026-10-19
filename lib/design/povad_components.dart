@@ -621,6 +621,7 @@ class ToolbarIconButton extends StatelessWidget {
     required this.label,
     required this.onPressed,
     this.badge = false,
+    this.quiet = false,
   });
 
   final IconData icon;
@@ -629,6 +630,7 @@ class ToolbarIconButton extends StatelessWidget {
 
   /// Shows a small accent dot, for example when an update is available.
   final bool badge;
+  final bool quiet;
 
   @override
   Widget build(BuildContext context) {
@@ -646,11 +648,15 @@ class ToolbarIconButton extends StatelessWidget {
                 states.contains(WidgetState.hovered) ||
                     states.contains(WidgetState.pressed)
                 ? colors.subtle
+                : quiet
+                ? const Color(0x00000000)
                 : colors.background,
             borderRadius: BorderRadius.circular(12),
             border: Border.all(
               color: states.contains(WidgetState.focused)
                   ? colors.primary
+                  : quiet
+                  ? const Color(0x00000000)
                   : colors.border,
               width: states.contains(WidgetState.focused) ? 1.5 : 1,
             ),
@@ -678,6 +684,7 @@ class ToolbarIconButton extends StatelessWidget {
         ),
       ),
     );
+    if (quiet) return button;
     return shad.Tooltip(
       tooltip: (context) => shad.TooltipContainer(child: Text(label)),
       child: button,

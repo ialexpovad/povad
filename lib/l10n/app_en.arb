@@ -81,6 +81,8 @@
   "english": "English",
   "belarusian": "Беларуская",
   "appearance": "Appearance",
+  "connectionAnimation": "Connection animation",
+  "connectionAnimationDescription": "Animate the bridge and bytes on Overview.",
   "systemTheme": "System",
   "lightTheme": "Light",
   "darkTheme": "Dark",

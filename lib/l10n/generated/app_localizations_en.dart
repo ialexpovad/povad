@@ -263,6 +263,13 @@ class AppLocalizationsEn extends AppLocalizations {
   String get appearance => 'Appearance';
 
   @override
+  String get connectionAnimation => 'Connection animation';
+
+  @override
+  String get connectionAnimationDescription =>
+      'Animate the bridge and bytes on Overview.';
+
+  @override
   String get systemTheme => 'System';
 
   @override

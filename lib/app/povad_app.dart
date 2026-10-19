@@ -80,6 +80,7 @@ class _PovadAppState extends State<PovadApp> {
   String? discoveryError;
   Locale locale = const Locale('en');
   PovadAppearance appearance = PovadAppearance.system;
+  bool animateConnection = true;
   BridgeViewState state = BridgeViewState.stopped;
   int page = 0;
   late final UiPreferences preferences;
@@ -428,12 +429,17 @@ class _PovadAppState extends State<PovadApp> {
     try {
       final savedLanguage = await preferences.readLanguage();
       final savedAppearance = await preferences.readAppearance();
+      final savedConnectionAnimation = await preferences
+          .readConnectionAnimation();
       if (!mounted || settingsChanged) return;
       setState(() {
         if (savedLanguage == 'en' || savedLanguage == 'be') {
           locale = Locale(savedLanguage!);
         }
         if (savedAppearance != null) appearance = savedAppearance;
+        if (savedConnectionAnimation != null) {
+          animateConnection = savedConnectionAnimation;
+        }
       });
       unawaited(reflectPresence());
     } catch (error) {
@@ -452,6 +458,12 @@ class _PovadAppState extends State<PovadApp> {
     settingsChanged = true;
     setState(() => appearance = value);
     unawaited(saveAppearance(value));
+  }
+
+  void changeConnectionAnimation(bool value) {
+    settingsChanged = true;
+    setState(() => animateConnection = value);
+    unawaited(saveConnectionAnimation(value));
   }
 
   Future<ActiveCloseAction> chooseActiveCloseAction() async {
@@ -701,11 +713,17 @@ class _PovadAppState extends State<PovadApp> {
     try {
       final from = installedBuild?.version;
       if (from != null) {
-        await widget.updatePreferences?.savePending(from, staged.version);
+        try {
+          await widget.updatePreferences?.savePending(from, staged.version);
+        } catch (error) {
+          // A preferences failure must not prevent the verified installer
+          // from opening. The next launch can still check the current build.
+          debugPrint('Unable to remember pending update: $error');
+        }
       }
       final started = await installer.launch(staged, relaunch: true);
       if (!started) {
-        await widget.updatePreferences?.clearPending();
+        await _clearPendingUpdate();
         if (mounted) setState(() => updateStage = UpdateStage.needsPermission);
         return;
       }
@@ -718,8 +736,16 @@ class _PovadAppState extends State<PovadApp> {
       await widget.exitForUpdate?.call();
     } catch (error) {
       debugPrint('Update install failed: $error');
-      await widget.updatePreferences?.clearPending();
+      await _clearPendingUpdate();
       if (mounted) setState(() => updateStage = UpdateStage.failed);
+    }
+  }
+
+  Future<void> _clearPendingUpdate() async {
+    try {
+      await widget.updatePreferences?.clearPending();
+    } catch (error) {
+      debugPrint('Unable to clear pending update: $error');
     }
   }
 
@@ -779,6 +805,14 @@ class _PovadAppState extends State<PovadApp> {
       await preferences.saveAppearance(value);
     } catch (error) {
       debugPrint('Unable to save UI theme: $error');
+    }
+  }
+
+  Future<void> saveConnectionAnimation(bool value) async {
+    try {
+      await preferences.saveConnectionAnimation(value);
+    } catch (error) {
+      debugPrint('Unable to save connection animation setting: $error');
     }
   }
 
@@ -983,6 +1017,7 @@ class _PovadAppState extends State<PovadApp> {
       0 => OverviewPage(
         notice: _overviewNotice(l),
         state: state,
+        animateConnection: animateConnection,
         onAction: act,
         tcpReceived: snapshot?.tcpReceived ?? 0,
         serialReceived: snapshot?.serialReceived ?? 0,
@@ -1069,6 +1104,8 @@ class _PovadAppState extends State<PovadApp> {
         onLocaleChanged: changeLocale,
         appearance: appearance,
         onAppearanceChanged: changeAppearance,
+        animateConnection: animateConnection,
+        onAnimateConnectionChanged: changeConnectionAnimation,
         feedbackError: feedbackUnavailable ? l.feedbackUnavailable : null,
         versionLabel: installedBuild?.label,
         updateChecking: updateChecking,
@@ -1154,7 +1191,7 @@ class _PovadAppState extends State<PovadApp> {
                           children: [
                             // Large system text shrinks the wordmark
                             // before it can push the toolbar off screen.
-                            Flexible(
+                            Expanded(
                               child: FittedBox(
                                 fit: BoxFit.scaleDown,
                                 alignment: Alignment.centerLeft,
@@ -1183,19 +1220,13 @@ class _PovadAppState extends State<PovadApp> {
                                       ),
                               ),
                             ),
-                            ToolbarIconButton(
-                              key: const ValueKey('header-help'),
-                              icon: shad.LucideIcons.circleHelp,
-                              label: l.openHelp,
-                              onPressed: () => openHelp(context),
-                            ),
-                            const SizedBox(width: 6),
                             Builder(
                               builder: (menuContext) => ToolbarIconButton(
                                 key: const ValueKey('mobile-menu'),
                                 icon: shad.LucideIcons.menu,
                                 label: l.menu,
                                 badge: updateReady,
+                                quiet: true,
                                 onPressed: () => shad.showOverlay<void>(
                                   menuContext,
                                   const shad.PopoverConfiguration(

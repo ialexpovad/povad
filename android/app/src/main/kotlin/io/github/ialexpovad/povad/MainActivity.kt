@@ -12,6 +12,7 @@ import android.hardware.usb.UsbManager
 import android.net.Uri
 import android.os.Build
 import android.provider.Settings
+import android.util.Log
 import androidx.core.content.FileProvider
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
@@ -76,7 +77,8 @@ class MainActivity : FlutterActivity() {
         nativeLibraryAvailable = try {
             System.loadLibrary("povad_core")
             true
-        } catch (_: UnsatisfiedLinkError) {
+        } catch (error: UnsatisfiedLinkError) {
+            Log.e("PovadUsbHost", "Native USB worker could not load", error)
             false
         }
         val filter = IntentFilter(permissionAction)
@@ -91,6 +93,7 @@ class MainActivity : FlutterActivity() {
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "povad/usb_host")
             .setMethodCallHandler { call, result ->
                 when (call.method) {
+                    "nativeAvailable" -> result.success(nativeLibraryAvailable)
                     "available" -> result.success(
                         nativeLibraryAvailable &&
                             packageManager.hasSystemFeature(PackageManager.FEATURE_USB_HOST)

@@ -311,7 +311,12 @@ final class UpdateInstaller implements AppUpdater {
         final outcome = await _channel.invokeMethod<String>('install', {
           'path': update.file.path,
         });
-        return outcome != 'permission';
+        if (outcome == 'permission') return false;
+        if (outcome == 'started') return true;
+        throw UpdateError(
+          UpdateFailure.installerUnavailable,
+          'Android package installer returned $outcome',
+        );
       case InstallMethod.manual:
         throw const UpdateError(UpdateFailure.installerUnavailable);
     }
