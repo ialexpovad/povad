@@ -103,8 +103,13 @@ jobs:
           apksigner=$(find "$ANDROID_HOME/build-tools" -maxdepth 2 -type f -name apksigner | sort -V | tail -n 1)
           test -x "$apksigner"
           "$apksigner" verify --verbose "$apk"
-          "$apksigner" verify --print-certs "$apk" |
-            grep -F "Signer #1 certificate SHA-256 digest: $(cat release/android-certificate.sha256)"
+          actual_certificate=$("$apksigner" verify --print-certs "$apk" |
+            sed -n 's/^Signer #1 certificate SHA-256 digest: //p' | tr '[:upper:]' '[:lower:]' | tr -d '\r\n')
+          expected_certificate=$(tr -d '\r\n' < release/android-certificate.sha256)
+          printf 'Expected certificate SHA-256: %s\n' "$expected_certificate"
+          printf 'APK certificate SHA-256: %s\n' "$actual_certificate"
+          test -n "$actual_certificate"
+          test "$actual_certificate" = "$expected_certificate"
           mkdir -p dist
           cp "$apk" "dist/Povad-$RC_TAG-android-arm64.apk"
       - uses: actions/upload-artifact@v7
