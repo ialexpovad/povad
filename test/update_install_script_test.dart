@@ -91,7 +91,7 @@ void main() {
   }, skip: Platform.isWindows ? 'POSIX only' : null);
 
   group('Windows helper', () {
-    Future<void> run(String archive, String target) async {
+    Future<void> run(String archive, String target, {int? processId}) async {
       final script = File('${root.path}\\work\\install.ps1')
         ..createSync(recursive: true)
         ..writeAsStringSync(windowsInstallScript);
@@ -102,7 +102,7 @@ void main() {
         '-File',
         script.path,
         '-ProcessId',
-        '${await exitedPid()}',
+        '${processId ?? await exitedPid()}',
         '-Archive',
         archive,
         '-Target',
@@ -147,6 +147,28 @@ void main() {
         File('${root.path}\\work\\install.log').readAsStringSync(),
         contains('Installed'),
       );
+    });
+
+    test('waits for the running app before replacing its files', () async {
+      final target = '${root.path}\\app';
+      write('$target\\povad.exe', 'old');
+      final archive = await pack({'povad.exe': 'new'});
+      final running = await Process.start('powershell.exe', [
+        '-NoProfile',
+        '-Command',
+        'Start-Sleep -Milliseconds 1200',
+      ]);
+      try {
+        await run(archive, target, processId: running.pid);
+        expect(File('$target\\povad.exe').readAsStringSync(), 'new');
+        expect(
+          File('${root.path}\\work\\install.log').readAsStringSync(),
+          contains('Installed'),
+        );
+      } finally {
+        running.kill();
+        await running.exitCode;
+      }
     });
 
     test('keeps the app folder when the update is unusable', () async {
