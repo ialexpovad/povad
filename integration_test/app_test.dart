@@ -7,8 +7,6 @@ import 'package:povad/domain/bridge_session.dart';
 import 'package:povad/main.dart';
 import 'package:shadcn_flutter/shadcn_flutter.dart' as shad;
 
-import 'bonjour_test.dart' show verifyBonjour;
-
 void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
 
@@ -51,10 +49,6 @@ void main() {
       expect(tester.takeException(), isNull);
     },
   );
-
-  testWidgets('macOS advertises Povad through Bonjour', (tester) async {
-    await verifyBonjour();
-  });
 }
 
 Future<void> _goHome(WidgetTester tester) async {

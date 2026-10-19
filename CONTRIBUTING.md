@@ -1,6 +1,6 @@
 # Contributing
 
-Povad has no public release yet. Feature proposals and feedback on hardware
+Povad is in the release candidate stage. Feature proposals and feedback on hardware
 support are welcome through the GitHub issue templates. If you tested a
 development build, include its commit ID, operating system, serial adapter,
 and clear reproduction steps.
@@ -22,6 +22,11 @@ On macOS, run `flutter test integration_test/app_test.dart -d macos` to check
 the application in its desktop runner. Review changed golden images before
 updating their references. CI also compiles the other platform runners; a
 successful build does not prove hardware behavior.
+
+To verify Bonjour on a Mac with an active local network, run
+`flutter test integration_test/bonjour_test.dart -d macos`. This exercises
+system `dns-sd` discovery and both `busy` TXT values. Hosted CI runners do
+not provide a reliable multicast environment, so this check is run locally.
 
 For changes under `packages/povad_core`, run the standalone native contract
 tests as well:

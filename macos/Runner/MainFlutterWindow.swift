@@ -91,7 +91,7 @@ private final class PovadBonjour {
       return
     }
     let token = generation
-    DispatchQueue.main.asyncAfter(deadline: .now() + 5) { [weak self] in
+    DispatchQueue.main.asyncAfter(deadline: .now() + 10) { [weak self] in
       guard let self = self, self.generation == token, self.pending != nil else { return }
       self.finish(FlutterError(code: "TIMEOUT", message: "Bonjour registration timed out", details: nil))
       self.stop()

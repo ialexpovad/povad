@@ -76,6 +76,7 @@ class _PovadAppState extends State<PovadApp> {
   final GlobalKey<NavigatorState> _navigatorKey = GlobalKey<NavigatorState>();
   final LanDiscoveryPublisher _discovery = LanDiscoveryPublisher();
   String? _discoveryTarget;
+  Timer? _discoveryRetry;
   String? discoveryError;
   Locale locale = const Locale('en');
   PovadAppearance appearance = PovadAppearance.system;
@@ -307,6 +308,7 @@ class _PovadAppState extends State<PovadApp> {
   @override
   void dispose() {
     updateTimer?.cancel();
+    _discoveryRetry?.cancel();
     unawaited(_discovery.update(null));
     final presence = widget.presence;
     if (presence is DesktopPresence) {
@@ -378,10 +380,16 @@ class _PovadAppState extends State<PovadApp> {
           )
         : null;
     final signature = desired?.signature;
+    if (desired == null) {
+      _discoveryRetry?.cancel();
+      _discoveryRetry = null;
+    }
     if (signature == _discoveryTarget) return;
     _discoveryTarget = signature;
     try {
       await _discovery.update(desired);
+      _discoveryRetry?.cancel();
+      _discoveryRetry = null;
       if (mounted && discoveryError != null) {
         setState(() => discoveryError = null);
       }
@@ -390,6 +398,13 @@ class _PovadAppState extends State<PovadApp> {
       if (_discoveryTarget == signature) _discoveryTarget = null;
       debugPrint('Cannot advertise Povad on LAN: $error');
       if (mounted) setState(() => discoveryError = error.toString());
+      if (mounted && desired != null) {
+        _discoveryRetry?.cancel();
+        _discoveryRetry = Timer(
+          const Duration(seconds: 5),
+          () => unawaited(syncDiscovery()),
+        );
+      }
     }
   }
 
