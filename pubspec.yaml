@@ -18,7 +18,7 @@ dependencies:
   crypto: ^3.0.7
   ffi: ^2.2.0
   screen_retriever: ^0.2.2
-  shared_preferences: 2.5.5
+  shared_preferences: 2.5.6
   # 2.5.0's JNI bindings fail in Android release builds after R8 renames
   # kotlin.coroutines.Continuation (flutter/flutter#194649). Keep the last
   # working implementation until the upstream consumer rules ship.
