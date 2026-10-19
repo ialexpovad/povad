@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:crypto/crypto.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:povad/app/release_updates.dart';
 import 'package:povad/app/update_installer.dart';
@@ -175,5 +176,37 @@ void main() {
     expect(installer(os: 'linux').method, InstallMethod.linuxTarXz);
     expect(installer(os: 'android').method, InstallMethod.androidApk);
     expect(installer(os: 'macos').method, InstallMethod.manual);
+  });
+
+  test('Android only accepts a started package installer', () async {
+    TestWidgetsFlutterBinding.ensureInitialized();
+    const channel = MethodChannel('povad/update');
+    String outcome = 'started';
+    final messenger =
+        TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
+    messenger.setMockMethodCallHandler(channel, (call) async => outcome);
+    addTearDown(() => messenger.setMockMethodCallHandler(channel, null));
+
+    final file = File('${work.path}/verified.apk')..writeAsBytesSync(package);
+    final staged = StagedUpdate(
+      version: '0.1.0-rc.2',
+      file: file,
+      sha256: digest,
+    );
+    final android = installer(os: 'android');
+    expect(await android.launch(staged), isTrue);
+    outcome = 'permission';
+    expect(await android.launch(staged), isFalse);
+    outcome = 'missing';
+    await expectLater(
+      android.launch(staged),
+      throwsA(
+        isA<UpdateError>().having(
+          (error) => error.failure,
+          'failure',
+          UpdateFailure.installerUnavailable,
+        ),
+      ),
+    );
   });
 }

@@ -19,6 +19,7 @@ class OverviewPage extends StatelessWidget {
     this.tcpValue,
     this.tcpReceived = 0,
     this.serialReceived = 0,
+    this.animateConnection = true,
     this.detail,
     this.onDetails,
     this.onEditSetup,
@@ -34,6 +35,7 @@ class OverviewPage extends StatelessWidget {
   final bool previewMode, configured;
   final String? serialValue, tcpValue;
   final int tcpReceived, serialReceived;
+  final bool animateConnection;
 
   /// The worker's own explanation for an error or ended session.
   final String? detail;
@@ -112,6 +114,7 @@ class OverviewPage extends StatelessWidget {
                         child: SizedBox.square(
                           dimension: 212,
                           child: ConnectionDiagram(
+                            animateConnection: animateConnection,
                             state: state,
                             tcpReceived: tcpReceived,
                             serialReceived: serialReceived,

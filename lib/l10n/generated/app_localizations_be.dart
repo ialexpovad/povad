@@ -265,6 +265,13 @@ class AppLocalizationsBe extends AppLocalizations {
   String get appearance => 'Выгляд';
 
   @override
+  String get connectionAnimation => 'Анімацыя злучэння';
+
+  @override
+  String get connectionAnimationDescription =>
+      'Рух моста і байтаў на экране агляду.';
+
+  @override
   String get systemTheme => 'Сістэмная';
 
   @override

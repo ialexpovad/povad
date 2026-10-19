@@ -342,6 +342,40 @@ void main() {
     );
   });
 
+  testWidgets('connection animation can stop during traffic', (tester) async {
+    Widget diagram(int received, {bool animated = true}) => shad.ShadcnApp(
+      locale: const Locale('en'),
+      supportedLocales: AppLocalizations.supportedLocales,
+      localizationsDelegates: const [
+        AppLocalizations.delegate,
+        PovadShadcnDelegate(),
+      ],
+      theme: const PovadPalette(false).toShadcn(),
+      home: Center(
+        child: ConnectionDiagram(
+          state: BridgeViewState.connected,
+          animateConnection: animated,
+          serialReceived: received,
+        ),
+      ),
+    );
+    PovadMark mark() => tester.widget<PovadMark>(find.byType(PovadMark));
+
+    await tester.pumpWidget(diagram(0));
+    await tester.pumpWidget(diagram(1));
+    await tester.pump(const Duration(milliseconds: 120));
+    expect(mark().serialSignalProgress, isNotNull);
+
+    await tester.pumpWidget(diagram(2, animated: false));
+    await tester.pump(const Duration(milliseconds: 120));
+    expect(mark().serialSignalProgress, isNull);
+    expect(mark().activeProgress, 1);
+
+    await tester.pumpWidget(diagram(3, animated: false));
+    await tester.pump(const Duration(milliseconds: 120));
+    expect(mark().serialSignalProgress, isNull);
+  });
+
   testWidgets('reduced motion settles during bridge startup', (tester) async {
     tester.platformDispatcher.accessibilityFeaturesTestValue =
         const FakeAccessibilityFeatures(
@@ -499,13 +533,18 @@ void main() {
     expect(find.text('Povad'), findsWidgets);
   });
 
-  testWidgets('language and appearance survive an app restart', (tester) async {
+  testWidgets('language, appearance, and motion survive an app restart', (
+    tester,
+  ) async {
     final preferences = MemoryUiPreferences();
     await tester.pumpWidget(PovadApp(preferences: preferences));
     await tester.tap(find.byKey(const ValueKey('nav-3')));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Dark'));
     await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('connection-animation')));
+    await tester.pumpAndSettle();
+    expect(preferences.connectionAnimation, isFalse);
     await tester.tap(find.text('Беларуская'));
     await tester.pumpAndSettle();
 
@@ -515,6 +554,15 @@ void main() {
     await tester.tap(find.byKey(const ValueKey('nav-3')));
     await tester.pumpAndSettle();
     expect(find.text('Мова'), findsOneWidget);
+    expect(find.text('Анімацыя злучэння'), findsOneWidget);
+    expect(
+      tester
+          .widget<shad.Switch>(
+            find.byKey(const ValueKey('connection-animation')),
+          )
+          .value,
+      isFalse,
+    );
     expect(
       paletteOf(tester.element(find.text('Цёмная'))).primary,
       const Color(0xFF60A5FA),
@@ -714,31 +762,34 @@ void main() {
     expect(find.textContaining('PREVIEW'), findsNothing);
   });
 
-  testWidgets('compact header opens help beside the menu', (tester) async {
+  testWidgets('compact header keeps one menu at the right edge', (
+    tester,
+  ) async {
     tester.view.physicalSize = const Size(390, 760);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.resetPhysicalSize);
     addTearDown(tester.view.resetDevicePixelRatio);
     await tester.pumpWidget(PovadApp(preferences: MemoryUiPreferences()));
     await tester.pumpAndSettle();
-    expect(find.byKey(const ValueKey('header-help')), findsOneWidget);
+    expect(find.byKey(const ValueKey('header-help')), findsNothing);
     expect(find.byKey(const ValueKey('mobile-menu')), findsOneWidget);
-    final help = tester.getSize(find.byKey(const ValueKey('header-help')));
-    expect(help.width, greaterThanOrEqualTo(44));
-    expect(help.width, help.height);
-    final helpRight = tester
-        .getTopRight(find.byKey(const ValueKey('header-help')))
-        .dx;
-    final menuLeft = tester
-        .getTopLeft(find.byKey(const ValueKey('mobile-menu')))
-        .dx;
+    final menu = tester.getSize(find.byKey(const ValueKey('mobile-menu')));
+    expect(menu.width, greaterThanOrEqualTo(44));
+    expect(menu.width, menu.height);
     final menuRight = tester
         .getTopRight(find.byKey(const ValueKey('mobile-menu')))
         .dx;
-    expect(menuLeft - helpRight, inInclusiveRange(0, 10));
     expect(390 - menuRight, inInclusiveRange(0, 10));
+    tester.view.physicalSize = const Size(520, 760);
+    await tester.pumpAndSettle();
+    final wideMenuRight = tester
+        .getTopRight(find.byKey(const ValueKey('mobile-menu')))
+        .dx;
+    expect(520 - wideMenuRight, inInclusiveRange(0, 10));
 
-    await tester.tap(find.byKey(const ValueKey('header-help')));
+    await tester.tap(find.byKey(const ValueKey('mobile-menu')));
+    await tester.pump(const Duration(milliseconds: 300));
+    await tester.tap(find.text('Help').last);
     await tester.pumpAndSettle();
     expect(find.text('Get started'), findsOneWidget);
     expect(find.text('Connect the adapter'), findsOneWidget);
@@ -836,6 +887,7 @@ class MemoryBridgeSettingsStore implements BridgeSettingsStore {
 class MemoryUiPreferences implements UiPreferences {
   String? language;
   PovadAppearance? appearance;
+  bool? connectionAnimation;
 
   @override
   Future<String?> readLanguage() async => language;
@@ -844,10 +896,17 @@ class MemoryUiPreferences implements UiPreferences {
   Future<PovadAppearance?> readAppearance() async => appearance;
 
   @override
+  Future<bool?> readConnectionAnimation() async => connectionAnimation;
+
+  @override
   Future<void> saveLanguage(String languageCode) async =>
       language = languageCode;
 
   @override
   Future<void> saveAppearance(PovadAppearance value) async =>
       appearance = value;
+
+  @override
+  Future<void> saveConnectionAnimation(bool enabled) async =>
+      connectionAnimation = enabled;
 }

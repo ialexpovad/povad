@@ -18,8 +18,6 @@
   <a href="PRIVACY.md">Privacy</a>
 </p>
 
-![Povad running a serial to TCP bridge](assets/preview/connection_activity.gif)
-
 Povad's first module is a **transparent Serial ↔ TCP bridge**. It forwards the
 bytes it receives in both directions, shows the actual connection state, and
 keeps an active desktop session reachable from the system tray. The interface

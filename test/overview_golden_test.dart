@@ -98,8 +98,14 @@ class _GoldenPreferences implements UiPreferences {
   Future<PovadAppearance?> readAppearance() async => appearance;
 
   @override
+  Future<bool?> readConnectionAnimation() async => null;
+
+  @override
   Future<void> saveLanguage(String languageCode) async {}
 
   @override
   Future<void> saveAppearance(PovadAppearance value) async {}
+
+  @override
+  Future<void> saveConnectionAnimation(bool enabled) async {}
 }

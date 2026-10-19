@@ -63,6 +63,22 @@ void main() {
     expect(await updates.check(const AppBuild('0.1.0-rc.1', '2')), isNull);
   });
 
+  test('macOS QA ZIP is visible but never handed to an installer', () async {
+    final updates = ReleaseUpdates(
+      assetPlatform: 'macos-unsigned-qa.zip',
+      loadReleases: () async => [
+        release(
+          'v0.1.0-rc.2',
+          prerelease: true,
+          platform: 'macos-unsigned-qa.zip',
+        ),
+      ],
+    );
+    final result = await updates.check(const AppBuild('0.1.0-rc.1', '2'));
+    expect(result?.version, '0.1.0-rc.2');
+    expect(result?.installable, isFalse);
+  });
+
   test('stable release outranks prerelease of same version', () async {
     final updates = ReleaseUpdates(
       assetPlatform: 'linux-x64.tar.xz',

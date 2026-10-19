@@ -70,6 +70,7 @@ jobs:
           flutter-version: 3.47.1
           cache: true
       - run: flutter pub get
+      - run: flutter test test/update_install_script_test.dart
       - run: flutter build windows --release
 
   android-build:
@@ -136,3 +137,39 @@ jobs:
           script: |
             flutter test integration_test/android_native_test.dart -d emulator-5554
             flutter test integration_test/bonjour_android_test.dart -d emulator-5554
+
+  android-release-smoke:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: 3.47.1
+          cache: true
+      - run: flutter pub get
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 35
+          target: google_apis
+          arch: x86_64
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim
+          disable-animations: true
+          script: |
+            keytool -genkeypair -noprompt -keystore android/app/ci-release.jks -storepass testonly123 -keypass testonly123 -alias ci -keyalg RSA -keysize 2048 -validity 2 -dname 'CN=Povad CI'
+            printf 'storeFile=ci-release.jks\nstorePassword=testonly123\nkeyAlias=ci\nkeyPassword=testonly123\n' > android/key.properties
+            flutter build apk --release --target-platform android-x64 --target tool/android_release_preferences_smoke.dart
+            adb install build/app/outputs/flutter-apk/app-release.apk
+            adb logcat -c
+            adb shell am start -n io.github.ialexpovad.povad/.MainActivity
+            timeout 60 bash -c 'until adb logcat -d -s flutter:I "*:S" | grep -q POVAD_RELEASE_PREFERENCES_PASS; do sleep 1; done' || { adb logcat -d -s flutter:I '*:S'; exit 1; }

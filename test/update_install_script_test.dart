@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:crypto/crypto.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:povad/app/update_installer.dart';
 
@@ -91,7 +92,7 @@ void main() {
   }, skip: Platform.isWindows ? 'POSIX only' : null);
 
   group('Windows helper', () {
-    Future<void> run(String archive, String target) async {
+    Future<void> run(String archive, String target, {int? processId}) async {
       final script = File('${root.path}\\work\\install.ps1')
         ..createSync(recursive: true)
         ..writeAsStringSync(windowsInstallScript);
@@ -102,7 +103,7 @@ void main() {
         '-File',
         script.path,
         '-ProcessId',
-        '${await exitedPid()}',
+        '${processId ?? await exitedPid()}',
         '-Archive',
         archive,
         '-Target',
@@ -147,6 +148,95 @@ void main() {
         File('${root.path}\\work\\install.log').readAsStringSync(),
         contains('Installed'),
       );
+    });
+
+    test('waits for the running app before replacing its files', () async {
+      final target = '${root.path}\\app';
+      write('$target\\povad.exe', 'old');
+      final archive = await pack({'povad.exe': 'new'});
+      final running = await Process.start('powershell.exe', [
+        '-NoProfile',
+        '-Command',
+        'Start-Sleep -Milliseconds 1200',
+      ]);
+      try {
+        await run(archive, target, processId: running.pid);
+        expect(File('$target\\povad.exe').readAsStringSync(), 'new');
+        expect(
+          File('${root.path}\\work\\install.log').readAsStringSync(),
+          contains('Installed'),
+        );
+      } finally {
+        running.kill();
+        await running.exitCode;
+      }
+    });
+
+    test('launches the Windows helper used by the app', () async {
+      final target = '${root.path}\\app';
+      write('$target\\povad.exe', 'old');
+      final archive = await pack({'povad.exe': 'new'});
+      final installer = UpdateInstaller(
+        operatingSystem: 'windows',
+        executable: '$target\\povad.exe',
+        // Avoid a just-exited PID that Windows could reuse for PowerShell.
+        processId: 2147483647,
+      );
+      expect(
+        await installer.launch(
+          StagedUpdate(
+            version: '0.1.0-rc.2',
+            file: File(archive),
+            sha256: sha256.convert(File(archive).readAsBytesSync()).toString(),
+          ),
+          relaunch: false,
+        ),
+        isTrue,
+      );
+      final log = File('${root.path}\\work\\install.log');
+      for (
+        var i = 0;
+        i < 100 &&
+            (!log.existsSync() ||
+                !log.readAsStringSync().contains('Installed'));
+        i++
+      ) {
+        await Future<void>.delayed(const Duration(milliseconds: 200));
+      }
+      expect(log.existsSync(), isTrue);
+      expect(log.readAsStringSync(), contains('Installed'));
+      expect(File('$target\\povad.exe').readAsStringSync(), 'new');
+    });
+
+    test('does not quit when the Windows helper never starts', () async {
+      final target = '${root.path}\\app';
+      write('$target\\povad.exe', 'old');
+      final archive = await pack({'povad.exe': 'new'});
+      final installer = UpdateInstaller(
+        operatingSystem: 'windows',
+        executable: '$target\\povad.exe',
+        processId: 2147483647,
+        start: (_, _) async {},
+        helperReadyTimeout: const Duration(milliseconds: 100),
+      );
+      await expectLater(
+        installer.launch(
+          StagedUpdate(
+            version: '0.1.0-rc.2',
+            file: File(archive),
+            sha256: sha256.convert(File(archive).readAsBytesSync()).toString(),
+          ),
+          relaunch: false,
+        ),
+        throwsA(
+          isA<UpdateError>().having(
+            (error) => error.failure,
+            'failure',
+            UpdateFailure.installerUnavailable,
+          ),
+        ),
+      );
+      expect(File('$target\\povad.exe').readAsStringSync(), 'old');
     });
 
     test('keeps the app folder when the update is unusable', () async {

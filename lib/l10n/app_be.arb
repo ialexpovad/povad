@@ -81,6 +81,8 @@
   "english": "English",
   "belarusian": "Беларуская",
   "appearance": "Выгляд",
+  "connectionAnimation": "Анімацыя злучэння",
+  "connectionAnimationDescription": "Рух моста і байтаў на экране агляду.",
   "systemTheme": "Сістэмная",
   "lightTheme": "Светлая",
   "darkTheme": "Цёмная",

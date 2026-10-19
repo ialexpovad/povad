@@ -159,6 +159,7 @@ jobs:
           flutter-version: ${{ env.FLUTTER_VERSION }}
           cache: true
       - run: flutter pub get
+      - run: flutter test test/update_install_script_test.dart
       - run: flutter build windows --release
       - name: Package Windows bundle
         shell: pwsh

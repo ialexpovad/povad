@@ -93,6 +93,7 @@ final class ReleaseUpdates {
       if (!uploaded(wanted)) continue;
       if (newest != null && newest.compareTo(version) >= 0) continue;
       newest = version;
+      final manualQa = platform == 'macos-unsigned-qa.zip';
       Uri download(String name) => Uri.https(
         'github.com',
         '/ialexpovad/povad/releases/download/$tag/$name',
@@ -102,8 +103,10 @@ final class ReleaseUpdates {
         Uri.https('github.com', '/ialexpovad/povad/releases/tag/$tag'),
         tag: tag,
         assetName: wanted,
-        asset: download(wanted),
-        checksums: uploaded(checksumsAsset) ? download(checksumsAsset) : null,
+        asset: manualQa ? null : download(wanted),
+        checksums: !manualQa && uploaded(checksumsAsset)
+            ? download(checksumsAsset)
+            : null,
       );
     }
     return selected;
@@ -117,7 +120,8 @@ Future<AppBuild> _readPlatformBuild() async {
 
 String? _currentAssetPlatform() {
   if (Platform.isAndroid) return 'android-arm64.apk';
-  if (Platform.isMacOS) return 'macos-arm64.dmg';
+  // The current macOS QA ZIP is unsigned, so it can only be offered manually.
+  if (Platform.isMacOS) return 'macos-unsigned-qa.zip';
   if (Platform.isWindows) return 'windows-x64.zip';
   if (Platform.isLinux) return 'linux-x64.tar.xz';
   return null;
