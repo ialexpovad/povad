@@ -179,7 +179,8 @@ void main() {
       final installer = UpdateInstaller(
         operatingSystem: 'windows',
         executable: '$target\\povad.exe',
-        processId: await exitedPid(),
+        // Avoid a just-exited PID that Windows could reuse for PowerShell.
+        processId: 2147483647,
       );
       expect(
         await installer.launch(
@@ -196,7 +197,32 @@ void main() {
       for (var i = 0; i < 100 && !log.existsSync(); i++) {
         await Future<void>.delayed(const Duration(milliseconds: 200));
       }
-      expect(log.existsSync(), isTrue, reason: 'PowerShell never ran');
+      if (!log.existsSync()) {
+        final result = await Process.run('powershell.exe', [
+          '-NoProfile',
+          '-ExecutionPolicy',
+          'Bypass',
+          '-WindowStyle',
+          'Hidden',
+          '-File',
+          '${root.path}\\work\\install.ps1',
+          '-ProcessId',
+          '2147483647',
+          '-Archive',
+          archive,
+          '-Target',
+          target,
+          '-Executable',
+          'povad.exe',
+          '-Relaunch',
+          '0',
+        ]);
+        fail(
+          'Detached PowerShell did not create install.log. '
+          'Foreground exit: ${result.exitCode}; '
+          'stdout: ${result.stdout}; stderr: ${result.stderr}',
+        );
+      }
       expect(log.readAsStringSync(), contains('Installed'));
       expect(File('$target\\povad.exe').readAsStringSync(), 'new');
     });
