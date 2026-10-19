@@ -6,7 +6,7 @@ import 'package:flutter_test/flutter_test.dart';
 import '../tool/verify_serial_loopback.dart' as tool;
 
 void main() {
-  test('hardware verifier accepts an exact binary echo', () async {
+  test('binary comparator accepts an exact TCP echo', () async {
     final server = await ServerSocket.bind(InternetAddress.loopbackIPv4, 0);
     server.listen((peer) {
       peer.listen(peer.add, onDone: peer.destroy);
@@ -19,7 +19,7 @@ void main() {
     }
   });
 
-  test('hardware verifier rejects corrupted serial data', () async {
+  test('binary comparator rejects corrupted echo bytes', () async {
     final server = await ServerSocket.bind(InternetAddress.loopbackIPv4, 0);
     server.listen((peer) {
       var corrupted = false;

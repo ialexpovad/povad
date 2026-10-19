@@ -1,49 +1,38 @@
 import 'package:flutter/widgets.dart';
 import 'package:shadcn_flutter/shadcn_flutter.dart' as shad;
 
-enum PovadSkin { copper, classicBlue }
+enum PovadAppearance { system, light, dark }
 
 @immutable
 final class PovadPalette {
-  const PovadPalette(this.skin, this.dark);
+  const PovadPalette(this.dark);
 
-  final PovadSkin skin;
   final bool dark;
 
-  bool get classic => skin == PovadSkin.classicBlue;
-
-  Color get background => classic
-      ? (dark ? const Color(0xFF09090B) : const Color(0xFFFFFFFF))
-      : (dark ? const Color(0xFF0E1117) : const Color(0xFFF6F7F8));
-  Color get surface => classic
-      ? (dark ? const Color(0xFF141417) : const Color(0xFFFAFAFB))
-      : (dark ? const Color(0xFF171B21) : const Color(0xFFFFFFFF));
-  Color get border => classic
-      ? (dark ? const Color(0xFF2C2C31) : const Color(0xFFE4E4E7))
-      : (dark ? const Color(0xFF313842) : const Color(0xFFDEE2E7));
-  Color get foreground => classic
-      ? (dark ? const Color(0xFFFAFAFA) : const Color(0xFF18181B))
-      : (dark ? const Color(0xFFF3F4F6) : const Color(0xFF171B21));
-  Color get muted => classic
-      ? (dark ? const Color(0xFFA1A1AA) : const Color(0xFF60606C))
-      : (dark ? const Color(0xFFABB3BE) : const Color(0xFF626A73));
-  Color get primary => classic
-      ? (dark ? const Color(0xFF60A5FA) : const Color(0xFF2563EB))
-      : (dark ? const Color(0xFFFF8C6B) : const Color(0xFFB94D32));
-  Color get onPrimary => classic && dark
-      ? const Color(0xFF09090B)
-      : dark
-      ? const Color(0xFF171B21)
-      : const Color(0xFFFFFFFF);
-  Color get selection => classic
-      ? (dark ? const Color(0xFF15233A) : const Color(0xFFEFF6FF))
-      : (dark ? const Color(0xFF33231F) : const Color(0xFFF9E9E3));
-  Color get inactive => classic
-      ? (dark ? const Color(0xFF71717A) : const Color(0xFFA1A1AA))
-      : (dark ? const Color(0xFF66717F) : const Color(0xFFAAB3BD));
-  Color get error => classic
-      ? (dark ? const Color(0xFFF87171) : const Color(0xFFB91C1C))
-      : (dark ? const Color(0xFFFF7B8A) : const Color(0xFFB32636));
+  Color get background =>
+      dark ? const Color(0xFF0B0B0D) : const Color(0xFFFFFFFF);
+  Color get surface => dark ? const Color(0xFF141417) : const Color(0xFFFFFFFF);
+  Color get border => dark ? const Color(0xFF2C2C31) : const Color(0xFFE4E4E7);
+  Color get foreground =>
+      dark ? const Color(0xFFFAFAFA) : const Color(0xFF18181B);
+  Color get muted => dark ? const Color(0xFFA1A1AA) : const Color(0xFF60606C);
+  Color get primary => dark ? const Color(0xFF60A5FA) : const Color(0xFF2563EB);
+  Color get onPrimary =>
+      dark ? const Color(0xFF0B0B0D) : const Color(0xFFFFFFFF);
+  Color get selection =>
+      dark ? const Color(0xFF15233A) : const Color(0xFFEFF6FF);
+  Color get inactive =>
+      dark ? const Color(0xFF71717A) : const Color(0xFFA1A1AA);
+  Color get error => dark ? const Color(0xFFF87171) : const Color(0xFFB91C1C);
+  Color get sidebar => dark ? const Color(0xFF0F0F12) : const Color(0xFFFAFAFA);
+  Color get subtle => dark ? const Color(0xFF1B1B1F) : const Color(0xFFF4F4F5);
+  Color get errorSurface =>
+      dark ? const Color(0xFF2A1215) : const Color(0xFFFEF2F2);
+  Color get warning => dark ? const Color(0xFFFBBF24) : const Color(0xFF92400E);
+  Color get warningSurface =>
+      dark ? const Color(0xFF231B0B) : const Color(0xFFFFFBEB);
+  Color get warningBorder =>
+      dark ? const Color(0xFF4A3712) : const Color(0xFFFDE68A);
 
   shad.ThemeData toShadcn() => shad.ThemeData(
     radius: 0.55,
@@ -81,19 +70,6 @@ final class PovadPalette {
   );
 }
 
-class PovadSkinScope extends InheritedWidget {
-  const PovadSkinScope({super.key, required this.skin, required super.child});
-
-  final PovadSkin skin;
-
-  static PovadSkin of(BuildContext context) =>
-      context.dependOnInheritedWidgetOfExactType<PovadSkinScope>()!.skin;
-
-  @override
-  bool updateShouldNotify(PovadSkinScope oldWidget) => skin != oldWidget.skin;
-}
-
 PovadPalette paletteOf(BuildContext context) => PovadPalette(
-  PovadSkinScope.of(context),
   shad.Theme.of(context).colorScheme.brightness == Brightness.dark,
 );

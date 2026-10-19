@@ -16,6 +16,7 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
+#include <termios.h>
 #include <unistd.h>
 #ifdef __APPLE__
 #include <util.h>
@@ -316,6 +317,77 @@ void test_stop_releases_handles() {
   require(snapshot(rig.handle).serial_open == 0, "Serial handle was not released");
 }
 
+void test_repeated_start_stop_on_same_endpoints() {
+  Rig rig;
+  const std::array<uint8_t, 5> request{0x00, 0xff, 0x19, 0x80, 0x0d};
+  const std::array<uint8_t, 4> response{0xff, 0x00, 0x81, 0x0a};
+  for (int round = 0; round < 20; ++round) {
+    rig.start();
+    if (round == 0) {
+      const int rival = socket(AF_INET, SOCK_STREAM, 0);
+      require(rival >= 0, "Create rival TCP listener");
+      const int yes = 1;
+      require(setsockopt(rival, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(yes)) == 0,
+              "Configure rival TCP listener");
+      sockaddr_in address{};
+      address.sin_family = AF_INET;
+      address.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
+      address.sin_port = htons(static_cast<uint16_t>(rig.settings.tcp_port));
+      const int bind_result = bind(rival, reinterpret_cast<sockaddr*>(&address),
+                                   sizeof(address));
+      const int bind_error = errno;
+      ::close(rival);
+      require(bind_result < 0 && bind_error == EADDRINUSE,
+              "A second live listener must not share the bridge port");
+    }
+    rig.connect_client();
+    send_all(rig.client, request.data(), request.size(), true);
+    receive_exact(rig.master, request.data(), request.size());
+    send_all(rig.master, response.data(), response.size(), false);
+    receive_exact(rig.client, response.data(), response.size());
+    const auto transferred = snapshot(rig.handle);
+    require(transferred.tcp_received == request.size() &&
+            transferred.serial_accepted == request.size() &&
+            transferred.serial_received == response.size() &&
+            transferred.tcp_accepted == response.size(),
+            "Each restarted session must reset and settle native counters");
+    require(pv_request_stop(rig.handle) == PV_OK, "Request repeated stop");
+    until([&] { return snapshot(rig.handle).state == PV_STATE_STOPPED; },
+          "Repeated worker stop did not finish");
+    require(snapshot(rig.handle).serial_open == 0,
+            "Repeated stop retained serial handle");
+    ::close(rig.client);
+    rig.client = -1;
+  }
+}
+
+void test_serial_disconnect_is_reported() {
+  Rig rig;
+  // An inherited VMIN=0 setting must not make an idle device look detached.
+  const int slave = ::open(rig.settings.serial_port, O_RDWR | O_NOCTTY);
+  require(slave >= 0, "Open serial peer for inherited termios setting");
+  termios settings{};
+  require(tcgetattr(slave, &settings) == 0, "Read inherited serial settings");
+  settings.c_cc[VMIN] = 0;
+  settings.c_cc[VTIME] = 0;
+  require(tcsetattr(slave, TCSANOW, &settings) == 0,
+          "Apply inherited zero-minimum serial setting");
+  ::close(slave);
+  rig.start();
+  rig.connect_client();
+  std::this_thread::sleep_for(std::chrono::milliseconds(50));
+  require(snapshot(rig.handle).state == PV_STATE_CONNECTED,
+          "Idle serial port must not look disconnected");
+  ::close(rig.master);
+  rig.master = -1;
+  until([&] { return snapshot(rig.handle).state == PV_STATE_FAULT; },
+        "Disconnected serial port did not stop the worker");
+  const auto failed = snapshot(rig.handle);
+  require(failed.error_code == PV_NATIVE_FAILURE && failed.serial_open == 0 &&
+          failed.client_connected == 0,
+          "Serial disconnect fault and confirmed cleanup");
+}
+
 void test_open_failure_is_reported() {
   Rig rig;
   std::strcpy(rig.settings.serial_port, "/dev/povad-device-that-does-not-exist");
@@ -340,6 +412,8 @@ int main() {
 #ifndef _WIN32
     test_transparent_bridge();
     test_stop_releases_handles();
+    test_repeated_start_stop_on_same_endpoints();
+    test_serial_disconnect_is_reported();
     test_open_failure_is_reported();
 #endif
     std::cout << "PASS Povad core ABI, config, queue, and transport contracts\n";

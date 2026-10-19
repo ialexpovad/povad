@@ -1,4 +1,5 @@
 import 'package:flutter/widgets.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 import 'package:povad/app/ui_preferences.dart';
@@ -18,18 +19,17 @@ void main() {
       PovadApp(session: BridgeSession(), preferences: _MemoryPreferences()),
     );
     await tester.pumpAndSettle();
-    expect(find.text('Connection overview'), findsOneWidget);
+    expect(find.text('Bridge stopped'), findsOneWidget);
     expect(find.text('Configure bridge'), findsOneWidget);
 
     const host = AndroidUsbHost();
     final usbAvailable = await host.available();
     expect(await host.listPorts(), isEmpty);
 
-    await tester.tap(find.byKey(const ValueKey('nav-1')));
-    await tester.pumpAndSettle();
+    await _navigate(tester, 'Bridge');
     expect(find.text('USB serial devices'), findsOneWidget);
     expect(
-      find.textContaining('Choose a USB serial device and a TCP listener.'),
+      find.textContaining('Choose a USB serial device and TCP port.'),
       findsOneWidget,
     );
     expect(
@@ -41,20 +41,34 @@ void main() {
       findsOneWidget,
     );
 
-    await tester.tap(find.byKey(const ValueKey('nav-3')));
-    await tester.pumpAndSettle();
+    await _navigate(tester, 'Settings');
     await tester.tap(find.text('Беларуская'));
     await tester.pumpAndSettle();
-    await tester.tap(find.byKey(const ValueKey('nav-1')));
-    await tester.pumpAndSettle();
+    await _navigate(tester, 'Мост');
     expect(find.text('Паслядоўныя USB-прылады'), findsOneWidget);
     expect(
-      find.textContaining('Выберыце паслядоўную USB-прыладу і TCP-сервер.'),
+      find.textContaining('Выберыце паслядоўную USB-прыладу і порт TCP.'),
       findsOneWidget,
     );
     expect(tester.takeException(), isNull);
 
     expect(nativeAbiVersion(), 1);
+
+    // A missing USB permission must never create a background service.
+    const background = MethodChannel('povad/background');
+    await expectLater(
+      background.invokeMethod<bool>('start', {
+        'selection': 'usb:/dev/bus/usb/999/999:0',
+        'status': 'Starting bridge',
+      }),
+      throwsA(
+        isA<PlatformException>().having(
+          (error) => error.code,
+          'code',
+          'USB_PERMISSION',
+        ),
+      ),
+    );
 
     final bridge = NativeBridge();
     try {
@@ -71,16 +85,23 @@ void main() {
   });
 }
 
+Future<void> _navigate(WidgetTester tester, String label) async {
+  await tester.tap(find.byKey(const ValueKey('mobile-menu')));
+  await tester.pump(const Duration(milliseconds: 300));
+  await tester.tap(find.text(label));
+  await tester.pumpAndSettle();
+}
+
 class _MemoryPreferences implements UiPreferences {
   @override
   Future<String?> readLanguage() async => null;
 
   @override
-  Future<PovadSkin?> readSkin() async => null;
+  Future<PovadAppearance?> readAppearance() async => null;
 
   @override
   Future<void> saveLanguage(String languageCode) async {}
 
   @override
-  Future<void> saveSkin(PovadSkin value) async {}
+  Future<void> saveAppearance(PovadAppearance value) async {}
 }

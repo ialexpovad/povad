@@ -7,6 +7,8 @@ import 'package:native_toolchain_c/native_toolchain_c.dart';
 
 void main(List<String> args) async {
   await build(args, (input, output) async {
+    // Flutter can invoke hooks for builds that request no code assets.
+    if (!input.config.buildCodeAssets) return;
     final target = input.config.code.targetOS;
     final transport = switch (target) {
       OS.windows => ['src/transport_windows.cpp'],

@@ -209,4 +209,82 @@ void main() {
       pty.close(pair.master);
     }
   }, skip: Platform.isWindows || Platform.isAndroid);
+
+  test(
+    'Dart FFI sustains repeated bidirectional exchanges without idle traffic',
+    () async {
+      final pty = _PtyApi();
+      final pair = pty.create();
+      pty.close(pair.slave);
+      pty.makeNonblocking(pair.master);
+      final reservation = await ServerSocket.bind(
+        InternetAddress.loopbackIPv4,
+        0,
+      );
+      final port = reservation.port;
+      await reservation.close();
+      final bridge = NativeBridge();
+      Socket? client;
+      StreamIterator<List<int>>? chunks;
+      try {
+        bridge.start(BridgeConfig(serialPort: pair.path, tcpPort: port));
+        await _waitFor(bridge, (value) => value.state == BridgeState.listening);
+        client = await Socket.connect(InternetAddress.loopbackIPv4, port);
+        chunks = StreamIterator<List<int>>(client);
+        await _waitFor(bridge, (value) => value.state == BridgeState.connected);
+
+        const rounds = 12;
+        const tcpLength = 257;
+        const serialLength = 263;
+        for (var round = 0; round < rounds; round++) {
+          final fromTcp = List<int>.generate(
+            tcpLength,
+            (index) => (index * 37 + round * 29) & 0xff,
+          )..setRange(0, 2, [0x00, 0xff]);
+          final fromSerial = List<int>.generate(
+            serialLength,
+            (index) => (index * 53 + round * 17) & 0xff,
+          )..setRange(0, 2, [0xff, 0x00]);
+
+          client.add(fromTcp);
+          pty.writeAll(pair.master, fromSerial);
+          await client.flush();
+          final received = await Future.wait([
+            pty.readExactly(pair.master, fromTcp.length),
+            _readTcp(chunks, fromSerial.length),
+          ]);
+          expect(received[0], fromTcp, reason: 'TCP to serial, round $round');
+          expect(
+            received[1],
+            fromSerial,
+            reason: 'Serial to TCP, round $round',
+          );
+          await Future<void>.delayed(const Duration(milliseconds: 100));
+        }
+
+        final transferred = await _waitFor(
+          bridge,
+          (value) =>
+              value.tcpReceived == rounds * tcpLength &&
+              value.serialAccepted == rounds * tcpLength &&
+              value.serialReceived == rounds * serialLength &&
+              value.tcpAccepted == rounds * serialLength,
+        );
+        await Future<void>.delayed(const Duration(milliseconds: 250));
+        final idle = bridge.snapshot();
+        expect(idle.state, BridgeState.connected);
+        expect(idle.tcpReceived, transferred.tcpReceived);
+        expect(idle.serialReceived, transferred.serialReceived);
+
+        bridge.requestStop();
+        expect((await bridge.waitForStop()).state, BridgeState.stopped);
+      } finally {
+        await chunks?.cancel();
+        client?.destroy();
+        await bridge.close();
+        pty.close(pair.master);
+      }
+    },
+    skip: Platform.isWindows || Platform.isAndroid,
+  );
 }

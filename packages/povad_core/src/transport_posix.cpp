@@ -54,6 +54,10 @@ void SerialPort::open(const pv_config& config) {
     termios settings{};
     if (tcgetattr(impl_->fd, &settings) < 0) throw TransportError(PV_NATIVE_FAILURE, "Cannot read serial settings");
     cfmakeraw(&settings);
+    // With VMIN=0, an idle nonblocking tty may return zero just like EOF.
+    // Require one byte so zero unambiguously means the serial peer is gone.
+    settings.c_cc[VMIN] = 1;
+    settings.c_cc[VTIME] = 0;
     settings.c_cflag |= CLOCAL | CREAD;
     settings.c_cflag &= ~CSIZE;
     settings.c_cflag |= config.data_bits == 5 ? CS5 : config.data_bits == 6 ? CS6 :
@@ -100,6 +104,9 @@ size_t SerialPort::read(uint8_t* data, size_t capacity) {
   if (count < 0) {
     if (would_block()) return 0;
     throw TransportError(PV_NATIVE_FAILURE, "Serial read failed");
+  }
+  if (count == 0 && capacity != 0) {
+    throw TransportError(PV_NATIVE_FAILURE, "Serial device disconnected");
   }
   return static_cast<size_t>(count);
 }

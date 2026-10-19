@@ -1,0 +1,227 @@
+name: Build RC draft
+
+on:
+  push:
+    tags: ['v*-rc.*']
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing RC tag, for example v0.1.0-rc.1
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+env:
+  RC_TAG: ${{ inputs.tag || github.ref_name }}
+  FLUTTER_VERSION: 3.47.1
+
+jobs:
+  validate:
+    runs-on: ubuntu-24.04
+    outputs:
+      tag: ${{ steps.version.outputs.tag }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ env.RC_TAG }}
+      - id: version
+        run: |
+          version=$(sed -n 's/^version: //p' pubspec.yaml)
+          expected="v${version%%+*}"
+          test "$RC_TAG" = "$expected"
+          case "$version" in
+            *-rc.*+*) ;;
+            *) exit 1 ;;
+          esac
+          printf 'tag=%s\n' "$RC_TAG" >> "$GITHUB_OUTPUT"
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          cache: true
+      - run: flutter pub get
+      - run: dart format --output=none --set-exit-if-changed lib test integration_test tool
+      - run: flutter analyze
+      - run: flutter test --concurrency=1
+
+  native:
+    needs: validate
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-24.04
+            sanitize: 'ON'
+          - os: macos-latest
+            sanitize: 'OFF'
+          - os: windows-2022
+            sanitize: 'OFF'
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ needs.validate.outputs.tag }}
+      - run: cmake -S packages/povad_core -B build/native -DCMAKE_BUILD_TYPE=Debug -DPOVAD_SANITIZE=${{ matrix.sanitize }}
+      - run: cmake --build build/native --config Debug --parallel
+      - run: ctest --test-dir build/native --build-config Debug --output-on-failure
+
+  android:
+    needs: validate
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ needs.validate.outputs.tag }}
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          cache: true
+      - run: flutter pub get
+      - name: Configure release signing
+        env:
+          KEYSTORE_BASE64: ${{ secrets.ANDROID_RELEASE_KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.ANDROID_RELEASE_KEYSTORE_PASSWORD }}
+        run: |
+          test -n "$KEYSTORE_BASE64"
+          test -n "$KEYSTORE_PASSWORD"
+          printf '%s' "$KEYSTORE_BASE64" | base64 --decode > android/app/release.jks
+          printf 'storeFile=release.jks\nstorePassword=%s\nkeyAlias=povad\nkeyPassword=%s\n' "$KEYSTORE_PASSWORD" "$KEYSTORE_PASSWORD" > android/key.properties
+          chmod 600 android/app/release.jks android/key.properties
+      - run: flutter build apk --release --target-platform android-arm64
+      - name: Verify signed APK and pinned certificate
+        run: |
+          apk=build/app/outputs/flutter-apk/app-release.apk
+          test -f "$apk"
+          unzip -Z1 "$apk" | grep -Fx 'lib/arm64-v8a/libpovad_core.so'
+          apksigner=$(find "$ANDROID_HOME/build-tools" -maxdepth 2 -type f -name apksigner | sort -V | tail -n 1)
+          test -x "$apksigner"
+          "$apksigner" verify --verbose "$apk"
+          "$apksigner" verify --print-certs "$apk" |
+            grep -F "Signer #1 certificate SHA-256 digest: $(cat release/android-certificate.sha256)"
+          mkdir -p dist
+          cp "$apk" "dist/Povad-$RC_TAG-android-arm64.apk"
+      - uses: actions/upload-artifact@v7
+        with:
+          name: rc-android
+          path: dist/*
+          if-no-files-found: error
+          retention-days: 14
+
+  linux:
+    needs: validate
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ needs.validate.outputs.tag }}
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          cache: true
+      - run: sudo apt-get update -y && sudo apt-get install -y clang cmake ninja-build pkg-config libgtk-3-dev libayatana-appindicator3-dev libstdc++-12-dev
+      - run: flutter pub get
+      - run: flutter build linux --release
+      - name: Package Linux bundle
+        run: |
+          mkdir -p dist
+          tar -C build/linux/x64/release/bundle -cJf "dist/Povad-$RC_TAG-linux-x64.tar.xz" .
+      - uses: actions/upload-artifact@v7
+        with:
+          name: rc-linux
+          path: dist/*
+          if-no-files-found: error
+          retention-days: 14
+
+  windows:
+    needs: validate
+    runs-on: windows-2022
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ needs.validate.outputs.tag }}
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          cache: true
+      - run: flutter pub get
+      - run: flutter build windows --release
+      - name: Package Windows bundle
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path dist | Out-Null
+          Compress-Archive -Path "build/windows/x64/runner/Release/*" -DestinationPath "dist/Povad-$env:RC_TAG-windows-x64.zip"
+      - uses: actions/upload-artifact@v7
+        with:
+          name: rc-windows
+          path: dist/*
+          if-no-files-found: error
+          retention-days: 14
+
+  macos:
+    needs: validate
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ needs.validate.outputs.tag }}
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          cache: true
+      - run: flutter pub get
+      - run: flutter build macos --release
+      - name: Package unsigned macOS QA app
+        run: |
+          app=(build/macos/Build/Products/Release/*.app)
+          test -d "${app[0]}"
+          mkdir -p dist
+          ditto -c -k --sequesterRsrc --keepParent "${app[0]}" "dist/Povad-$RC_TAG-macos-unsigned-qa.zip"
+      - uses: actions/upload-artifact@v7
+        with:
+          name: rc-macos-qa
+          path: dist/*
+          if-no-files-found: error
+          retention-days: 14
+
+  draft:
+    needs: [validate, native, android, linux, windows, macos]
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ needs.validate.outputs.tag }}
+      - uses: actions/download-artifact@v7
+        with:
+          pattern: rc-*
+          path: dist
+          merge-multiple: true
+      - name: Verify artifacts and calculate checksums
+        run: |
+          test -f "dist/Povad-$RC_TAG-android-arm64.apk"
+          test -f "dist/Povad-$RC_TAG-linux-x64.tar.xz"
+          test -f "dist/Povad-$RC_TAG-windows-x64.zip"
+          test -f "dist/Povad-$RC_TAG-macos-unsigned-qa.zip"
+          cd dist
+          sha256sum Povad-* > SHA256SUMS.txt
+      - name: Create or refresh draft prerelease
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if gh release view "$RC_TAG" --json isDraft --jq .isDraft > /tmp/povad-release-draft-state 2>/dev/null; then
+            test "$(cat /tmp/povad-release-draft-state)" = true
+            gh release upload "$RC_TAG" dist/* --clobber
+          else
+            gh release create "$RC_TAG" dist/* --verify-tag --draft --prerelease --title "Povad $RC_TAG" --notes-file release/RC_NOTES.md
+          fi

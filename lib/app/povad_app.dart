@@ -2,28 +2,69 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import 'package:povad_core/povad_core.dart' as core;
 import 'package:shadcn_flutter/shadcn_flutter.dart' as shad;
+import 'package:url_launcher/url_launcher.dart';
 
+import '../design/povad_components.dart';
 import '../design/povad_mark.dart';
 import '../design/povad_theme.dart';
+import '../domain/bridge_settings.dart';
 import '../domain/bridge_view_state.dart';
 import '../domain/bridge_session.dart';
 import '../domain/android_usb_host.dart';
+import '../domain/serial_port_discovery.dart';
+import '../domain/trouble_hint.dart';
+import '../features/help_panel.dart';
 import '../features/overview_page.dart';
 import '../features/secondary_pages.dart';
 import '../l10n/generated/app_localizations.dart';
 import '../l10n/shadcn_localizations_be.dart';
 import 'ui_preferences.dart';
+import 'bridge_presence.dart';
+import 'desktop_presence.dart';
+import 'release_updates.dart';
+import 'update_installer.dart';
+
+const _repository = 'https://github.com/ialexpovad/povad';
+const _authorProfile =
+    'https://www.linkedin.com/in/aliaksandr-povad-6154341a7/';
 
 class PovadApp extends StatefulWidget {
-  const PovadApp({super.key, this.preferences, this.session});
+  const PovadApp({
+    super.key,
+    this.preferences,
+    this.session,
+    this.presence,
+    this.updates,
+    this.bridgeSettings,
+    this.portDiscovery,
+    this.installer,
+    this.updatePreferences,
+    this.exitForUpdate,
+  });
 
   final UiPreferences? preferences;
 
   /// When absent, this widget displays the UI preview for design tests.
   final BridgeSession? session;
+  final BridgePresence? presence;
+  final ReleaseUpdates? updates;
+
+  /// Remembers the last bridge form locally. Absent in tests and previews.
+  final BridgeSettingsStore? bridgeSettings;
+
+  /// Suggests serial device paths on desktop. Absent in tests and previews.
+  final SerialPortDiscovery? portDiscovery;
+
+  /// Downloads, verifies, and installs releases found by [updates].
+  final AppUpdater? installer;
+  final UpdatePreferences? updatePreferences;
+
+  /// Quits after confirmed worker shutdown so a desktop helper can install.
+  final Future<void> Function()? exitForUpdate;
 
   @override
   State<PovadApp> createState() => _PovadAppState();
@@ -31,16 +72,40 @@ class PovadApp extends StatefulWidget {
 
 class _PovadAppState extends State<PovadApp> {
   Locale locale = const Locale('en');
-  PovadSkin skin = PovadSkin.copper;
+  PovadAppearance appearance = PovadAppearance.system;
   BridgeViewState state = BridgeViewState.stopped;
   int page = 0;
   late final UiPreferences preferences;
   bool settingsChanged = false;
+  bool bridgeFormChanged = false;
   String serialPort = '';
   String baud = '115200';
   String tcpPort = '9268';
   bool allowLan = false;
-  bool invalidBridgeSettings = false;
+  List<({String name, String address})> lanAddresses = const [];
+  List<String> discoveredPorts = const [];
+  String? copiedEndpoint;
+  bool showFieldErrors = false;
+  bool feedbackUnavailable = false;
+  AppBuild? installedBuild;
+  AvailableRelease? availableRelease;
+  bool updateChecking = false;
+  bool updateChecked = false;
+  bool updateCheckFailed = false;
+  bool projectLinkFailed = false;
+  UpdateStage updateStage = UpdateStage.none;
+  double updateProgress = 0;
+  StagedUpdate? stagedUpdate;
+  bool autoDownload = true;
+  bool updateBlocked = false;
+  String? updateNotice;
+  bool updateNoticeError = false;
+  bool updateNoticeDismissed = false;
+  Timer? updateTimer;
+  String? backgroundError;
+  bool presenceFailed = false;
+  bool startPending = false;
+  DateTime? sessionStartedAt;
   final AndroidUsbHost usbHost = const AndroidUsbHost();
   List<AndroidUsbPort> usbPorts = const [];
   String? usbError;
@@ -50,17 +115,8 @@ class _PovadAppState extends State<PovadApp> {
   bool get androidHost =>
       !kIsWeb && Platform.isAndroid && widget.session != null;
 
-  bool get configurationReady {
-    final speed = int.tryParse(baud);
-    final port = int.tryParse(tcpPort);
-    return serialPort.trim().isNotEmpty &&
-        speed != null &&
-        speed >= 300 &&
-        speed <= 4000000 &&
-        port != null &&
-        port >= 1 &&
-        port <= 65535;
-  }
+  bool get configurationReady =>
+      !BridgeFieldErrors.of(serialPort, baud, tcpPort).any;
 
   bool get running =>
       state == BridgeViewState.starting ||
@@ -68,13 +124,102 @@ class _PovadAppState extends State<PovadApp> {
       state == BridgeViewState.connected ||
       state == BridgeViewState.stopping;
 
+  bool get workerActive {
+    final snapshot = widget.session?.snapshot;
+    return snapshot != null &&
+        (!snapshot.finished || snapshot.serialOpen || snapshot.clientConnected);
+  }
+
   @override
   void initState() {
     super.initState();
     preferences = widget.preferences ?? DeviceUiPreferences();
     widget.session?.addListener(onNativeState);
     unawaited(loadPreferences());
+    unawaited(loadBridgeSettings());
     if (androidHost) unawaited(refreshUsbPorts());
+    unawaited(refreshSerialPorts());
+    if (widget.updates != null) {
+      unawaited(checkUpdates());
+      // Long-running sessions still learn about new releases.
+      updateTimer = Timer.periodic(
+        const Duration(hours: 6),
+        (_) => unawaited(checkUpdates()),
+      );
+    }
+    final presence = widget.presence;
+    if (presence is DesktopPresence) presence.beforeExit = installOnQuit;
+  }
+
+  Future<void> loadBridgeSettings() async {
+    final store = widget.bridgeSettings;
+    if (store == null) return;
+    try {
+      final saved = await store.read();
+      if (saved == null || !mounted || bridgeFormChanged) return;
+      setState(() {
+        serialPort = saved.serialPort;
+        baud = saved.baud;
+        tcpPort = saved.tcpPort;
+      });
+    } catch (error) {
+      debugPrint('Unable to load bridge settings: $error');
+    }
+  }
+
+  void updateBridgeForm({String? serial, String? speed, String? port}) {
+    bridgeFormChanged = true;
+    setState(() {
+      serialPort = serial ?? serialPort;
+      baud = speed ?? baud;
+      tcpPort = port ?? tcpPort;
+    });
+    final store = widget.bridgeSettings;
+    if (store == null) return;
+    unawaited(
+      store
+          .save(
+            BridgeSettings(
+              serialPort: serialPort,
+              baud: baud,
+              tcpPort: tcpPort,
+            ),
+          )
+          .catchError(
+            (Object error) =>
+                debugPrint('Unable to save bridge settings: $error'),
+          ),
+    );
+  }
+
+  Future<void> refreshSerialPorts() async {
+    final discovery = widget.portDiscovery;
+    if (discovery == null || !discovery.supported) return;
+    final ports = await discovery.discover();
+    if (mounted) setState(() => discoveredPorts = ports);
+  }
+
+  Future<void> refreshLanAddresses() async {
+    try {
+      final interfaces = await NetworkInterface.list(
+        type: InternetAddressType.IPv4,
+        includeLoopback: false,
+      );
+      final addresses = [
+        for (final interface in interfaces)
+          for (final address in interface.addresses)
+            if (!address.isLoopback && !address.isLinkLocal)
+              (name: interface.name, address: address.address),
+      ];
+      if (mounted) setState(() => lanAddresses = addresses);
+    } catch (_) {
+      if (mounted) setState(() => lanAddresses = const []);
+    }
+  }
+
+  Future<void> copyEndpoint(String endpoint) async {
+    await Clipboard.setData(ClipboardData(text: endpoint));
+    if (mounted) setState(() => copiedEndpoint = endpoint);
   }
 
   Future<void> refreshUsbPorts() async {
@@ -114,15 +259,12 @@ class _PovadAppState extends State<PovadApp> {
     try {
       final allowed = await usbHost.requestPermission(port);
       if (!mounted) return;
-      setState(() {
-        if (allowed) {
-          serialPort = port.nativeSelection;
-          selectedUsbLabel = port.label;
-          invalidBridgeSettings = false;
-        } else {
-          usbError = 'denied';
-        }
-      });
+      if (allowed) {
+        selectedUsbLabel = port.label;
+        updateBridgeForm(serial: port.nativeSelection);
+      } else {
+        setState(() => usbError = 'denied');
+      }
     } catch (_) {
       if (mounted) setState(() => usbError = 'scanFailed');
     } finally {
@@ -132,37 +274,76 @@ class _PovadAppState extends State<PovadApp> {
 
   @override
   void dispose() {
+    updateTimer?.cancel();
+    final presence = widget.presence;
+    if (presence is DesktopPresence && presence.beforeExit == installOnQuit) {
+      presence.beforeExit = null;
+    }
     widget.session?.removeListener(onNativeState);
     if (widget.session != null) unawaited(widget.session!.close());
     super.dispose();
   }
 
+  BridgeViewState nativeViewState() {
+    final session = widget.session!;
+    final snapshot = session.snapshot;
+    // A rejected control call leaves no native session behind it.
+    if (session.controlError != null && (snapshot?.finished ?? true)) {
+      return BridgeViewState.error;
+    }
+    return switch (session.state) {
+      core.BridgeState.stopped => BridgeViewState.stopped,
+      core.BridgeState.starting => BridgeViewState.starting,
+      core.BridgeState.listening => BridgeViewState.listening,
+      core.BridgeState.connected => BridgeViewState.connected,
+      core.BridgeState.stopping => BridgeViewState.stopping,
+      core.BridgeState.interrupted => BridgeViewState.interrupted,
+      core.BridgeState.fault => BridgeViewState.error,
+    };
+  }
+
   void onNativeState() {
     if (!mounted) return;
     setState(() {
-      state = switch (widget.session!.state) {
-        core.BridgeState.stopped => BridgeViewState.stopped,
-        core.BridgeState.starting => BridgeViewState.starting,
-        core.BridgeState.listening => BridgeViewState.listening,
-        core.BridgeState.connected => BridgeViewState.connected,
-        core.BridgeState.stopping => BridgeViewState.stopping,
-        core.BridgeState.interrupted ||
-        core.BridgeState.fault => BridgeViewState.error,
-      };
+      state = nativeViewState();
+      if (state == BridgeViewState.listening ||
+          state == BridgeViewState.connected) {
+        sessionStartedAt ??= DateTime.now();
+      } else if (state != BridgeViewState.stopping) {
+        sessionStartedAt = null;
+      }
     });
+    unawaited(reflectPresence());
+  }
+
+  Future<void> reflectPresence() async {
+    if (presenceFailed || widget.presence == null) return;
+    try {
+      await widget.presence!.reflect(state, locale, workerActive: workerActive);
+    } catch (error) {
+      presenceFailed = true;
+      if (workerActive) unawaited(widget.session!.stop());
+      if (mounted) {
+        setState(() {
+          backgroundError = error.toString();
+          page = 2;
+        });
+      }
+    }
   }
 
   Future<void> loadPreferences() async {
     try {
       final savedLanguage = await preferences.readLanguage();
-      final savedSkin = await preferences.readSkin();
+      final savedAppearance = await preferences.readAppearance();
       if (!mounted || settingsChanged) return;
       setState(() {
         if (savedLanguage == 'en' || savedLanguage == 'be') {
           locale = Locale(savedLanguage!);
         }
-        if (savedSkin != null) skin = savedSkin;
+        if (savedAppearance != null) appearance = savedAppearance;
       });
+      unawaited(reflectPresence());
     } catch (error) {
       debugPrint('Unable to load UI preferences: $error');
     }
@@ -172,12 +353,265 @@ class _PovadAppState extends State<PovadApp> {
     settingsChanged = true;
     setState(() => locale = value);
     unawaited(saveLanguage(value.languageCode));
+    unawaited(reflectPresence());
   }
 
-  void changeSkin(PovadSkin value) {
+  void changeAppearance(PovadAppearance value) {
     settingsChanged = true;
-    setState(() => skin = value);
-    unawaited(saveSkin(value));
+    setState(() => appearance = value);
+    unawaited(saveAppearance(value));
+  }
+
+  void openHelp(BuildContext context, {HelpTopic? topic}) {
+    unawaited(
+      showHelpPanel(
+        context,
+        topic: topic,
+        onReportProblem: () => unawaited(sendFeedback()),
+      ),
+    );
+  }
+
+  /// Desktop shortcuts. Text fields do not consume these combinations.
+  Map<ShortcutActivator, VoidCallback> shortcuts(BuildContext context) {
+    final mac =
+        defaultTargetPlatform == TargetPlatform.macOS ||
+        defaultTargetPlatform == TargetPlatform.iOS;
+    SingleActivator withModifier(LogicalKeyboardKey key) =>
+        SingleActivator(key, meta: mac, control: !mac);
+    return {
+      withModifier(LogicalKeyboardKey.enter): act,
+      withModifier(LogicalKeyboardKey.digit1): () => goTo(0),
+      withModifier(LogicalKeyboardKey.digit2): () => goTo(1),
+      withModifier(LogicalKeyboardKey.digit3): () => goTo(2),
+      withModifier(LogicalKeyboardKey.digit4): () => goTo(3),
+      const SingleActivator(LogicalKeyboardKey.f1): () => openHelp(context),
+    };
+  }
+
+  void goTo(int value) {
+    setState(() => page = value);
+    if (value == 1) unawaited(refreshSerialPorts());
+  }
+
+  Future<void> sendFeedback() async {
+    const uri = '$_repository/issues/new/choose';
+    try {
+      if (await launchUrl(
+        Uri.parse(uri),
+        mode: LaunchMode.externalApplication,
+      )) {
+        if (mounted) setState(() => feedbackUnavailable = false);
+        return;
+      }
+    } catch (_) {
+      // The visible settings message below gives the user a direct URL.
+    }
+    if (mounted) {
+      setState(() {
+        feedbackUnavailable = true;
+        page = 3;
+      });
+    }
+  }
+
+  Future<void> checkUpdates() async {
+    final updates = widget.updates;
+    if (updates == null || updateChecking) return;
+    setState(() {
+      updateChecking = true;
+      updateCheckFailed = false;
+    });
+    try {
+      final build = await updates.installedBuild();
+      if (!mounted) return;
+      final firstCheck = installedBuild == null;
+      setState(() => installedBuild = build);
+      if (firstCheck) await reportPendingUpdate(build);
+      final release = await updates.check(build);
+      if (!mounted) return;
+      setState(() {
+        availableRelease = release;
+        updateChecked = true;
+      });
+      if (release != null) unawaited(prepareUpdate(release));
+    } catch (_) {
+      if (mounted) setState(() => updateCheckFailed = true);
+    } finally {
+      if (mounted) setState(() => updateChecking = false);
+    }
+  }
+
+  /// Tells the operator whether the update started before the last exit
+  /// actually replaced the installed version.
+  Future<void> reportPendingUpdate(AppBuild build) async {
+    final store = widget.updatePreferences;
+    if (store == null) return;
+    try {
+      autoDownload = await store.readAutoDownload();
+      final pending = await store.readPending();
+      if (pending == null) return;
+      await store.clearPending();
+      if (!mounted) return;
+      final l = lookupAppLocalizations(locale);
+      setState(() {
+        updateNoticeDismissed = false;
+        if (build.version == pending.to) {
+          updateNotice = l.updatedTo(pending.to);
+          updateNoticeError = false;
+        } else {
+          updateNotice = l.updateIncomplete(pending.to);
+          updateNoticeError = true;
+        }
+      });
+    } catch (error) {
+      debugPrint('Unable to read update state: $error');
+    }
+  }
+
+  /// Decides how a found release can be installed and, when allowed,
+  /// downloads and verifies it in the background.
+  Future<void> prepareUpdate(
+    AvailableRelease release, {
+    bool force = false,
+  }) async {
+    final installer = widget.installer;
+    if (installer == null || _preparingUpdate) return;
+    if (stagedUpdate?.version == release.version ||
+        updateStage == UpdateStage.downloading ||
+        updateStage == UpdateStage.installing) {
+      return;
+    }
+    _preparingUpdate = true;
+    try {
+      await _prepareUpdate(installer, release, force: force);
+    } finally {
+      _preparingUpdate = false;
+    }
+  }
+
+  /// Startup and a button press must not start two downloads at once.
+  bool _preparingUpdate = false;
+
+  Future<void> _prepareUpdate(
+    AppUpdater installer,
+    AvailableRelease release, {
+    required bool force,
+  }) async {
+    if (!release.installable || installer.method == InstallMethod.manual) {
+      if (mounted) setState(() => updateStage = UpdateStage.manual);
+      return;
+    }
+    if (!await installer.canInstall()) {
+      if (mounted) setState(() => updateStage = UpdateStage.notWritable);
+      return;
+    }
+    if (!autoDownload && !force) {
+      if (mounted) setState(() => updateStage = UpdateStage.available);
+      return;
+    }
+    if (!mounted) return;
+    setState(() {
+      updateStage = UpdateStage.downloading;
+      updateProgress = 0;
+    });
+    try {
+      final staged = await installer.download(
+        release,
+        onProgress: (value) {
+          if (mounted) setState(() => updateProgress = value);
+        },
+      );
+      if (!mounted) return;
+      setState(() {
+        stagedUpdate = staged;
+        updateStage = UpdateStage.ready;
+      });
+    } catch (error) {
+      debugPrint('Update download failed: $error');
+      if (mounted) setState(() => updateStage = UpdateStage.failed);
+    }
+  }
+
+  /// Installs a staged update now. Never while the worker owns a port: the
+  /// operator stops the bridge first, so shutdown is confirmed beforehand.
+  Future<void> installStagedUpdate() async {
+    final staged = stagedUpdate, installer = widget.installer;
+    if (staged == null || installer == null) return;
+    if (running || workerActive) {
+      setState(() => updateBlocked = true);
+      return;
+    }
+    setState(() {
+      updateBlocked = false;
+      updateStage = UpdateStage.installing;
+    });
+    try {
+      final from = installedBuild?.version;
+      if (from != null) {
+        await widget.updatePreferences?.savePending(from, staged.version);
+      }
+      final started = await installer.launch(staged, relaunch: true);
+      if (!started) {
+        await widget.updatePreferences?.clearPending();
+        if (mounted) setState(() => updateStage = UpdateStage.needsPermission);
+        return;
+      }
+      if (installer.method == InstallMethod.androidApk) {
+        // Android shows its own confirmation; the app is replaced from there.
+        if (mounted) setState(() => updateStage = UpdateStage.ready);
+        return;
+      }
+      stagedUpdate = null;
+      await widget.exitForUpdate?.call();
+    } catch (error) {
+      debugPrint('Update install failed: $error');
+      await widget.updatePreferences?.clearPending();
+      if (mounted) setState(() => updateStage = UpdateStage.failed);
+    }
+  }
+
+  /// A staged desktop update installs when Povad quits, so updates do not
+  /// depend on the operator remembering to restart.
+  Future<void> installOnQuit() async {
+    final staged = stagedUpdate, installer = widget.installer;
+    if (staged == null || installer == null) return;
+    if (installer.method != InstallMethod.windowsZip &&
+        installer.method != InstallMethod.linuxTarXz) {
+      return;
+    }
+    final from = installedBuild?.version;
+    if (from != null) {
+      await widget.updatePreferences?.savePending(from, staged.version);
+    }
+    stagedUpdate = null;
+    await installer.launch(staged, relaunch: false);
+  }
+
+  void changeAutoDownload(bool value) {
+    setState(() => autoDownload = value);
+    unawaited(
+      widget.updatePreferences
+          ?.saveAutoDownload(value)
+          .catchError(
+            (Object error) =>
+                debugPrint('Unable to save update choice: $error'),
+          ),
+    );
+    final release = availableRelease;
+    if (value && release != null) unawaited(prepareUpdate(release));
+  }
+
+  Future<void> openProjectPage(Uri uri) async {
+    try {
+      if (await launchUrl(uri, mode: LaunchMode.externalApplication)) {
+        if (mounted) setState(() => projectLinkFailed = false);
+        return;
+      }
+    } catch (_) {
+      // Keep the URI available as visible text in Settings.
+    }
+    if (mounted) setState(() => projectLinkFailed = true);
   }
 
   Future<void> saveLanguage(String languageCode) async {
@@ -188,52 +622,144 @@ class _PovadAppState extends State<PovadApp> {
     }
   }
 
-  Future<void> saveSkin(PovadSkin value) async {
+  Future<void> saveAppearance(PovadAppearance value) async {
     try {
-      await preferences.saveSkin(value);
+      await preferences.saveAppearance(value);
     } catch (error) {
       debugPrint('Unable to save UI theme: $error');
     }
   }
 
   void act() {
+    final restartable =
+        state == BridgeViewState.stopped ||
+        state == BridgeViewState.interrupted ||
+        state == BridgeViewState.error;
     if (widget.session != null) {
-      if (state == BridgeViewState.stopped) {
+      if (startPending) return;
+      if (restartable) {
         if (!configurationReady) {
           setState(() {
-            invalidBridgeSettings = true;
+            showFieldErrors = true;
             page = 1;
           });
           return;
         }
-        widget.session!.start(
-          core.BridgeConfig(
-            serialPort: serialPort.trim(),
-            baud: int.parse(baud),
-            tcpPort: int.parse(tcpPort),
-            bindAddress: allowLan ? '0.0.0.0' : '127.0.0.1',
-            allowLan: allowLan,
-          ),
-        );
+        unawaited(startLiveBridge());
       } else if (state == BridgeViewState.listening ||
           state == BridgeViewState.connected) {
         unawaited(widget.session!.stop());
-      } else if (state == BridgeViewState.error) {
-        setState(() => page = 2);
       }
       return;
     }
     if (!kDebugMode) return;
     setState(() {
-      if (state == BridgeViewState.stopped) {
+      if (restartable) {
         state = BridgeViewState.starting;
       } else if (state == BridgeViewState.listening ||
           state == BridgeViewState.connected) {
         state = BridgeViewState.stopping;
-      } else if (state == BridgeViewState.error) {
-        page = 2;
       }
     });
+  }
+
+  Future<void> startLiveBridge() async {
+    if (presenceFailed) {
+      setState(() => page = 2);
+      return;
+    }
+    setState(() {
+      startPending = true;
+      backgroundError = null;
+      showFieldErrors = false;
+    });
+    try {
+      await widget.presence?.prepareStart(serialPort, locale);
+      if (!mounted) {
+        await widget.presence?.reflect(
+          BridgeViewState.stopped,
+          locale,
+          workerActive: false,
+        );
+        return;
+      }
+      widget.session!.start(
+        core.BridgeConfig(
+          serialPort: serialPort.trim(),
+          baud: int.parse(baud),
+          tcpPort: int.parse(tcpPort),
+          bindAddress: allowLan ? '0.0.0.0' : '127.0.0.1',
+          allowLan: allowLan,
+        ),
+      );
+    } catch (error) {
+      try {
+        await widget.presence?.reflect(
+          BridgeViewState.stopped,
+          locale,
+          workerActive: false,
+        );
+      } catch (_) {
+        // Preserve the original startup failure for the details screen.
+      }
+      if (mounted) {
+        setState(() {
+          backgroundError = error.toString();
+          state = BridgeViewState.error;
+        });
+      }
+    } finally {
+      if (mounted) setState(() => startPending = false);
+    }
+  }
+
+  /// The address a client should use, or null if the port is invalid.
+  String? primaryEndpoint() {
+    final port = int.tryParse(tcpPort);
+    if (port == null || port < 1 || port > 65535) return null;
+    if (!allowLan) return '127.0.0.1:$port';
+    if (lanAddresses.isEmpty) return '0.0.0.0:$port';
+    return '${lanAddresses.first.address}:$port';
+  }
+
+  String endpointSummary(AppLocalizations l) {
+    final endpoint = primaryEndpoint();
+    if (endpoint == null) return l.tcpValue;
+    final extra = allowLan ? lanAddresses.length - 1 : 0;
+    return extra > 0 ? '$endpoint +$extra' : endpoint;
+  }
+
+  /// One short line above the mark: a ready update while the bridge is idle,
+  /// or the outcome of the last update. Never shown during a session.
+  Widget? _overviewNotice(AppLocalizations l) {
+    if (running || workerActive) return null;
+    final release = availableRelease;
+    if (updateStage == UpdateStage.ready && release != null) {
+      return UpdateNotice(
+        key: const ValueKey('update-notice'),
+        icon: shad.LucideIcons.circleArrowUp,
+        text: l.updateReady(release.version),
+        actionLabel: l.updateBannerAction,
+        onAction: () => unawaited(installStagedUpdate()),
+      );
+    }
+    if (updateNotice != null && !updateNoticeDismissed) {
+      return UpdateNotice(
+        key: const ValueKey('update-result'),
+        icon: updateNoticeError
+            ? shad.LucideIcons.circleAlert
+            : shad.LucideIcons.partyPopper,
+        text: updateNotice!,
+        error: updateNoticeError,
+        actionLabel: updateNoticeError && release != null
+            ? l.viewRelease
+            : l.dismiss,
+        onAction: updateNoticeError && release != null
+            ? () => unawaited(openProjectPage(release.page))
+            : () => setState(() => updateNoticeDismissed = true),
+      );
+    }
+    return null;
   }
 
   @override
@@ -246,199 +772,412 @@ class _PovadAppState extends State<PovadApp> {
       AppLocalizations.delegate,
       PovadShadcnDelegate(),
     ],
-    theme: PovadPalette(skin, false).toShadcn(),
-    darkTheme: PovadPalette(skin, true).toShadcn(),
-    home: PovadSkinScope(
-      skin: skin,
-      child: Builder(
-        builder: (context) {
-          final l = AppLocalizations.of(context)!;
-          final p = paletteOf(context);
-          final labels = [l.overview, l.bridge, l.diagnostics, l.settings];
-          const icons = [
-            shad.LucideIcons.layoutDashboard,
-            shad.LucideIcons.cable,
-            shad.LucideIcons.activity,
-            shad.LucideIcons.settings,
-          ];
-          final content = switch (page) {
-            0 => OverviewPage(
-              state: state,
-              onAction: act,
-              onPreviewState: (value) => setState(() => state = value),
-              previewMode: widget.session == null,
-              configured: widget.session == null || configurationReady,
-              serialValue: serialPort.isEmpty
-                  ? l.serialValue
-                  : selectedUsbLabel ?? serialPort,
-              tcpValue: serialPort.isEmpty
-                  ? l.tcpValue
-                  : '${allowLan ? '0.0.0.0' : '127.0.0.1'}:$tcpPort',
-            ),
-            1 =>
-              widget.session == null
-                  ? EmptyPage(
-                      icon: shad.LucideIcons.cable,
-                      title: l.bridgeSetupTitle,
-                      body: l.bridgeSetupBody,
-                    )
-                  : BridgeSetupPage(
-                      serialPort: serialPort,
-                      baud: baud,
-                      tcpPort: tcpPort,
-                      onSerialPortChanged: (value) => setState(() {
-                        serialPort = value;
-                        invalidBridgeSettings = false;
-                      }),
-                      onBaudChanged: (value) => setState(() {
-                        baud = value;
-                        invalidBridgeSettings = false;
-                      }),
-                      onTcpPortChanged: (value) => setState(() {
-                        tcpPort = value;
-                        invalidBridgeSettings = false;
-                      }),
-                      allowLan: allowLan,
-                      onAllowLanChanged: (value) =>
-                          setState(() => allowLan = value),
-                      error: invalidBridgeSettings
-                          ? l.invalidBridgeSettings
-                          : null,
-                      running: running,
-                      usbMode: androidHost,
-                      usbPorts: usbPorts,
-                      usbLoading: usbLoading,
-                      usbMessage: switch (usbError) {
-                        'unavailable' => l.usbUnavailable,
-                        'denied' => l.usbPermissionDenied,
-                        'scanFailed' => l.usbScanFailed,
-                        _ => null,
-                      },
-                      onRefreshUsb: () => unawaited(refreshUsbPorts()),
-                      onUsbPortSelected: (port) =>
-                          unawaited(selectUsbPort(port)),
-                    ),
-            2 => EmptyPage(
-              icon: shad.LucideIcons.activity,
-              title: state == BridgeViewState.error
-                  ? l.errorTitle
-                  : l.diagnosticsTitle,
-              body: state == BridgeViewState.error
-                  ? l.errorDescription
-                  : l.diagnosticsBody,
-              previewMode: widget.session == null,
-              detail: widget.session?.errorMessage,
-            ),
-            _ => SettingsPage(
-              locale: locale,
-              onLocaleChanged: changeLocale,
-              skin: skin,
-              onSkinChanged: changeSkin,
-            ),
-          };
-          return ColoredBox(
-            color: p.background,
-            child: SafeArea(
-              child: LayoutBuilder(
-                builder: (context, box) {
-                  if (box.maxWidth < 760) {
-                    return Column(
-                      children: [
-                        Container(
-                          decoration: BoxDecoration(
-                            color: p.surface,
-                            border: Border(bottom: BorderSide(color: p.border)),
-                          ),
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 18,
-                            vertical: 12,
-                          ),
-                          child: Row(
-                            children: [const PovadBrandLockup(compact: true)],
-                          ),
-                        ),
-                        Expanded(child: content),
-                        Container(
-                          decoration: BoxDecoration(
-                            color: p.surface,
-                            border: Border(top: BorderSide(color: p.border)),
-                          ),
-                          padding: const EdgeInsets.fromLTRB(6, 5, 6, 8),
-                          child: Row(
-                            children: [
-                              for (var i = 0; i < 4; i++)
-                                Expanded(
-                                  child: _NavItem(
-                                    key: ValueKey('nav-$i'),
-                                    index: i,
-                                    selected: page == i,
-                                    compact: true,
-                                    icon: icons[i],
-                                    label: labels[i],
-                                    compactLabel: i == 2
-                                        ? l.diagnosticsNav
-                                        : null,
-                                    onTap: () => setState(() => page = i),
-                                  ),
-                                ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    );
-                  }
-                  return Row(
+    theme: const PovadPalette(false).toShadcn(),
+    darkTheme: const PovadPalette(true).toShadcn(),
+    themeMode: switch (appearance) {
+      PovadAppearance.system => shad.ThemeMode.system,
+      PovadAppearance.light => shad.ThemeMode.light,
+      PovadAppearance.dark => shad.ThemeMode.dark,
+    },
+    home: Builder(builder: _buildHome),
+  );
+
+  Widget _buildHome(BuildContext context) {
+    final l = AppLocalizations.of(context)!;
+    final p = paletteOf(context);
+    final labels = [l.overview, l.bridge, l.diagnosticsNav, l.settings];
+    const icons = [
+      shad.LucideIcons.layoutDashboard,
+      shad.LucideIcons.cable,
+      shad.LucideIcons.activity,
+      shad.LucideIcons.settings,
+    ];
+    final live = widget.session != null;
+    final snapshot = widget.session?.snapshot;
+    final serialDisplay = serialPort.isEmpty
+        ? null
+        : selectedUsbLabel ?? serialPort;
+    final detail = backgroundError ?? widget.session?.errorMessage;
+    final ended =
+        state == BridgeViewState.error || state == BridgeViewState.interrupted;
+    final hint = ended ? troubleHintFor(detail) : null;
+    final hintText = troubleHintText(hint, l);
+    final endpoint = primaryEndpoint();
+    final copyable =
+        endpoint != null &&
+        (state == BridgeViewState.listening ||
+            state == BridgeViewState.connected);
+    final reduce = MediaQuery.maybeOf(context)?.disableAnimations ?? false;
+
+    final content = switch (page) {
+      0 => OverviewPage(
+        notice: _overviewNotice(l),
+        state: state,
+        onAction: act,
+        tcpReceived: snapshot?.tcpReceived ?? 0,
+        serialReceived: snapshot?.serialReceived ?? 0,
+        previewMode: !live,
+        configured: !live || configurationReady,
+        serialValue: live ? serialDisplay ?? l.serialValue : null,
+        tcpValue: live ? endpointSummary(l) : null,
+        detail: live ? hintText ?? detail : null,
+        onDetails: () => goTo(2),
+        onHelp: () => openHelp(context, topic: helpTopicFor(hint)),
+        onEditSetup: () => goTo(1),
+        onCopyEndpoint: copyable
+            ? () => unawaited(copyEndpoint(endpoint))
+            : null,
+        endpointCopied: copiedEndpoint == endpoint,
+      ),
+      1 =>
+        !live
+            ? EmptyPage(
+                icon: shad.LucideIcons.cable,
+                title: l.bridgeSetupTitle,
+                body: l.bridgeSetupBody,
+              )
+            : BridgeSetupPage(
+                serialPort: serialPort,
+                baud: baud,
+                tcpPort: tcpPort,
+                onSerialPortChanged: (value) => updateBridgeForm(serial: value),
+                onBaudChanged: (value) => updateBridgeForm(speed: value),
+                onTcpPortChanged: (value) => updateBridgeForm(port: value),
+                allowLan: allowLan,
+                onAllowLanChanged: (value) {
+                  setState(() => allowLan = value);
+                  if (value) unawaited(refreshLanAddresses());
+                },
+                lanAddresses: lanAddresses,
+                copiedEndpoint: copiedEndpoint,
+                onRefreshLan: () => unawaited(refreshLanAddresses()),
+                onCopyEndpoint: (value) => unawaited(copyEndpoint(value)),
+                showErrors: showFieldErrors,
+                running: running,
+                discoveredPorts: discoveredPorts,
+                discoverySupported:
+                    widget.portDiscovery?.supported == true && !androidHost,
+                onRefreshPorts: () => unawaited(refreshSerialPorts()),
+                usbMode: androidHost,
+                usbPorts: usbPorts,
+                usbLoading: usbLoading,
+                usbMessage: switch (usbError) {
+                  'unavailable' => l.usbUnavailable,
+                  'denied' => l.usbPermissionDenied,
+                  'scanFailed' => l.usbScanFailed,
+                  _ => null,
+                },
+                onRefreshUsb: () => unawaited(refreshUsbPorts()),
+                onUsbPortSelected: (port) => unawaited(selectUsbPort(port)),
+              ),
+      2 => DetailsPage(
+        state: state,
+        previewMode: !live,
+        detail: live ? detail : null,
+        hint: live ? hintText : null,
+        serialValue: live ? serialDisplay : null,
+        baud: live && baud.isNotEmpty ? baud : null,
+        endpoint: live ? endpoint : null,
+        serialReceived: snapshot?.serialReceived ?? 0,
+        tcpReceived: snapshot?.tcpReceived ?? 0,
+        sessionStartedAt: sessionStartedAt,
+        onStartAgain: live ? act : null,
+        onEditSetup: live ? () => goTo(1) : null,
+        onPreviewState: live ? null : (value) => setState(() => state = value),
+      ),
+      _ => SettingsPage(
+        locale: locale,
+        onLocaleChanged: changeLocale,
+        appearance: appearance,
+        onAppearanceChanged: changeAppearance,
+        feedbackError: feedbackUnavailable ? l.feedbackUnavailable : null,
+        versionLabel: installedBuild?.label,
+        updateChecking: updateChecking,
+        updateChecked: updateChecked,
+        updateCheckFailed: updateCheckFailed,
+        projectLinkFailed: projectLinkFailed,
+        availableRelease: availableRelease,
+        onCheckUpdates: widget.updates == null
+            ? null
+            : () => unawaited(checkUpdates()),
+        onOpenRelease: availableRelease == null
+            ? null
+            : () => unawaited(openProjectPage(availableRelease!.page)),
+        onOpenSource: () => unawaited(openProjectPage(Uri.parse(_repository))),
+        onOpenLicense: () => unawaited(
+          openProjectPage(Uri.parse('$_repository/blob/main/LICENSE')),
+        ),
+        onOpenAuthor: () =>
+            unawaited(openProjectPage(Uri.parse(_authorProfile))),
+        onSendFeedback: () => unawaited(sendFeedback()),
+        updateStage: updateStage,
+        updateProgress: updateProgress,
+        updateBlocked: updateBlocked && (running || workerActive),
+        autoDownload: widget.installer == null ? null : autoDownload,
+        onAutoDownloadChanged: changeAutoDownload,
+        onDownloadUpdate: availableRelease == null
+            ? null
+            : () => unawaited(prepareUpdate(availableRelease!, force: true)),
+        onInstallUpdate: () => unawaited(installStagedUpdate()),
+        installLabel: widget.installer?.method == InstallMethod.androidApk
+            ? l.installUpdate
+            : l.restartToUpdate,
+        installsOnQuit:
+            widget.installer?.method == InstallMethod.windowsZip ||
+            widget.installer?.method == InstallMethod.linuxTarXz,
+        updateNotice: updateNotice,
+        updateNoticeError: updateNoticeError,
+      ),
+    };
+
+    final animated = AnimatedSwitcher(
+      duration: reduce ? Duration.zero : const Duration(milliseconds: 200),
+      switchInCurve: Curves.easeOutCubic,
+      switchOutCurve: Curves.easeInCubic,
+      // Pages fill the content area; a loose Stack would center short ones.
+      layoutBuilder: (current, previous) =>
+          Stack(fit: StackFit.expand, children: [...previous, ?current]),
+      transitionBuilder: (child, animation) => FadeTransition(
+        opacity: animation,
+        child: SlideTransition(
+          position: Tween(
+            begin: const Offset(0, 0.012),
+            end: Offset.zero,
+          ).animate(animation),
+          child: child,
+        ),
+      ),
+      child: KeyedSubtree(key: ValueKey(page), child: content),
+    );
+    final statusLabel = StateCopy.of(state, l).badge;
+    final updateReady = availableRelease != null;
+
+    return CallbackShortcuts(
+      bindings: shortcuts(context),
+      child: Focus(
+        autofocus: true,
+        child: ColoredBox(
+          color: p.background,
+          child: SafeArea(
+            child: LayoutBuilder(
+              builder: (context, box) {
+                if (box.maxWidth < 760) {
+                  return Column(
                     children: [
                       Container(
-                        width: 220,
                         decoration: BoxDecoration(
-                          color: p.surface,
-                          border: Border(right: BorderSide(color: p.border)),
+                          color: p.background,
+                          border: Border(bottom: BorderSide(color: p.border)),
                         ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                        padding: const EdgeInsets.fromLTRB(16, 10, 8, 10),
+                        child: Row(
                           children: [
-                            Padding(
-                              padding: const EdgeInsets.fromLTRB(
-                                20,
-                                30,
-                                14,
-                                36,
+                            // Large system text shrinks the wordmark
+                            // before it can push the toolbar off screen.
+                            const Flexible(
+                              child: FittedBox(
+                                fit: BoxFit.scaleDown,
+                                alignment: Alignment.centerLeft,
+                                child: PovadBrandLockup(compact: true),
                               ),
-                              child: PovadBrandLockup(caption: l.appCaption),
                             ),
-                            for (var i = 0; i < 4; i++)
-                              Padding(
-                                padding: const EdgeInsets.fromLTRB(
-                                  12,
-                                  0,
-                                  12,
-                                  5,
-                                ),
-                                child: _NavItem(
-                                  key: ValueKey('nav-$i'),
-                                  index: i,
-                                  selected: page == i,
-                                  compact: false,
-                                  icon: icons[i],
-                                  label: labels[i],
-                                  onTap: () => setState(() => page = i),
+                            Expanded(
+                              child: Align(
+                                alignment: Alignment.centerRight,
+                                child: page == 0
+                                    ? null
+                                    : Padding(
+                                        padding: const EdgeInsets.only(
+                                          left: 8,
+                                          right: 8,
+                                        ),
+                                        child: StatusPill(
+                                          state: state,
+                                          label: statusLabel,
+                                        ),
+                                      ),
+                              ),
+                            ),
+                            ToolbarIconButton(
+                              key: const ValueKey('header-help'),
+                              icon: shad.LucideIcons.circleHelp,
+                              label: l.openHelp,
+                              onPressed: () => openHelp(context),
+                            ),
+                            const SizedBox(width: 6),
+                            Builder(
+                              builder: (menuContext) => ToolbarIconButton(
+                                key: const ValueKey('mobile-menu'),
+                                icon: shad.LucideIcons.menu,
+                                label: l.menu,
+                                badge: updateReady,
+                                onPressed: () => shad.showOverlay<void>(
+                                  menuContext,
+                                  const shad.PopoverConfiguration(
+                                    alignment: Alignment.topRight,
+                                    anchorAlignment: Alignment.bottomRight,
+                                    offset: Offset(0, 8),
+                                  ),
+                                  adaptive: false,
+                                  builder: (_) => shad.DropdownMenu(
+                                    children: [
+                                      for (var i = 0; i < 4; i++)
+                                        shad.MenuButton(
+                                          leading: Icon(icons[i], size: 17),
+                                          trailing: i == 3 && updateReady
+                                              ? StatusDot(
+                                                  color: p.primary,
+                                                  size: 7,
+                                                )
+                                              : null,
+                                          onPressed: (_) => goTo(i),
+                                          child: Text(labels[i]),
+                                        ),
+                                      const shad.MenuDivider(),
+                                      shad.MenuButton(
+                                        leading: const Icon(
+                                          shad.LucideIcons.lifeBuoy,
+                                          size: 17,
+                                        ),
+                                        onPressed: (_) => openHelp(context),
+                                        child: Text(l.help),
+                                      ),
+                                      shad.MenuButton(
+                                        leading: const Icon(
+                                          shad.LucideIcons.messageSquare,
+                                          size: 17,
+                                        ),
+                                        onPressed: (_) =>
+                                            unawaited(sendFeedback()),
+                                        child: Text(l.sendFeedback),
+                                      ),
+                                    ],
+                                  ),
                                 ),
                               ),
+                            ),
                           ],
                         ),
                       ),
-                      Expanded(child: content),
+                      Expanded(child: animated),
                     ],
                   );
-                },
-              ),
+                }
+                return Row(
+                  children: [
+                    Container(
+                      width: 212,
+                      decoration: BoxDecoration(
+                        color: p.sidebar,
+                        border: Border(right: BorderSide(color: p.border)),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          const Padding(
+                            padding: EdgeInsets.fromLTRB(18, 22, 14, 26),
+                            child: PovadBrandLockup(),
+                          ),
+                          for (var i = 0; i < 4; i++)
+                            Padding(
+                              padding: const EdgeInsets.fromLTRB(10, 0, 10, 3),
+                              child: _NavItem(
+                                key: ValueKey('nav-$i'),
+                                index: i,
+                                selected: page == i,
+                                icon: icons[i],
+                                label: labels[i],
+                                badge: i == 3 && updateReady
+                                    ? l.updateBadge
+                                    : null,
+                                onTap: () => goTo(i),
+                              ),
+                            ),
+                          const Spacer(),
+                          Padding(
+                            padding: const EdgeInsets.fromLTRB(14, 0, 14, 12),
+                            child: Align(
+                              alignment: Alignment.centerLeft,
+                              child: Semantics(
+                                liveRegion: false,
+                                child: StatusPill(
+                                  state: state,
+                                  label: statusLabel,
+                                ),
+                              ),
+                            ),
+                          ),
+                          Container(height: 1, color: p.border),
+                          Padding(
+                            padding: const EdgeInsets.fromLTRB(10, 8, 10, 0),
+                            child: _FooterAction(
+                              key: const ValueKey('sidebar-help'),
+                              icon: shad.LucideIcons.lifeBuoy,
+                              label: l.help,
+                              onPressed: () => openHelp(context),
+                            ),
+                          ),
+                          Padding(
+                            padding: const EdgeInsets.fromLTRB(10, 2, 10, 10),
+                            child: _FooterAction(
+                              icon: shad.LucideIcons.messageSquare,
+                              label: l.feedbackNav,
+                              trailing: installedBuild?.version,
+                              onPressed: () => unawaited(sendFeedback()),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Expanded(child: animated),
+                  ],
+                );
+              },
             ),
-          );
-        },
+          ),
+        ),
       ),
-    ),
-  );
+    );
+  }
+}
+
+class _FooterAction extends StatelessWidget {
+  const _FooterAction({
+    super.key,
+    required this.icon,
+    required this.label,
+    required this.onPressed,
+    this.trailing,
+  });
+
+  final IconData icon;
+  final String label;
+  final VoidCallback onPressed;
+  final String? trailing;
+
+  @override
+  Widget build(BuildContext context) {
+    final p = paletteOf(context);
+    return shad.GhostButton(
+      onPressed: onPressed,
+      child: Row(
+        children: [
+          Icon(icon, size: 17, color: p.muted),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(color: p.foreground, fontSize: 14),
+            ),
+          ),
+          if (trailing != null)
+            Text(trailing!, style: TextStyle(color: p.muted, fontSize: 11.5)),
+        ],
+      ),
+    );
+  }
 }
 
 class _NavItem extends StatelessWidget {
@@ -446,24 +1185,25 @@ class _NavItem extends StatelessWidget {
     super.key,
     required this.index,
     required this.selected,
-    required this.compact,
     required this.icon,
     required this.label,
-    this.compactLabel,
     required this.onTap,
+    this.badge,
   });
   final int index;
-  final bool selected, compact;
+  final bool selected;
   final IconData icon;
   final String label;
-  final String? compactLabel;
   final VoidCallback onTap;
+
+  /// Accessible description of the dot shown beside the label.
+  final String? badge;
 
   @override
   Widget build(BuildContext context) {
     final p = paletteOf(context);
     return Semantics(
-      label: label,
+      label: badge == null ? label : '$label, $badge',
       selected: selected,
       button: true,
       child: DecoratedBox(
@@ -473,58 +1213,28 @@ class _NavItem extends StatelessWidget {
         ),
         child: shad.GhostButton(
           onPressed: onTap,
-          density: compact
-              ? shad.ButtonDensity.compact
-              : shad.ButtonDensity.normal,
+          density: shad.ButtonDensity.normal,
           child: Padding(
-            padding: EdgeInsets.symmetric(vertical: compact ? 8 : 7),
-            child: compact
-                ? Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(
-                        icon,
-                        size: 19,
-                        color: selected ? p.primary : p.muted,
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        compactLabel ?? label,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                          fontSize: 10,
-                          fontWeight: selected
-                              ? FontWeight.w600
-                              : FontWeight.w400,
-                          color: selected ? p.primary : p.muted,
-                        ),
-                      ),
-                    ],
-                  )
-                : Row(
-                    children: [
-                      Icon(
-                        icon,
-                        size: 18,
-                        color: selected ? p.primary : p.muted,
-                      ),
-                      const SizedBox(width: 13),
-                      Expanded(
-                        child: Text(
-                          label,
-                          style: TextStyle(
-                            fontSize: 14,
-                            fontWeight: selected
-                                ? FontWeight.w600
-                                : FontWeight.w400,
-                            color: selected ? p.primary : p.foreground,
-                          ),
-                        ),
-                      ),
-                    ],
+            padding: const EdgeInsets.symmetric(vertical: 6),
+            child: Row(
+              children: [
+                Icon(icon, size: 18, color: selected ? p.primary : p.muted),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    label,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
+                      color: selected ? p.primary : p.foreground,
+                    ),
                   ),
+                ),
+                if (badge != null) StatusDot(color: p.primary, size: 7),
+              ],
+            ),
           ),
         ),
       ),

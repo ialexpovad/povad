@@ -4,14 +4,20 @@ import 'package:alchemist/alchemist.dart';
 import 'package:flutter/widgets.dart';
 import 'package:povad/app/ui_preferences.dart';
 import 'package:povad/design/povad_theme.dart';
+import 'package:povad/domain/bridge_session.dart';
+import 'package:povad/domain/bridge_view_state.dart';
+import 'package:povad/features/connection_diagram.dart';
+import 'package:povad/l10n/generated/app_localizations.dart';
+import 'package:povad/l10n/shadcn_localizations_be.dart';
+import 'package:shadcn_flutter/shadcn_flutter.dart' as shad;
 import 'package:povad/main.dart';
 
 void main() {
   AlchemistConfig.runWithConfig(
     config: AlchemistConfig(
-      // Flutter's Linux and macOS rasterizers differed by at most 28 pixels
-      // in the first CI run; keep the allowance below 0.02% of the image.
-      ciGoldensConfig: const CiGoldensConfig(diffThreshold: 0.0002),
+      // Linux/macOS rasterizers differ on circular edges by 34 pixels in the
+      // 280x280 mark and 52 in the 360x700 mobile view. Allow at most 0.05%.
+      ciGoldensConfig: const CiGoldensConfig(diffThreshold: 0.0005),
       platformGoldensConfig: PlatformGoldensConfig(
         enabled: !Platform.environment.containsKey('CI'),
         platforms: {HostPlatform.macOS},
@@ -23,19 +29,51 @@ void main() {
 
 void _registerGoldens() {
   goldenTest(
-    'desktop overview in graphite and copper',
-    fileName: 'overview_desktop_copper',
-    constraints: const BoxConstraints.tightFor(width: 800, height: 600),
-    builder: () =>
-        PovadApp(preferences: _GoldenPreferences('en', PovadSkin.copper)),
+    'connected mark in dark mode',
+    fileName: 'connected_mark_dark',
+    constraints: const BoxConstraints.tightFor(width: 280, height: 280),
+    builder: () => shad.ShadcnApp(
+      debugShowCheckedModeBanner: false,
+      locale: const Locale('en'),
+      supportedLocales: AppLocalizations.supportedLocales,
+      localizationsDelegates: const [
+        AppLocalizations.delegate,
+        PovadShadcnDelegate(),
+      ],
+      theme: const PovadPalette(true).toShadcn(),
+      home: const ColoredBox(
+        color: Color(0xFF0B0B0D),
+        child: Center(
+          child: ConnectionDiagram(state: BridgeViewState.connected),
+        ),
+      ),
+    ),
   );
 
   goldenTest(
-    'desktop overview in classic blue',
-    fileName: 'overview_desktop_blue',
+    'desktop overview in light mode',
+    fileName: 'overview_desktop_light',
     constraints: const BoxConstraints.tightFor(width: 800, height: 600),
     builder: () =>
-        PovadApp(preferences: _GoldenPreferences('en', PovadSkin.classicBlue)),
+        PovadApp(preferences: _GoldenPreferences('en', PovadAppearance.light)),
+  );
+
+  goldenTest(
+    'desktop live overview',
+    fileName: 'overview_desktop_live',
+    constraints: const BoxConstraints.tightFor(width: 800, height: 600),
+    builder: () => PovadApp(
+      session: BridgeSession(),
+      preferences: _GoldenPreferences('en', PovadAppearance.light),
+    ),
+  );
+
+  goldenTest(
+    'desktop overview in dark mode',
+    fileName: 'overview_desktop_dark',
+    constraints: const BoxConstraints.tightFor(width: 800, height: 600),
+    builder: () =>
+        PovadApp(preferences: _GoldenPreferences('en', PovadAppearance.dark)),
   );
 
   goldenTest(
@@ -43,25 +81,25 @@ void _registerGoldens() {
     fileName: 'overview_mobile_be',
     constraints: const BoxConstraints.tightFor(width: 360, height: 700),
     builder: () =>
-        PovadApp(preferences: _GoldenPreferences('be', PovadSkin.copper)),
+        PovadApp(preferences: _GoldenPreferences('be', PovadAppearance.light)),
   );
 }
 
 class _GoldenPreferences implements UiPreferences {
-  _GoldenPreferences(this.language, this.skin);
+  _GoldenPreferences(this.language, this.appearance);
 
   final String language;
-  final PovadSkin skin;
+  final PovadAppearance appearance;
 
   @override
   Future<String?> readLanguage() async => language;
 
   @override
-  Future<PovadSkin?> readSkin() async => skin;
+  Future<PovadAppearance?> readAppearance() async => appearance;
 
   @override
   Future<void> saveLanguage(String languageCode) async {}
 
   @override
-  Future<void> saveSkin(PovadSkin value) async {}
+  Future<void> saveAppearance(PovadAppearance value) async {}
 }

@@ -4,9 +4,9 @@ import '../design/povad_theme.dart';
 
 abstract interface class UiPreferences {
   Future<String?> readLanguage();
-  Future<PovadSkin?> readSkin();
+  Future<PovadAppearance?> readAppearance();
   Future<void> saveLanguage(String languageCode);
-  Future<void> saveSkin(PovadSkin skin);
+  Future<void> saveAppearance(PovadAppearance appearance);
 }
 
 final class DeviceUiPreferences implements UiPreferences {
@@ -15,16 +15,16 @@ final class DeviceUiPreferences implements UiPreferences {
   final SharedPreferencesAsync _store;
 
   static const _languageKey = 'ui.language';
-  static const _skinKey = 'ui.skin';
+  static const _appearanceKey = 'ui.appearance';
 
   @override
   Future<String?> readLanguage() => _store.getString(_languageKey);
 
   @override
-  Future<PovadSkin?> readSkin() async {
-    final name = await _store.getString(_skinKey);
-    for (final skin in PovadSkin.values) {
-      if (skin.name == name) return skin;
+  Future<PovadAppearance?> readAppearance() async {
+    final name = await _store.getString(_appearanceKey);
+    for (final appearance in PovadAppearance.values) {
+      if (appearance.name == name) return appearance;
     }
     return null;
   }
@@ -34,6 +34,6 @@ final class DeviceUiPreferences implements UiPreferences {
       _store.setString(_languageKey, languageCode);
 
   @override
-  Future<void> saveSkin(PovadSkin skin) =>
-      _store.setString(_skinKey, skin.name);
+  Future<void> saveAppearance(PovadAppearance appearance) =>
+      _store.setString(_appearanceKey, appearance.name);
 }
