@@ -38,8 +38,8 @@ shutdown matrix still need hardware validation. Android includes USB Host
 device selection and permission handling backed by the same native worker.
 CI builds Android APKs with arm64 and x86_64 libraries and checks the app,
 USB channel, and JNI worker on an emulator. Physical USB-serial permission,
-detach, and byte-transfer behavior has not been validated. There is no public
-product release yet.
+detach, and byte-transfer behavior has not been validated. Release candidates
+are previews until those hardware checks pass.
 
 The mobile interface has one main connection action and a top-right menu for
 Bridge, Details, Settings, and feedback. On desktop, closing the window during
@@ -52,8 +52,12 @@ The service requires a USB serial device with permission and starts while the
 app is visible. Operating-system force-stop and process termination still end
 the connection.
 
-GitHub-based update delivery is planned. Platform support will be published
-after each implementation passes build, UI, and real hardware validation.
+Povad checks published GitHub releases at startup and on request in Settings.
+RC builds can see later RC and stable releases; stable builds see stable
+releases only. An update is offered only when a matching platform asset is
+available. The release page opens for download and installation by the user.
+In-place installation is not enabled yet. The macOS QA bundle is excluded
+until Developer ID signing and notarization are available.
 
 ## Run a developer build
 
@@ -88,6 +92,7 @@ feature requests and reproducible problems. Please follow the
 [security policy](SECURITY.md) for suspected vulnerabilities.
 The in-app **Send feedback** action opens the same issue chooser in a browser.
 Povad does not attach logs, device data, or local paths automatically.
+See the [privacy summary](PRIVACY.md) for the app's network behavior.
 
 ## License
 

@@ -105,7 +105,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get errorTitle => 'Connection needs attention';
 
   @override
-  String get errorDescription => 'Open Details for the cause.';
+  String get errorDescription => 'See Details for the cause.';
 
   @override
   String get startBridge => 'Start bridge';
@@ -206,7 +206,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get tcpValue => 'Not configured';
 
   @override
-  String get serialLabel => 'SERIAL';
+  String get serialLabel => 'Serial port';
 
   @override
   String get previewStates => 'Preview connection states';
@@ -254,6 +254,158 @@ class AppLocalizationsEn extends AppLocalizations {
       'Povad brings device connections together. Serial ↔ TCP Bridge is its first module.';
 
   @override
+  String get updates => 'Updates';
+
+  @override
+  String get checkForUpdates => 'Check for updates';
+
+  @override
+  String get checkingForUpdates => 'Checking GitHub…';
+
+  @override
+  String get updateCheckFailed => 'Could not check GitHub releases.';
+
+  @override
+  String get upToDate => 'Up to date';
+
+  @override
+  String get updateNotChecked => 'Not checked yet';
+
+  @override
+  String get viewRelease => 'View release';
+
+  @override
+  String get updateCheckPrivacy =>
+      'Checks GitHub at startup. No serial data or device IDs are sent.';
+
+  @override
+  String get versionLabel => 'Version';
+
+  @override
+  String get versionUnavailable => 'Unavailable';
+
+  @override
+  String get authorLabel => 'Created by';
+
+  @override
+  String get licenseValue => 'MIT License';
+
+  @override
+  String get sourceCode => 'Source code';
+
+  @override
+  String get licenseDetails => 'License';
+
+  @override
+  String get projectLinkFailed =>
+      'Could not open the link. Visit github.com/ialexpovad/povad.';
+
+  @override
   String get connectionDiagram =>
       'Serial device, Povad bridge, and TCP client connection diagram';
+
+  @override
+  String get interrupted => 'Ended';
+
+  @override
+  String get interruptedTitle => 'Session ended';
+
+  @override
+  String get interruptedDescription =>
+      'The client left or the session was interrupted.';
+
+  @override
+  String get startAgain => 'Start again';
+
+  @override
+  String get editSetup => 'Edit setup';
+
+  @override
+  String get copyTcpEndpoint => 'Copy TCP address';
+
+  @override
+  String get serialSection => 'Serial device';
+
+  @override
+  String get detectedPorts => 'Detected ports';
+
+  @override
+  String get noDetectedPorts =>
+      'No serial ports found. Connect an adapter or enter its path.';
+
+  @override
+  String get refreshPorts => 'Refresh ports';
+
+  @override
+  String get settingsLocked => 'Stop the bridge to change these settings.';
+
+  @override
+  String get serialPortRequired => 'Enter a serial port.';
+
+  @override
+  String get baudInvalid => 'Enter a rate from 300 to 4,000,000.';
+
+  @override
+  String get tcpPortInvalid => 'Enter a port from 1 to 65,535.';
+
+  @override
+  String get tcpPortHint => 'TCP clients connect to this port.';
+
+  @override
+  String get detailsSubtitle => 'Live state reported by the bridge worker.';
+
+  @override
+  String get sessionSection => 'Session';
+
+  @override
+  String get trafficSection => 'Traffic';
+
+  @override
+  String get stateLabel => 'State';
+
+  @override
+  String get clientLabel => 'TCP client';
+
+  @override
+  String get clientWaiting => 'Waiting';
+
+  @override
+  String get clientNone => 'Not connected';
+
+  @override
+  String get sessionTime => 'Session time';
+
+  @override
+  String get endpointLabel => 'Address';
+
+  @override
+  String get fromSerial => 'From serial device';
+
+  @override
+  String get fromTcp => 'From TCP client';
+
+  @override
+  String get trafficNote =>
+      'Bytes received by the bridge. Delivery to the other side is not confirmed.';
+
+  @override
+  String get workerMessage => 'Worker message';
+
+  @override
+  String get settingsSubtitle =>
+      'Language, appearance, updates, and app information.';
+
+  @override
+  String get interfaceSection => 'Interface';
+
+  @override
+  String updateAvailableVersion(String version) {
+    return 'Povad $version is available';
+  }
+
+  @override
+  String get updateBadge => 'Update available';
+
+  @override
+  String get authorProfile => 'Open author profile';
 }

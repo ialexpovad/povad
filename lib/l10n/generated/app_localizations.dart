@@ -287,7 +287,7 @@ abstract class AppLocalizations {
   /// No description provided for @errorDescription.
   ///
   /// In en, this message translates to:
-  /// **'Open Details for the cause.'**
+  /// **'See Details for the cause.'**
   String get errorDescription;
 
   /// No description provided for @startBridge.
@@ -479,7 +479,7 @@ abstract class AppLocalizations {
   /// No description provided for @serialLabel.
   ///
   /// In en, this message translates to:
-  /// **'SERIAL'**
+  /// **'Serial port'**
   String get serialLabel;
 
   /// No description provided for @previewStates.
@@ -566,11 +566,299 @@ abstract class AppLocalizations {
   /// **'Povad brings device connections together. Serial ↔ TCP Bridge is its first module.'**
   String get aboutDescription;
 
+  /// No description provided for @updates.
+  ///
+  /// In en, this message translates to:
+  /// **'Updates'**
+  String get updates;
+
+  /// No description provided for @checkForUpdates.
+  ///
+  /// In en, this message translates to:
+  /// **'Check for updates'**
+  String get checkForUpdates;
+
+  /// No description provided for @checkingForUpdates.
+  ///
+  /// In en, this message translates to:
+  /// **'Checking GitHub…'**
+  String get checkingForUpdates;
+
+  /// No description provided for @updateCheckFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not check GitHub releases.'**
+  String get updateCheckFailed;
+
+  /// No description provided for @upToDate.
+  ///
+  /// In en, this message translates to:
+  /// **'Up to date'**
+  String get upToDate;
+
+  /// No description provided for @updateNotChecked.
+  ///
+  /// In en, this message translates to:
+  /// **'Not checked yet'**
+  String get updateNotChecked;
+
+  /// No description provided for @viewRelease.
+  ///
+  /// In en, this message translates to:
+  /// **'View release'**
+  String get viewRelease;
+
+  /// No description provided for @updateCheckPrivacy.
+  ///
+  /// In en, this message translates to:
+  /// **'Checks GitHub at startup. No serial data or device IDs are sent.'**
+  String get updateCheckPrivacy;
+
+  /// No description provided for @versionLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Version'**
+  String get versionLabel;
+
+  /// No description provided for @versionUnavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'Unavailable'**
+  String get versionUnavailable;
+
+  /// No description provided for @authorLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Created by'**
+  String get authorLabel;
+
+  /// No description provided for @licenseValue.
+  ///
+  /// In en, this message translates to:
+  /// **'MIT License'**
+  String get licenseValue;
+
+  /// No description provided for @sourceCode.
+  ///
+  /// In en, this message translates to:
+  /// **'Source code'**
+  String get sourceCode;
+
+  /// No description provided for @licenseDetails.
+  ///
+  /// In en, this message translates to:
+  /// **'License'**
+  String get licenseDetails;
+
+  /// No description provided for @projectLinkFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not open the link. Visit github.com/ialexpovad/povad.'**
+  String get projectLinkFailed;
+
   /// No description provided for @connectionDiagram.
   ///
   /// In en, this message translates to:
   /// **'Serial device, Povad bridge, and TCP client connection diagram'**
   String get connectionDiagram;
+
+  /// No description provided for @interrupted.
+  ///
+  /// In en, this message translates to:
+  /// **'Ended'**
+  String get interrupted;
+
+  /// No description provided for @interruptedTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Session ended'**
+  String get interruptedTitle;
+
+  /// No description provided for @interruptedDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'The client left or the session was interrupted.'**
+  String get interruptedDescription;
+
+  /// No description provided for @startAgain.
+  ///
+  /// In en, this message translates to:
+  /// **'Start again'**
+  String get startAgain;
+
+  /// No description provided for @editSetup.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit setup'**
+  String get editSetup;
+
+  /// No description provided for @copyTcpEndpoint.
+  ///
+  /// In en, this message translates to:
+  /// **'Copy TCP address'**
+  String get copyTcpEndpoint;
+
+  /// No description provided for @serialSection.
+  ///
+  /// In en, this message translates to:
+  /// **'Serial device'**
+  String get serialSection;
+
+  /// No description provided for @detectedPorts.
+  ///
+  /// In en, this message translates to:
+  /// **'Detected ports'**
+  String get detectedPorts;
+
+  /// No description provided for @noDetectedPorts.
+  ///
+  /// In en, this message translates to:
+  /// **'No serial ports found. Connect an adapter or enter its path.'**
+  String get noDetectedPorts;
+
+  /// No description provided for @refreshPorts.
+  ///
+  /// In en, this message translates to:
+  /// **'Refresh ports'**
+  String get refreshPorts;
+
+  /// No description provided for @settingsLocked.
+  ///
+  /// In en, this message translates to:
+  /// **'Stop the bridge to change these settings.'**
+  String get settingsLocked;
+
+  /// No description provided for @serialPortRequired.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter a serial port.'**
+  String get serialPortRequired;
+
+  /// No description provided for @baudInvalid.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter a rate from 300 to 4,000,000.'**
+  String get baudInvalid;
+
+  /// No description provided for @tcpPortInvalid.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter a port from 1 to 65,535.'**
+  String get tcpPortInvalid;
+
+  /// No description provided for @tcpPortHint.
+  ///
+  /// In en, this message translates to:
+  /// **'TCP clients connect to this port.'**
+  String get tcpPortHint;
+
+  /// No description provided for @detailsSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Live state reported by the bridge worker.'**
+  String get detailsSubtitle;
+
+  /// No description provided for @sessionSection.
+  ///
+  /// In en, this message translates to:
+  /// **'Session'**
+  String get sessionSection;
+
+  /// No description provided for @trafficSection.
+  ///
+  /// In en, this message translates to:
+  /// **'Traffic'**
+  String get trafficSection;
+
+  /// No description provided for @stateLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'State'**
+  String get stateLabel;
+
+  /// No description provided for @clientLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'TCP client'**
+  String get clientLabel;
+
+  /// No description provided for @clientWaiting.
+  ///
+  /// In en, this message translates to:
+  /// **'Waiting'**
+  String get clientWaiting;
+
+  /// No description provided for @clientNone.
+  ///
+  /// In en, this message translates to:
+  /// **'Not connected'**
+  String get clientNone;
+
+  /// No description provided for @sessionTime.
+  ///
+  /// In en, this message translates to:
+  /// **'Session time'**
+  String get sessionTime;
+
+  /// No description provided for @endpointLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Address'**
+  String get endpointLabel;
+
+  /// No description provided for @fromSerial.
+  ///
+  /// In en, this message translates to:
+  /// **'From serial device'**
+  String get fromSerial;
+
+  /// No description provided for @fromTcp.
+  ///
+  /// In en, this message translates to:
+  /// **'From TCP client'**
+  String get fromTcp;
+
+  /// No description provided for @trafficNote.
+  ///
+  /// In en, this message translates to:
+  /// **'Bytes received by the bridge. Delivery to the other side is not confirmed.'**
+  String get trafficNote;
+
+  /// No description provided for @workerMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'Worker message'**
+  String get workerMessage;
+
+  /// No description provided for @settingsSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Language, appearance, updates, and app information.'**
+  String get settingsSubtitle;
+
+  /// No description provided for @interfaceSection.
+  ///
+  /// In en, this message translates to:
+  /// **'Interface'**
+  String get interfaceSection;
+
+  /// No description provided for @updateAvailableVersion.
+  ///
+  /// In en, this message translates to:
+  /// **'Povad {version} is available'**
+  String updateAvailableVersion(String version);
+
+  /// No description provided for @updateBadge.
+  ///
+  /// In en, this message translates to:
+  /// **'Update available'**
+  String get updateBadge;
+
+  /// No description provided for @authorProfile.
+  ///
+  /// In en, this message translates to:
+  /// **'Open author profile'**
+  String get authorProfile;
 }
 
 class _AppLocalizationsDelegate

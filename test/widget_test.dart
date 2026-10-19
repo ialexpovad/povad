@@ -2,9 +2,12 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:povad/app/ui_preferences.dart';
+import 'package:povad/app/release_updates.dart';
 import 'package:povad/design/povad_mark.dart';
 import 'package:povad/design/povad_theme.dart';
 import 'package:povad/domain/bridge_session.dart';
+import 'package:povad/domain/bridge_settings.dart';
+import 'package:povad/domain/serial_port_discovery.dart';
 import 'package:povad/domain/bridge_view_state.dart';
 import 'package:povad/features/connection_diagram.dart';
 import 'package:povad/l10n/generated/app_localizations.dart';
@@ -273,6 +276,46 @@ void main() {
     expect(find.textContaining('ПРАГЛЯД'), findsOneWidget);
   });
 
+  testWidgets('About shows author, build and available RC in both languages', (
+    tester,
+  ) async {
+    final updates = ReleaseUpdates(
+      assetPlatform: 'android-arm64.apk',
+      readBuild: () async => const AppBuild('0.1.0-rc.1', '2'),
+      loadReleases: () async => [
+        {
+          'tag_name': 'v0.1.0-rc.2',
+          'prerelease': true,
+          'draft': false,
+          'assets': [
+            {
+              'name': 'Povad-v0.1.0-rc.2-android-arm64.apk',
+              'state': 'uploaded',
+            },
+          ],
+        },
+      ],
+    );
+    await tester.pumpWidget(
+      PovadApp(preferences: MemoryUiPreferences(), updates: updates),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('nav-3')));
+    await tester.pumpAndSettle();
+    expect(find.text('0.1.0-rc.1 (2)'), findsOneWidget);
+    expect(find.text('Version 0.1.0-rc.1 (2)'), findsOneWidget);
+    expect(find.text('Created by'), findsOneWidget);
+    expect(find.text('Aliaksandr Povad'), findsOneWidget);
+    expect(find.text('Povad 0.1.0-rc.2 is available'), findsOneWidget);
+    expect(find.text('View release'), findsOneWidget);
+    await tester.tap(find.text('Беларуская'));
+    await tester.pumpAndSettle();
+    expect(find.text('Версія 0.1.0-rc.1 (2)'), findsOneWidget);
+    expect(find.text('Распрацаваў'), findsOneWidget);
+    expect(find.text('Aliaksandr Povad'), findsOneWidget);
+    expect(find.text('Даступная Povad 0.1.0-rc.2'), findsOneWidget);
+  });
+
   testWidgets('small screen keeps Belarusian controls usable', (tester) async {
     tester.view.physicalSize = const Size(320, 640);
     tester.view.devicePixelRatio = 1;
@@ -331,7 +374,7 @@ void main() {
     await tester.pumpAndSettle();
     final darkSettings = tester.element(find.text('Dark'));
     expect(paletteOf(darkSettings).primary, const Color(0xFF60A5FA));
-    expect(find.text('Povad'), findsOneWidget);
+    expect(find.text('Povad'), findsWidgets);
   });
 
   testWidgets('language and appearance survive an app restart', (tester) async {
@@ -355,6 +398,179 @@ void main() {
       const Color(0xFF60A5FA),
     );
   });
+
+  testWidgets('an error offers a restart and shows the worker cause', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      PovadApp(session: BridgeSession(), preferences: MemoryUiPreferences()),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Configure bridge'));
+    await tester.pumpAndSettle();
+    await tester.enterText(
+      find.byType(shad.TextField).first,
+      '/dev/povad-test-port-does-not-exist',
+    );
+    await tester.tap(find.byKey(const ValueKey('nav-0')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Start bridge'));
+    await tester.pump(const Duration(seconds: 1));
+    expect(find.text('Connection needs attention'), findsOneWidget);
+    // The overview explains the failure itself instead of a dead end.
+    expect(find.text('Cannot open serial port exclusively'), findsOneWidget);
+    expect(find.text('Start again'), findsOneWidget);
+
+    await tester.tap(find.text('Start again'));
+    await tester.pump(const Duration(seconds: 1));
+    expect(find.text('Connection needs attention'), findsOneWidget);
+    expect(find.text('Start again'), findsOneWidget);
+
+    await tester.tap(find.byKey(const ValueKey('nav-2')));
+    await tester.pumpAndSettle();
+    expect(find.text('Cannot open serial port exclusively'), findsOneWidget);
+    expect(find.text('Edit setup'), findsOneWidget);
+    await tester.tap(find.text('Edit setup'));
+    await tester.pumpAndSettle();
+    expect(find.text('Bridge setup'), findsOneWidget);
+  });
+
+  testWidgets('preview ended and error states restart the bridge', (
+    tester,
+  ) async {
+    await tester.pumpWidget(PovadApp(preferences: MemoryUiPreferences()));
+    for (final (badge, title) in [
+      ('Ended', 'Session ended'),
+      ('Error', 'Connection needs attention'),
+    ]) {
+      await tester.tap(find.byKey(const ValueKey('nav-2')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text(badge).last);
+      await tester.tap(find.byKey(const ValueKey('nav-0')));
+      await tester.pumpAndSettle();
+      expect(find.text(title), findsOneWidget);
+      await tester.tap(find.text('Start again'));
+      await tester.pump(const Duration(milliseconds: 100));
+      expect(find.text('Starting bridge'), findsOneWidget);
+    }
+  });
+
+  testWidgets('bridge setup validates fields where they are entered', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      PovadApp(session: BridgeSession(), preferences: MemoryUiPreferences()),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Configure bridge'));
+    await tester.pumpAndSettle();
+    // An attempted start flags the empty required field.
+    expect(find.text('Enter a serial port.'), findsOneWidget);
+
+    final tcp = find.descendant(
+      of: find.byKey(const ValueKey('tcp-field')),
+      matching: find.byType(shad.TextField),
+    );
+    await tester.enterText(tcp, '70000');
+    await tester.pump();
+    expect(find.text('Enter a port from 1 to 65,535.'), findsOneWidget);
+    await tester.enterText(tcp, '80a8');
+    await tester.pump();
+    expect(find.text('808'), findsOneWidget);
+    expect(find.text('Enter a port from 1 to 65,535.'), findsNothing);
+  });
+
+  testWidgets('bridge settings are restored, LAN access is not', (
+    tester,
+  ) async {
+    final store = MemoryBridgeSettingsStore();
+    Widget app() => PovadApp(
+      session: BridgeSession(),
+      preferences: MemoryUiPreferences(),
+      bridgeSettings: store,
+    );
+    await tester.pumpWidget(app());
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('nav-1')));
+    await tester.pumpAndSettle();
+    await tester.enterText(
+      find.descendant(
+        of: find.byKey(const ValueKey('serial-field')),
+        matching: find.byType(shad.TextField),
+      ),
+      '/dev/ttyUSB7',
+    );
+    await tester.enterText(
+      find.descendant(
+        of: find.byKey(const ValueKey('tcp-field')),
+        matching: find.byType(shad.TextField),
+      ),
+      '5020',
+    );
+    await tester.tap(find.byType(shad.Switch));
+    await tester.pumpAndSettle();
+    expect(store.saved?.serialPort, '/dev/ttyUSB7');
+    expect(store.saved?.tcpPort, '5020');
+
+    await tester.pumpWidget(const SizedBox());
+    await tester.pumpWidget(app());
+    await tester.pumpAndSettle();
+    expect(find.text('/dev/ttyUSB7'), findsOneWidget);
+    expect(find.text('127.0.0.1:5020'), findsOneWidget);
+    expect(find.text('Start bridge'), findsOneWidget);
+  });
+
+  testWidgets('detected serial ports fill the setup form', (tester) async {
+    await tester.pumpWidget(
+      PovadApp(
+        session: BridgeSession(),
+        preferences: MemoryUiPreferences(),
+        portDiscovery: SerialPortDiscovery(
+          operatingSystem: 'linux',
+          list: () async => ['ttyS0', 'ttyUSB0', 'ttyACM1', 'null'],
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('nav-1')));
+    await tester.pumpAndSettle();
+    expect(find.text('Detected ports'), findsOneWidget);
+    expect(find.text('ttyS0'), findsNothing);
+    await tester.tap(find.text('ttyUSB0'));
+    await tester.pumpAndSettle();
+    expect(find.text('/dev/ttyUSB0'), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('nav-0')));
+    await tester.pumpAndSettle();
+    expect(find.text('Start bridge'), findsOneWidget);
+    expect(find.text('/dev/ttyUSB0'), findsOneWidget);
+  });
+
+  testWidgets('details report live facts without a running session', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      PovadApp(session: BridgeSession(), preferences: MemoryUiPreferences()),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('nav-2')));
+    await tester.pumpAndSettle();
+    expect(find.text('Bridge stopped'), findsOneWidget);
+    expect(find.text('127.0.0.1:9268'), findsOneWidget);
+    expect(find.text('115200'), findsOneWidget);
+    expect(find.text('Not connected'), findsOneWidget);
+    expect(find.text('0 B'), findsNWidgets(2));
+    expect(find.textContaining('PREVIEW'), findsNothing);
+  });
+}
+
+class MemoryBridgeSettingsStore implements BridgeSettingsStore {
+  BridgeSettings? saved;
+
+  @override
+  Future<BridgeSettings?> read() async => saved;
+
+  @override
+  Future<void> save(BridgeSettings settings) async => saved = settings;
 }
 
 class MemoryUiPreferences implements UiPreferences {

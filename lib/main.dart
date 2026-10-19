@@ -6,7 +6,10 @@ import 'app/android_presence.dart';
 import 'app/bridge_presence.dart';
 import 'app/desktop_presence.dart';
 import 'app/povad_app.dart';
+import 'app/release_updates.dart';
 import 'domain/bridge_session.dart';
+import 'domain/bridge_settings.dart';
+import 'domain/serial_port_discovery.dart';
 
 export 'app/povad_app.dart' show PovadApp;
 
@@ -21,5 +24,15 @@ Future<void> main() async {
   } else {
     presence = null;
   }
-  runApp(PovadApp(session: session, presence: presence));
+  runApp(
+    PovadApp(
+      session: session,
+      presence: presence,
+      updates: ReleaseUpdates(),
+      bridgeSettings: DeviceBridgeSettingsStore(
+        rememberSerialPort: !Platform.isAndroid,
+      ),
+      portDiscovery: SerialPortDiscovery(),
+    ),
+  );
 }

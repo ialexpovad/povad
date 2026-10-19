@@ -8,26 +8,49 @@ import 'package:povad_core/povad_core.dart' as core;
 import 'package:shadcn_flutter/shadcn_flutter.dart' as shad;
 import 'package:url_launcher/url_launcher.dart';
 
+import '../design/povad_components.dart';
 import '../design/povad_mark.dart';
 import '../design/povad_theme.dart';
+import '../domain/bridge_settings.dart';
 import '../domain/bridge_view_state.dart';
 import '../domain/bridge_session.dart';
 import '../domain/android_usb_host.dart';
+import '../domain/serial_port_discovery.dart';
 import '../features/overview_page.dart';
 import '../features/secondary_pages.dart';
 import '../l10n/generated/app_localizations.dart';
 import '../l10n/shadcn_localizations_be.dart';
 import 'ui_preferences.dart';
 import 'bridge_presence.dart';
+import 'release_updates.dart';
+
+const _repository = 'https://github.com/ialexpovad/povad';
+const _authorProfile =
+    'https://www.linkedin.com/in/aliaksandr-povad-6154341a7/';
 
 class PovadApp extends StatefulWidget {
-  const PovadApp({super.key, this.preferences, this.session, this.presence});
+  const PovadApp({
+    super.key,
+    this.preferences,
+    this.session,
+    this.presence,
+    this.updates,
+    this.bridgeSettings,
+    this.portDiscovery,
+  });
 
   final UiPreferences? preferences;
 
   /// When absent, this widget displays the UI preview for design tests.
   final BridgeSession? session;
   final BridgePresence? presence;
+  final ReleaseUpdates? updates;
+
+  /// Remembers the last bridge form locally. Absent in tests and previews.
+  final BridgeSettingsStore? bridgeSettings;
+
+  /// Suggests serial device paths on desktop. Absent in tests and previews.
+  final SerialPortDiscovery? portDiscovery;
 
   @override
   State<PovadApp> createState() => _PovadAppState();
@@ -40,17 +63,26 @@ class _PovadAppState extends State<PovadApp> {
   int page = 0;
   late final UiPreferences preferences;
   bool settingsChanged = false;
+  bool bridgeFormChanged = false;
   String serialPort = '';
   String baud = '115200';
   String tcpPort = '9268';
   bool allowLan = false;
   List<({String name, String address})> lanAddresses = const [];
+  List<String> discoveredPorts = const [];
   String? copiedEndpoint;
-  bool invalidBridgeSettings = false;
+  bool showFieldErrors = false;
   bool feedbackUnavailable = false;
+  AppBuild? installedBuild;
+  AvailableRelease? availableRelease;
+  bool updateChecking = false;
+  bool updateChecked = false;
+  bool updateCheckFailed = false;
+  bool projectLinkFailed = false;
   String? backgroundError;
   bool presenceFailed = false;
   bool startPending = false;
+  DateTime? sessionStartedAt;
   final AndroidUsbHost usbHost = const AndroidUsbHost();
   List<AndroidUsbPort> usbPorts = const [];
   String? usbError;
@@ -60,17 +92,8 @@ class _PovadAppState extends State<PovadApp> {
   bool get androidHost =>
       !kIsWeb && Platform.isAndroid && widget.session != null;
 
-  bool get configurationReady {
-    final speed = int.tryParse(baud);
-    final port = int.tryParse(tcpPort);
-    return serialPort.trim().isNotEmpty &&
-        speed != null &&
-        speed >= 300 &&
-        speed <= 4000000 &&
-        port != null &&
-        port >= 1 &&
-        port <= 65535;
-  }
+  bool get configurationReady =>
+      !BridgeFieldErrors.of(serialPort, baud, tcpPort).any;
 
   bool get running =>
       state == BridgeViewState.starting ||
@@ -90,7 +113,58 @@ class _PovadAppState extends State<PovadApp> {
     preferences = widget.preferences ?? DeviceUiPreferences();
     widget.session?.addListener(onNativeState);
     unawaited(loadPreferences());
+    unawaited(loadBridgeSettings());
     if (androidHost) unawaited(refreshUsbPorts());
+    unawaited(refreshSerialPorts());
+    if (widget.updates != null) unawaited(checkUpdates());
+  }
+
+  Future<void> loadBridgeSettings() async {
+    final store = widget.bridgeSettings;
+    if (store == null) return;
+    try {
+      final saved = await store.read();
+      if (saved == null || !mounted || bridgeFormChanged) return;
+      setState(() {
+        serialPort = saved.serialPort;
+        baud = saved.baud;
+        tcpPort = saved.tcpPort;
+      });
+    } catch (error) {
+      debugPrint('Unable to load bridge settings: $error');
+    }
+  }
+
+  void updateBridgeForm({String? serial, String? speed, String? port}) {
+    bridgeFormChanged = true;
+    setState(() {
+      serialPort = serial ?? serialPort;
+      baud = speed ?? baud;
+      tcpPort = port ?? tcpPort;
+    });
+    final store = widget.bridgeSettings;
+    if (store == null) return;
+    unawaited(
+      store
+          .save(
+            BridgeSettings(
+              serialPort: serialPort,
+              baud: baud,
+              tcpPort: tcpPort,
+            ),
+          )
+          .catchError(
+            (Object error) =>
+                debugPrint('Unable to save bridge settings: $error'),
+          ),
+    );
+  }
+
+  Future<void> refreshSerialPorts() async {
+    final discovery = widget.portDiscovery;
+    if (discovery == null || !discovery.supported) return;
+    final ports = await discovery.discover();
+    if (mounted) setState(() => discoveredPorts = ports);
   }
 
   Future<void> refreshLanAddresses() async {
@@ -111,7 +185,7 @@ class _PovadAppState extends State<PovadApp> {
     }
   }
 
-  Future<void> copyLanEndpoint(String endpoint) async {
+  Future<void> copyEndpoint(String endpoint) async {
     await Clipboard.setData(ClipboardData(text: endpoint));
     if (mounted) setState(() => copiedEndpoint = endpoint);
   }
@@ -153,15 +227,12 @@ class _PovadAppState extends State<PovadApp> {
     try {
       final allowed = await usbHost.requestPermission(port);
       if (!mounted) return;
-      setState(() {
-        if (allowed) {
-          serialPort = port.nativeSelection;
-          selectedUsbLabel = port.label;
-          invalidBridgeSettings = false;
-        } else {
-          usbError = 'denied';
-        }
-      });
+      if (allowed) {
+        selectedUsbLabel = port.label;
+        updateBridgeForm(serial: port.nativeSelection);
+      } else {
+        setState(() => usbError = 'denied');
+      }
     } catch (_) {
       if (mounted) setState(() => usbError = 'scanFailed');
     } finally {
@@ -176,18 +247,34 @@ class _PovadAppState extends State<PovadApp> {
     super.dispose();
   }
 
+  BridgeViewState nativeViewState() {
+    final session = widget.session!;
+    final snapshot = session.snapshot;
+    // A rejected control call leaves no native session behind it.
+    if (session.controlError != null && (snapshot?.finished ?? true)) {
+      return BridgeViewState.error;
+    }
+    return switch (session.state) {
+      core.BridgeState.stopped => BridgeViewState.stopped,
+      core.BridgeState.starting => BridgeViewState.starting,
+      core.BridgeState.listening => BridgeViewState.listening,
+      core.BridgeState.connected => BridgeViewState.connected,
+      core.BridgeState.stopping => BridgeViewState.stopping,
+      core.BridgeState.interrupted => BridgeViewState.interrupted,
+      core.BridgeState.fault => BridgeViewState.error,
+    };
+  }
+
   void onNativeState() {
     if (!mounted) return;
     setState(() {
-      state = switch (widget.session!.state) {
-        core.BridgeState.stopped => BridgeViewState.stopped,
-        core.BridgeState.starting => BridgeViewState.starting,
-        core.BridgeState.listening => BridgeViewState.listening,
-        core.BridgeState.connected => BridgeViewState.connected,
-        core.BridgeState.stopping => BridgeViewState.stopping,
-        core.BridgeState.interrupted ||
-        core.BridgeState.fault => BridgeViewState.error,
-      };
+      state = nativeViewState();
+      if (state == BridgeViewState.listening ||
+          state == BridgeViewState.connected) {
+        sessionStartedAt ??= DateTime.now();
+      } else if (state != BridgeViewState.stopping) {
+        sessionStartedAt = null;
+      }
     });
     unawaited(reflectPresence());
   }
@@ -238,8 +325,13 @@ class _PovadAppState extends State<PovadApp> {
     unawaited(saveAppearance(value));
   }
 
+  void goTo(int value) {
+    setState(() => page = value);
+    if (value == 1) unawaited(refreshSerialPorts());
+  }
+
   Future<void> sendFeedback() async {
-    const uri = 'https://github.com/ialexpovad/povad/issues/new/choose';
+    const uri = '$_repository/issues/new/choose';
     try {
       if (await launchUrl(
         Uri.parse(uri),
@@ -259,6 +351,42 @@ class _PovadAppState extends State<PovadApp> {
     }
   }
 
+  Future<void> checkUpdates() async {
+    final updates = widget.updates;
+    if (updates == null || updateChecking) return;
+    setState(() {
+      updateChecking = true;
+      updateCheckFailed = false;
+    });
+    try {
+      final build = await updates.installedBuild();
+      if (!mounted) return;
+      setState(() => installedBuild = build);
+      final release = await updates.check(build);
+      if (!mounted) return;
+      setState(() {
+        availableRelease = release;
+        updateChecked = true;
+      });
+    } catch (_) {
+      if (mounted) setState(() => updateCheckFailed = true);
+    } finally {
+      if (mounted) setState(() => updateChecking = false);
+    }
+  }
+
+  Future<void> openProjectPage(Uri uri) async {
+    try {
+      if (await launchUrl(uri, mode: LaunchMode.externalApplication)) {
+        if (mounted) setState(() => projectLinkFailed = false);
+        return;
+      }
+    } catch (_) {
+      // Keep the URI available as visible text in Settings.
+    }
+    if (mounted) setState(() => projectLinkFailed = true);
+  }
+
   Future<void> saveLanguage(String languageCode) async {
     try {
       await preferences.saveLanguage(languageCode);
@@ -276,12 +404,16 @@ class _PovadAppState extends State<PovadApp> {
   }
 
   void act() {
+    final restartable =
+        state == BridgeViewState.stopped ||
+        state == BridgeViewState.interrupted ||
+        state == BridgeViewState.error;
     if (widget.session != null) {
       if (startPending) return;
-      if (state == BridgeViewState.stopped) {
+      if (restartable) {
         if (!configurationReady) {
           setState(() {
-            invalidBridgeSettings = true;
+            showFieldErrors = true;
             page = 1;
           });
           return;
@@ -290,20 +422,16 @@ class _PovadAppState extends State<PovadApp> {
       } else if (state == BridgeViewState.listening ||
           state == BridgeViewState.connected) {
         unawaited(widget.session!.stop());
-      } else if (state == BridgeViewState.error) {
-        setState(() => page = 2);
       }
       return;
     }
     if (!kDebugMode) return;
     setState(() {
-      if (state == BridgeViewState.stopped) {
+      if (restartable) {
         state = BridgeViewState.starting;
       } else if (state == BridgeViewState.listening ||
           state == BridgeViewState.connected) {
         state = BridgeViewState.stopping;
-      } else if (state == BridgeViewState.error) {
-        page = 2;
       }
     });
   }
@@ -313,7 +441,11 @@ class _PovadAppState extends State<PovadApp> {
       setState(() => page = 2);
       return;
     }
-    setState(() => startPending = true);
+    setState(() {
+      startPending = true;
+      backgroundError = null;
+      showFieldErrors = false;
+    });
     try {
       await widget.presence?.prepareStart(serialPort, locale);
       if (!mounted) {
@@ -346,12 +478,28 @@ class _PovadAppState extends State<PovadApp> {
       if (mounted) {
         setState(() {
           backgroundError = error.toString();
-          page = 2;
+          state = BridgeViewState.error;
         });
       }
     } finally {
       if (mounted) setState(() => startPending = false);
     }
+  }
+
+  /// The address a client should use, or null if the port is invalid.
+  String? primaryEndpoint() {
+    final port = int.tryParse(tcpPort);
+    if (port == null || port < 1 || port > 65535) return null;
+    if (!allowLan) return '127.0.0.1:$port';
+    if (lanAddresses.isEmpty) return '0.0.0.0:$port';
+    return '${lanAddresses.first.address}:$port';
+  }
+
+  String endpointSummary(AppLocalizations l) {
+    final endpoint = primaryEndpoint();
+    if (endpoint == null) return l.tcpValue;
+    final extra = allowLan ? lanAddresses.length - 1 : 0;
+    return extra > 0 ? '$endpoint +$extra' : endpoint;
   }
 
   @override
@@ -371,256 +519,341 @@ class _PovadAppState extends State<PovadApp> {
       PovadAppearance.light => shad.ThemeMode.light,
       PovadAppearance.dark => shad.ThemeMode.dark,
     },
-    home: Builder(
-      builder: (context) {
-        final l = AppLocalizations.of(context)!;
-        final p = paletteOf(context);
-        final labels = [l.overview, l.bridge, l.diagnostics, l.settings];
-        const icons = [
-          shad.LucideIcons.layoutDashboard,
-          shad.LucideIcons.cable,
-          shad.LucideIcons.activity,
-          shad.LucideIcons.settings,
-        ];
-        final content = switch (page) {
-          0 => OverviewPage(
-            state: state,
-            onAction: act,
-            tcpReceived: widget.session?.snapshot?.tcpReceived ?? 0,
-            serialReceived: widget.session?.snapshot?.serialReceived ?? 0,
-            previewMode: widget.session == null,
-            configured: widget.session == null || configurationReady,
-            serialValue: serialPort.isEmpty
-                ? l.serialValue
-                : selectedUsbLabel ?? serialPort,
-            tcpValue: serialPort.isEmpty
-                ? l.tcpValue
-                : !allowLan
-                ? '127.0.0.1:$tcpPort'
-                : lanAddresses.length == 1
-                ? '${lanAddresses.first.address}:$tcpPort'
-                : lanAddresses.isEmpty
-                ? l.lanAddressUnavailable
-                : l.lanAddressesTitle,
-          ),
-          1 =>
-            widget.session == null
-                ? EmptyPage(
-                    icon: shad.LucideIcons.cable,
-                    title: l.bridgeSetupTitle,
-                    body: l.bridgeSetupBody,
-                  )
-                : BridgeSetupPage(
-                    serialPort: serialPort,
-                    baud: baud,
-                    tcpPort: tcpPort,
-                    onSerialPortChanged: (value) => setState(() {
-                      serialPort = value;
-                      invalidBridgeSettings = false;
-                    }),
-                    onBaudChanged: (value) => setState(() {
-                      baud = value;
-                      invalidBridgeSettings = false;
-                    }),
-                    onTcpPortChanged: (value) => setState(() {
-                      tcpPort = value;
-                      invalidBridgeSettings = false;
-                    }),
-                    allowLan: allowLan,
-                    onAllowLanChanged: (value) {
-                      setState(() => allowLan = value);
-                      if (value) unawaited(refreshLanAddresses());
-                    },
-                    lanAddresses: lanAddresses,
-                    copiedEndpoint: copiedEndpoint,
-                    onRefreshLan: () => unawaited(refreshLanAddresses()),
-                    onCopyEndpoint: (endpoint) =>
-                        unawaited(copyLanEndpoint(endpoint)),
-                    error: invalidBridgeSettings
-                        ? l.invalidBridgeSettings
-                        : null,
-                    running: running,
-                    usbMode: androidHost,
-                    usbPorts: usbPorts,
-                    usbLoading: usbLoading,
-                    usbMessage: switch (usbError) {
-                      'unavailable' => l.usbUnavailable,
-                      'denied' => l.usbPermissionDenied,
-                      'scanFailed' => l.usbScanFailed,
-                      _ => null,
-                    },
-                    onRefreshUsb: () => unawaited(refreshUsbPorts()),
-                    onUsbPortSelected: (port) => unawaited(selectUsbPort(port)),
-                  ),
-          2 => EmptyPage(
-            icon: shad.LucideIcons.activity,
-            title: state == BridgeViewState.error
-                ? l.errorTitle
-                : l.diagnosticsTitle,
-            body: state == BridgeViewState.error
-                ? l.errorDescription
-                : l.diagnosticsBody,
-            previewMode: widget.session == null,
-            detail: backgroundError ?? widget.session?.errorMessage,
-            previewState: widget.session == null ? state : null,
-            onPreviewState: widget.session == null
-                ? (value) => setState(() => state = value)
-                : null,
-          ),
-          _ => SettingsPage(
-            locale: locale,
-            onLocaleChanged: changeLocale,
-            appearance: appearance,
-            onAppearanceChanged: changeAppearance,
-            feedbackError: feedbackUnavailable ? l.feedbackUnavailable : null,
-          ),
-        };
-        return ColoredBox(
-          color: p.background,
-          child: SafeArea(
-            child: LayoutBuilder(
-              builder: (context, box) {
-                if (box.maxWidth < 760) {
-                  return Column(
-                    children: [
-                      Container(
-                        decoration: BoxDecoration(
-                          color: p.background,
-                          border: Border(bottom: BorderSide(color: p.border)),
-                        ),
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 18,
-                          vertical: 12,
-                        ),
-                        child: Row(
-                          children: [
-                            const PovadBrandLockup(compact: true),
-                            const Spacer(),
-                            Builder(
-                              builder: (menuContext) => shad.GhostButton(
-                                key: const ValueKey('mobile-menu'),
-                                onPressed: () => shad.showOverlay<void>(
-                                  menuContext,
-                                  const shad.PopoverConfiguration(
-                                    alignment: Alignment.topRight,
-                                    anchorAlignment: Alignment.bottomRight,
-                                    offset: Offset(0, 6),
-                                  ),
-                                  adaptive: false,
-                                  builder: (_) => shad.DropdownMenu(
-                                    children: [
-                                      for (var i = 0; i < 4; i++)
-                                        shad.MenuButton(
-                                          leading: Icon(icons[i], size: 17),
-                                          onPressed: (_) =>
-                                              setState(() => page = i),
-                                          child: Text(
-                                            i == 2
-                                                ? l.diagnosticsNav
-                                                : labels[i],
-                                          ),
-                                        ),
-                                      shad.MenuButton(
-                                        leading: const Icon(
-                                          shad.LucideIcons.messageSquare,
-                                          size: 17,
-                                        ),
-                                        onPressed: (_) =>
-                                            unawaited(sendFeedback()),
-                                        child: Text(l.sendFeedback),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                                child: Semantics(
-                                  label: l.menu,
-                                  button: true,
-                                  child: const SizedBox(
-                                    width: 44,
-                                    height: 44,
-                                    child: Icon(
-                                      shad.LucideIcons.menu,
-                                      size: 22,
+    home: Builder(builder: _buildHome),
+  );
+
+  Widget _buildHome(BuildContext context) {
+    final l = AppLocalizations.of(context)!;
+    final p = paletteOf(context);
+    final labels = [l.overview, l.bridge, l.diagnosticsNav, l.settings];
+    const icons = [
+      shad.LucideIcons.layoutDashboard,
+      shad.LucideIcons.cable,
+      shad.LucideIcons.activity,
+      shad.LucideIcons.settings,
+    ];
+    final live = widget.session != null;
+    final snapshot = widget.session?.snapshot;
+    final serialDisplay = serialPort.isEmpty
+        ? null
+        : selectedUsbLabel ?? serialPort;
+    final detail = backgroundError ?? widget.session?.errorMessage;
+    final endpoint = primaryEndpoint();
+    final copyable =
+        endpoint != null &&
+        (state == BridgeViewState.listening ||
+            state == BridgeViewState.connected);
+    final reduce = MediaQuery.maybeOf(context)?.disableAnimations ?? false;
+
+    final content = switch (page) {
+      0 => OverviewPage(
+        state: state,
+        onAction: act,
+        tcpReceived: snapshot?.tcpReceived ?? 0,
+        serialReceived: snapshot?.serialReceived ?? 0,
+        previewMode: !live,
+        configured: !live || configurationReady,
+        serialValue: live ? serialDisplay ?? l.serialValue : null,
+        tcpValue: live ? endpointSummary(l) : null,
+        detail: live ? detail : null,
+        onDetails: () => goTo(2),
+        onEditSetup: () => goTo(1),
+        onCopyEndpoint: copyable
+            ? () => unawaited(copyEndpoint(endpoint))
+            : null,
+        endpointCopied: copiedEndpoint == endpoint,
+      ),
+      1 =>
+        !live
+            ? EmptyPage(
+                icon: shad.LucideIcons.cable,
+                title: l.bridgeSetupTitle,
+                body: l.bridgeSetupBody,
+              )
+            : BridgeSetupPage(
+                serialPort: serialPort,
+                baud: baud,
+                tcpPort: tcpPort,
+                onSerialPortChanged: (value) => updateBridgeForm(serial: value),
+                onBaudChanged: (value) => updateBridgeForm(speed: value),
+                onTcpPortChanged: (value) => updateBridgeForm(port: value),
+                allowLan: allowLan,
+                onAllowLanChanged: (value) {
+                  setState(() => allowLan = value);
+                  if (value) unawaited(refreshLanAddresses());
+                },
+                lanAddresses: lanAddresses,
+                copiedEndpoint: copiedEndpoint,
+                onRefreshLan: () => unawaited(refreshLanAddresses()),
+                onCopyEndpoint: (value) => unawaited(copyEndpoint(value)),
+                showErrors: showFieldErrors,
+                running: running,
+                discoveredPorts: discoveredPorts,
+                discoverySupported:
+                    widget.portDiscovery?.supported == true && !androidHost,
+                onRefreshPorts: () => unawaited(refreshSerialPorts()),
+                usbMode: androidHost,
+                usbPorts: usbPorts,
+                usbLoading: usbLoading,
+                usbMessage: switch (usbError) {
+                  'unavailable' => l.usbUnavailable,
+                  'denied' => l.usbPermissionDenied,
+                  'scanFailed' => l.usbScanFailed,
+                  _ => null,
+                },
+                onRefreshUsb: () => unawaited(refreshUsbPorts()),
+                onUsbPortSelected: (port) => unawaited(selectUsbPort(port)),
+              ),
+      2 => DetailsPage(
+        state: state,
+        previewMode: !live,
+        detail: live ? detail : null,
+        serialValue: live ? serialDisplay : null,
+        baud: live && baud.isNotEmpty ? baud : null,
+        endpoint: live ? endpoint : null,
+        serialReceived: snapshot?.serialReceived ?? 0,
+        tcpReceived: snapshot?.tcpReceived ?? 0,
+        sessionStartedAt: sessionStartedAt,
+        onStartAgain: live ? act : null,
+        onEditSetup: live ? () => goTo(1) : null,
+        onPreviewState: live ? null : (value) => setState(() => state = value),
+      ),
+      _ => SettingsPage(
+        locale: locale,
+        onLocaleChanged: changeLocale,
+        appearance: appearance,
+        onAppearanceChanged: changeAppearance,
+        feedbackError: feedbackUnavailable ? l.feedbackUnavailable : null,
+        versionLabel: installedBuild?.label,
+        updateChecking: updateChecking,
+        updateChecked: updateChecked,
+        updateCheckFailed: updateCheckFailed,
+        projectLinkFailed: projectLinkFailed,
+        availableRelease: availableRelease,
+        onCheckUpdates: widget.updates == null
+            ? null
+            : () => unawaited(checkUpdates()),
+        onOpenRelease: availableRelease == null
+            ? null
+            : () => unawaited(openProjectPage(availableRelease!.page)),
+        onOpenSource: () => unawaited(openProjectPage(Uri.parse(_repository))),
+        onOpenLicense: () => unawaited(
+          openProjectPage(Uri.parse('$_repository/blob/main/LICENSE')),
+        ),
+        onOpenAuthor: () =>
+            unawaited(openProjectPage(Uri.parse(_authorProfile))),
+        onSendFeedback: () => unawaited(sendFeedback()),
+      ),
+    };
+
+    final animated = AnimatedSwitcher(
+      duration: reduce ? Duration.zero : const Duration(milliseconds: 200),
+      switchInCurve: Curves.easeOutCubic,
+      switchOutCurve: Curves.easeInCubic,
+      // Pages fill the content area; a loose Stack would center short ones.
+      layoutBuilder: (current, previous) =>
+          Stack(fit: StackFit.expand, children: [...previous, ?current]),
+      transitionBuilder: (child, animation) => FadeTransition(
+        opacity: animation,
+        child: SlideTransition(
+          position: Tween(
+            begin: const Offset(0, 0.012),
+            end: Offset.zero,
+          ).animate(animation),
+          child: child,
+        ),
+      ),
+      child: KeyedSubtree(key: ValueKey(page), child: content),
+    );
+    final statusLabel = StateCopy.of(state, l).badge;
+    final updateReady = availableRelease != null;
+
+    return ColoredBox(
+      color: p.background,
+      child: SafeArea(
+        child: LayoutBuilder(
+          builder: (context, box) {
+            if (box.maxWidth < 760) {
+              return Column(
+                children: [
+                  Container(
+                    decoration: BoxDecoration(
+                      color: p.background,
+                      border: Border(bottom: BorderSide(color: p.border)),
+                    ),
+                    padding: const EdgeInsets.fromLTRB(16, 10, 8, 10),
+                    child: Row(
+                      children: [
+                        const PovadBrandLockup(compact: true),
+                        Expanded(
+                          child: Align(
+                            alignment: Alignment.centerRight,
+                            child: page == 0
+                                ? null
+                                : Padding(
+                                    padding: const EdgeInsets.only(
+                                      left: 8,
+                                      right: 4,
+                                    ),
+                                    child: StatusPill(
+                                      state: state,
+                                      label: statusLabel,
                                     ),
                                   ),
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      Expanded(child: content),
-                    ],
-                  );
-                }
-                return Row(
-                  children: [
-                    Container(
-                      width: 192,
-                      decoration: BoxDecoration(
-                        color: p.surface,
-                        border: Border(right: BorderSide(color: p.border)),
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          Padding(
-                            padding: const EdgeInsets.fromLTRB(18, 22, 14, 28),
-                            child: const PovadBrandLockup(),
                           ),
-                          for (var i = 0; i < 4; i++)
-                            Padding(
-                              padding: const EdgeInsets.fromLTRB(12, 0, 12, 5),
-                              child: _NavItem(
-                                key: ValueKey('nav-$i'),
-                                index: i,
-                                selected: page == i,
-                                icon: icons[i],
-                                label: labels[i],
-                                onTap: () => setState(() => page = i),
+                        ),
+                        Builder(
+                          builder: (menuContext) => shad.GhostButton(
+                            key: const ValueKey('mobile-menu'),
+                            onPressed: () => shad.showOverlay<void>(
+                              menuContext,
+                              const shad.PopoverConfiguration(
+                                alignment: Alignment.topRight,
+                                anchorAlignment: Alignment.bottomRight,
+                                offset: Offset(0, 6),
                               ),
-                            ),
-                          const Spacer(),
-                          Padding(
-                            padding: const EdgeInsets.fromLTRB(12, 0, 12, 16),
-                            child: shad.GhostButton(
-                              onPressed: () => unawaited(sendFeedback()),
-                              child: Row(
+                              adaptive: false,
+                              builder: (_) => shad.DropdownMenu(
                                 children: [
-                                  Icon(
-                                    shad.LucideIcons.messageSquare,
-                                    size: 18,
-                                    color: p.muted,
-                                  ),
-                                  const SizedBox(width: 13),
-                                  Expanded(
-                                    child: Text(
-                                      l.feedbackNav,
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                      style: TextStyle(
-                                        color: p.foreground,
-                                        fontSize: 14,
-                                      ),
+                                  for (var i = 0; i < 4; i++)
+                                    shad.MenuButton(
+                                      leading: Icon(icons[i], size: 17),
+                                      trailing: i == 3 && updateReady
+                                          ? StatusDot(color: p.primary, size: 7)
+                                          : null,
+                                      onPressed: (_) => goTo(i),
+                                      child: Text(labels[i]),
                                     ),
+                                  const shad.MenuDivider(),
+                                  shad.MenuButton(
+                                    leading: const Icon(
+                                      shad.LucideIcons.messageSquare,
+                                      size: 17,
+                                    ),
+                                    onPressed: (_) => unawaited(sendFeedback()),
+                                    child: Text(l.sendFeedback),
                                   ),
                                 ],
                               ),
                             ),
+                            child: Semantics(
+                              label: l.menu,
+                              button: true,
+                              child: SizedBox(
+                                width: 44,
+                                height: 44,
+                                child: Stack(
+                                  alignment: Alignment.center,
+                                  children: [
+                                    const Icon(shad.LucideIcons.menu, size: 22),
+                                    if (updateReady)
+                                      Positioned(
+                                        top: 9,
+                                        right: 8,
+                                        child: StatusDot(
+                                          color: p.primary,
+                                          size: 7,
+                                        ),
+                                      ),
+                                  ],
+                                ),
+                              ),
+                            ),
                           ),
-                        ],
-                      ),
+                        ),
+                      ],
                     ),
-                    Expanded(child: content),
-                  ],
-                );
-              },
-            ),
-          ),
-        );
-      },
-    ),
-  );
+                  ),
+                  Expanded(child: animated),
+                ],
+              );
+            }
+            return Row(
+              children: [
+                Container(
+                  width: 212,
+                  decoration: BoxDecoration(
+                    color: p.sidebar,
+                    border: Border(right: BorderSide(color: p.border)),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      const Padding(
+                        padding: EdgeInsets.fromLTRB(18, 22, 14, 26),
+                        child: PovadBrandLockup(),
+                      ),
+                      for (var i = 0; i < 4; i++)
+                        Padding(
+                          padding: const EdgeInsets.fromLTRB(10, 0, 10, 3),
+                          child: _NavItem(
+                            key: ValueKey('nav-$i'),
+                            index: i,
+                            selected: page == i,
+                            icon: icons[i],
+                            label: labels[i],
+                            badge: i == 3 && updateReady ? l.updateBadge : null,
+                            onTap: () => goTo(i),
+                          ),
+                        ),
+                      const Spacer(),
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(14, 0, 14, 12),
+                        child: Align(
+                          alignment: Alignment.centerLeft,
+                          child: Semantics(
+                            liveRegion: false,
+                            child: StatusPill(state: state, label: statusLabel),
+                          ),
+                        ),
+                      ),
+                      Container(height: 1, color: p.border),
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(10, 8, 10, 10),
+                        child: shad.GhostButton(
+                          onPressed: () => unawaited(sendFeedback()),
+                          child: Row(
+                            children: [
+                              Icon(
+                                shad.LucideIcons.messageSquare,
+                                size: 17,
+                                color: p.muted,
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Text(
+                                  l.feedbackNav,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(
+                                    color: p.foreground,
+                                    fontSize: 14,
+                                  ),
+                                ),
+                              ),
+                              if (installedBuild != null)
+                                Text(
+                                  installedBuild!.version,
+                                  style: TextStyle(
+                                    color: p.muted,
+                                    fontSize: 11.5,
+                                  ),
+                                ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Expanded(child: animated),
+              ],
+            );
+          },
+        ),
+      ),
+    );
+  }
 }
 
 class _NavItem extends StatelessWidget {
@@ -631,6 +864,7 @@ class _NavItem extends StatelessWidget {
     required this.icon,
     required this.label,
     required this.onTap,
+    this.badge,
   });
   final int index;
   final bool selected;
@@ -638,11 +872,14 @@ class _NavItem extends StatelessWidget {
   final String label;
   final VoidCallback onTap;
 
+  /// Accessible description of the dot shown beside the label.
+  final String? badge;
+
   @override
   Widget build(BuildContext context) {
     final p = paletteOf(context);
     return Semantics(
-      label: label,
+      label: badge == null ? label : '$label, $badge',
       selected: selected,
       button: true,
       child: DecoratedBox(
@@ -654,14 +891,16 @@ class _NavItem extends StatelessWidget {
           onPressed: onTap,
           density: shad.ButtonDensity.normal,
           child: Padding(
-            padding: const EdgeInsets.symmetric(vertical: 7),
+            padding: const EdgeInsets.symmetric(vertical: 6),
             child: Row(
               children: [
                 Icon(icon, size: 18, color: selected ? p.primary : p.muted),
-                const SizedBox(width: 13),
+                const SizedBox(width: 12),
                 Expanded(
                   child: Text(
                     label,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                     style: TextStyle(
                       fontSize: 14,
                       fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
@@ -669,6 +908,7 @@ class _NavItem extends StatelessWidget {
                     ),
                   ),
                 ),
+                if (badge != null) StatusDot(color: p.primary, size: 7),
               ],
             ),
           ),

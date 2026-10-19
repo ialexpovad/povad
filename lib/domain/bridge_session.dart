@@ -21,6 +21,11 @@ final class BridgeSession extends ChangeNotifier {
 
   BridgeState get state => _snapshot?.state ?? BridgeState.stopped;
 
+  /// A control-call failure that the native snapshot does not describe,
+  /// such as a rejected start or a stop that did not finish in time.
+  String? get controlError =>
+      _controlError?.isNotEmpty == true ? _controlError : null;
+
   void start(BridgeConfig config) {
     if (_disposed) return;
     try {

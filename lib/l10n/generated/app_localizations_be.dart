@@ -208,7 +208,7 @@ class AppLocalizationsBe extends AppLocalizations {
   String get tcpValue => 'Не настроена';
 
   @override
-  String get serialLabel => 'ПОРТ';
+  String get serialLabel => 'Паслядоўны порт';
 
   @override
   String get previewStates => 'Паказаць станы злучэння';
@@ -256,6 +256,159 @@ class AppLocalizationsBe extends AppLocalizations {
       'Povad аб’ядноўвае падключэнні прылад. Мост паслядоўны порт ↔ TCP — першы модуль.';
 
   @override
+  String get updates => 'Абнаўленні';
+
+  @override
+  String get checkForUpdates => 'Праверыць абнаўленні';
+
+  @override
+  String get checkingForUpdates => 'Правяраем GitHub…';
+
+  @override
+  String get updateCheckFailed => 'Не ўдалося праверыць выпускі GitHub.';
+
+  @override
+  String get upToDate => 'Актуальная версія';
+
+  @override
+  String get updateNotChecked => 'Яшчэ не правяралася';
+
+  @override
+  String get viewRelease => 'Адкрыць выпуск';
+
+  @override
+  String get updateCheckPrivacy =>
+      'Правярае GitHub пры запуску. Даныя порта і ID прылады не перадаюцца.';
+
+  @override
+  String get versionLabel => 'Версія';
+
+  @override
+  String get versionUnavailable => 'Недаступна';
+
+  @override
+  String get authorLabel => 'Распрацаваў';
+
+  @override
+  String get licenseValue => 'Ліцэнзія MIT';
+
+  @override
+  String get sourceCode => 'Зыходны код';
+
+  @override
+  String get licenseDetails => 'Ліцэнзія';
+
+  @override
+  String get projectLinkFailed =>
+      'Не ўдалося адкрыць спасылку. Адкрыйце github.com/ialexpovad/povad.';
+
+  @override
   String get connectionDiagram =>
       'Схема злучэння паслядоўнай прылады, моста Povad і TCP-кліента';
+
+  @override
+  String get interrupted => 'Завершаны';
+
+  @override
+  String get interruptedTitle => 'Сеанс завершаны';
+
+  @override
+  String get interruptedDescription =>
+      'Кліент адключыўся або сеанс перапыніўся.';
+
+  @override
+  String get startAgain => 'Запусціць зноў';
+
+  @override
+  String get editSetup => 'Змяніць налады';
+
+  @override
+  String get copyTcpEndpoint => 'Скапіяваць адрас TCP';
+
+  @override
+  String get serialSection => 'Паслядоўная прылада';
+
+  @override
+  String get detectedPorts => 'Знойдзеныя порты';
+
+  @override
+  String get noDetectedPorts =>
+      'Паслядоўныя порты не знойдзены. Падключыце адаптар або ўвядзіце шлях.';
+
+  @override
+  String get refreshPorts => 'Абнавіць порты';
+
+  @override
+  String get settingsLocked => 'Каб змяніць налады, спыніце мост.';
+
+  @override
+  String get serialPortRequired => 'Увядзіце паслядоўны порт.';
+
+  @override
+  String get baudInvalid => 'Увядзіце хуткасць ад 300 да 4 000 000.';
+
+  @override
+  String get tcpPortInvalid => 'Увядзіце порт ад 1 да 65 535.';
+
+  @override
+  String get tcpPortHint => 'TCP-кліенты падключаюцца да гэтага порта.';
+
+  @override
+  String get detailsSubtitle =>
+      'Бягучы стан, які паведамляе працоўны модуль моста.';
+
+  @override
+  String get sessionSection => 'Сеанс';
+
+  @override
+  String get trafficSection => 'Трафік';
+
+  @override
+  String get stateLabel => 'Стан';
+
+  @override
+  String get clientLabel => 'TCP-кліент';
+
+  @override
+  String get clientWaiting => 'Чакаем';
+
+  @override
+  String get clientNone => 'Не падключаны';
+
+  @override
+  String get sessionTime => 'Час сеансу';
+
+  @override
+  String get endpointLabel => 'Адрас';
+
+  @override
+  String get fromSerial => 'Ад паслядоўнай прылады';
+
+  @override
+  String get fromTcp => 'Ад TCP-кліента';
+
+  @override
+  String get trafficNote =>
+      'Байты, прынятыя мостам. Дастаўка на другі бок не пацверджана.';
+
+  @override
+  String get workerMessage => 'Паведамленне модуля';
+
+  @override
+  String get settingsSubtitle =>
+      'Мова, выгляд, абнаўленні і звесткі пра праграму.';
+
+  @override
+  String get interfaceSection => 'Інтэрфейс';
+
+  @override
+  String updateAvailableVersion(String version) {
+    return 'Даступная Povad $version';
+  }
+
+  @override
+  String get updateBadge => 'Даступна абнаўленне';
+
+  @override
+  String get authorProfile => 'Адкрыць профіль аўтара';
 }

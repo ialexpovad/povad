@@ -24,6 +24,15 @@ final class PovadPalette {
   Color get inactive =>
       dark ? const Color(0xFF71717A) : const Color(0xFFA1A1AA);
   Color get error => dark ? const Color(0xFFF87171) : const Color(0xFFB91C1C);
+  Color get sidebar => dark ? const Color(0xFF0F0F12) : const Color(0xFFFAFAFA);
+  Color get subtle => dark ? const Color(0xFF1B1B1F) : const Color(0xFFF4F4F5);
+  Color get errorSurface =>
+      dark ? const Color(0xFF2A1215) : const Color(0xFFFEF2F2);
+  Color get warning => dark ? const Color(0xFFFBBF24) : const Color(0xFF92400E);
+  Color get warningSurface =>
+      dark ? const Color(0xFF231B0B) : const Color(0xFFFFFBEB);
+  Color get warningBorder =>
+      dark ? const Color(0xFF4A3712) : const Color(0xFFFDE68A);
 
   shad.ThemeData toShadcn() => shad.ThemeData(
     radius: 0.55,

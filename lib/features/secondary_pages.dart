@@ -1,30 +1,24 @@
 import 'package:flutter/widgets.dart';
-import 'package:shadcn_flutter/shadcn_flutter.dart' as shad;
 
 import '../design/povad_theme.dart';
 import '../design/preview_notice.dart';
-import '../domain/android_usb_host.dart';
-import '../domain/bridge_view_state.dart';
 import '../l10n/generated/app_localizations.dart';
-import 'overview_page.dart';
 
+export 'bridge_setup_page.dart';
+export 'details_page.dart';
+export 'settings_page.dart';
+
+/// Placeholder used by the design preview, which has no native worker.
 class EmptyPage extends StatelessWidget {
   const EmptyPage({
     super.key,
     required this.icon,
     required this.title,
     required this.body,
-    this.previewMode = true,
-    this.detail,
-    this.previewState,
-    this.onPreviewState,
   });
   final IconData icon;
   final String title, body;
-  final bool previewMode;
-  final String? detail;
-  final BridgeViewState? previewState;
-  final ValueChanged<BridgeViewState>? onPreviewState;
+
   @override
   Widget build(BuildContext context) {
     final l = AppLocalizations.of(context)!;
@@ -33,538 +27,41 @@ class EmptyPage extends StatelessWidget {
       child: SingleChildScrollView(
         padding: const EdgeInsets.all(24),
         child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 500),
+          constraints: const BoxConstraints(maxWidth: 440),
           child: Column(
             children: [
-              Icon(icon, size: 52, color: colors.primary),
+              Container(
+                width: 64,
+                height: 64,
+                decoration: BoxDecoration(
+                  color: colors.selection,
+                  borderRadius: BorderRadius.circular(18),
+                ),
+                child: Icon(icon, size: 28, color: colors.primary),
+              ),
               const SizedBox(height: 20),
               Text(
                 title,
                 textAlign: TextAlign.center,
                 style: TextStyle(
-                  fontSize: 24,
+                  fontSize: 22,
                   fontWeight: FontWeight.w700,
+                  letterSpacing: -0.4,
                   color: colors.foreground,
                 ),
-              ),
-              const SizedBox(height: 10),
-              Text(
-                body,
-                textAlign: TextAlign.center,
-                style: TextStyle(color: colors.muted),
-              ),
-              if (detail?.isNotEmpty == true) ...[
-                const SizedBox(height: 16),
-                Text(
-                  detail!,
-                  textAlign: TextAlign.center,
-                  style: TextStyle(color: colors.error),
-                ),
-              ],
-              const SizedBox(height: 30),
-              if (previewMode) PreviewNotice(label: l.previewNotice),
-              if (previewState != null && onPreviewState != null) ...[
-                const SizedBox(height: 24),
-                Text(l.previewStates, style: TextStyle(color: colors.muted)),
-                const SizedBox(height: 10),
-                Wrap(
-                  alignment: WrapAlignment.center,
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: [
-                    for (final candidate in BridgeViewState.values)
-                      candidate == previewState
-                          ? shad.PrimaryButton(
-                              onPressed: () => onPreviewState!(candidate),
-                              child: Text(StateCopy.of(candidate, l).badge),
-                            )
-                          : shad.OutlineButton(
-                              onPressed: () => onPreviewState!(candidate),
-                              child: Text(StateCopy.of(candidate, l).badge),
-                            ),
-                  ],
-                ),
-              ],
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class BridgeSetupPage extends StatelessWidget {
-  const BridgeSetupPage({
-    super.key,
-    required this.serialPort,
-    required this.baud,
-    required this.tcpPort,
-    required this.onSerialPortChanged,
-    required this.onBaudChanged,
-    required this.onTcpPortChanged,
-    required this.allowLan,
-    required this.onAllowLanChanged,
-    required this.lanAddresses,
-    required this.copiedEndpoint,
-    required this.onRefreshLan,
-    required this.onCopyEndpoint,
-    required this.error,
-    required this.running,
-    this.usbMode = false,
-    this.usbPorts = const [],
-    this.usbLoading = false,
-    this.usbMessage,
-    this.onRefreshUsb,
-    this.onUsbPortSelected,
-  });
-
-  final String serialPort, baud, tcpPort;
-  final ValueChanged<String> onSerialPortChanged;
-  final ValueChanged<String> onBaudChanged;
-  final ValueChanged<String> onTcpPortChanged;
-  final bool allowLan;
-  final ValueChanged<bool> onAllowLanChanged;
-  final List<({String name, String address})> lanAddresses;
-  final String? copiedEndpoint;
-  final VoidCallback onRefreshLan;
-  final ValueChanged<String> onCopyEndpoint;
-  final String? error;
-  final bool running;
-  final bool usbMode, usbLoading;
-  final List<AndroidUsbPort> usbPorts;
-  final String? usbMessage;
-  final VoidCallback? onRefreshUsb;
-  final ValueChanged<AndroidUsbPort>? onUsbPortSelected;
-
-  @override
-  Widget build(BuildContext context) {
-    final l = AppLocalizations.of(context)!;
-    final colors = paletteOf(context);
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(28),
-      child: Center(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 580),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Text(
-                l.bridgeSetupTitle,
-                style: TextStyle(
-                  fontSize: 30,
-                  fontWeight: FontWeight.w700,
-                  color: colors.foreground,
-                ),
-              ),
-              const SizedBox(height: 10),
-              Text(
-                usbMode ? l.androidBridgeSetupIntro : l.bridgeSetupIntro,
-                style: TextStyle(color: colors.muted),
-              ),
-              const SizedBox(height: 26),
-              if (usbMode) ...[
-                Text(
-                  l.usbPortsTitle,
-                  style: TextStyle(
-                    fontWeight: FontWeight.w600,
-                    color: colors.foreground,
-                  ),
-                ),
-                const SizedBox(height: 10),
-                Align(
-                  alignment: Alignment.centerLeft,
-                  child: shad.OutlineButton(
-                    onPressed: usbLoading || running ? null : onRefreshUsb,
-                    child: Text(l.scanUsbDevices),
-                  ),
-                ),
-                if (usbMessage != null) ...[
-                  const SizedBox(height: 10),
-                  Text(usbMessage!, style: TextStyle(color: colors.error)),
-                ],
-                if (usbLoading && usbPorts.isEmpty) ...[
-                  const SizedBox(height: 10),
-                  Text(
-                    l.scanningUsbDevices,
-                    style: TextStyle(color: colors.muted),
-                  ),
-                ],
-                if (usbPorts.isEmpty && usbMessage == null && !usbLoading) ...[
-                  const SizedBox(height: 10),
-                  Text(l.noUsbDevices, style: TextStyle(color: colors.muted)),
-                ],
-                if (usbPorts.isNotEmpty) ...[
-                  const SizedBox(height: 12),
-                  Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
-                    children: [
-                      for (final port in usbPorts)
-                        port.nativeSelection == serialPort
-                            ? shad.PrimaryButton(
-                                onPressed: running || usbLoading
-                                    ? null
-                                    : () => onUsbPortSelected?.call(port),
-                                child: Text(port.label),
-                              )
-                            : shad.OutlineButton(
-                                onPressed: running || usbLoading
-                                    ? null
-                                    : () => onUsbPortSelected?.call(port),
-                                child: Text(port.label),
-                              ),
-                    ],
-                  ),
-                ],
-              ] else
-                _SettingField(
-                  label: l.serialPortPath,
-                  value: serialPort,
-                  onChanged: onSerialPortChanged,
-                  enabled: !running,
-                  placeholder: '/dev/cu.usbserial-…',
-                ),
-              const SizedBox(height: 20),
-              _BaudSelector(
-                value: baud,
-                onChanged: onBaudChanged,
-                enabled: !running,
-              ),
-              const SizedBox(height: 20),
-              _SettingField(
-                label: l.tcpPortNumber,
-                value: tcpPort,
-                onChanged: onTcpPortChanged,
-                enabled: !running,
-                keyboardType: TextInputType.number,
-              ),
-              const SizedBox(height: 20),
-              Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      l.lanAccessTitle,
-                      style: TextStyle(
-                        fontWeight: FontWeight.w600,
-                        color: colors.foreground,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  shad.Switch(
-                    value: allowLan,
-                    onChanged: running ? null : onAllowLanChanged,
-                  ),
-                ],
               ),
               const SizedBox(height: 8),
               Text(
-                allowLan ? l.lanAccessRisk : l.loopbackNote,
-                style: TextStyle(color: colors.muted, fontSize: 13),
-              ),
-              if (allowLan) ...[
-                const SizedBox(height: 18),
-                Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        l.lanAddressesTitle,
-                        style: TextStyle(
-                          color: colors.foreground,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ),
-                    shad.OutlineButton(
-                      onPressed: onRefreshLan,
-                      child: Text(l.refreshAddresses),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                if (lanAddresses.isEmpty)
-                  Text(
-                    l.lanAddressUnavailable,
-                    style: TextStyle(color: colors.muted, fontSize: 13),
-                  )
-                else
-                  for (final address in lanAddresses)
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: 8),
-                      child: Row(
-                        children: [
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  address.name,
-                                  style: TextStyle(
-                                    color: colors.muted,
-                                    fontSize: 12,
-                                  ),
-                                ),
-                                Text(
-                                  '${address.address}:$tcpPort',
-                                  style: TextStyle(color: colors.foreground),
-                                ),
-                              ],
-                            ),
-                          ),
-                          shad.OutlineButton(
-                            onPressed: () =>
-                                onCopyEndpoint('${address.address}:$tcpPort'),
-                            child: Text(
-                              copiedEndpoint == '${address.address}:$tcpPort'
-                                  ? l.copiedEndpoint
-                                  : l.copyEndpoint,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-              ],
-              if (error != null) ...[
-                const SizedBox(height: 18),
-                Text(error!, style: TextStyle(color: colors.error)),
-              ],
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _BaudSelector extends StatelessWidget {
-  const _BaudSelector({
-    required this.value,
-    required this.onChanged,
-    required this.enabled,
-  });
-
-  static const rates = [
-    '1200',
-    '2400',
-    '4800',
-    '9600',
-    '19200',
-    '38400',
-    '57600',
-    '115200',
-    '230400',
-  ];
-  static const custom = 'custom';
-
-  final String value;
-  final ValueChanged<String> onChanged;
-  final bool enabled;
-
-  @override
-  Widget build(BuildContext context) {
-    final l = AppLocalizations.of(context)!;
-    final colors = paletteOf(context);
-    final isCustom = !rates.contains(value);
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        Text(
-          l.baudRate,
-          style: TextStyle(
-            fontWeight: FontWeight.w600,
-            color: colors.foreground,
-          ),
-        ),
-        const SizedBox(height: 8),
-        shad.Select<String>(
-          key: const ValueKey('baud-select'),
-          value: isCustom ? custom : value,
-          onChanged: enabled
-              ? (selected) =>
-                    onChanged(selected == custom ? '' : selected ?? value)
-              : null,
-          enabled: enabled,
-          theme: const shad.SelectTheme(adaptiveOverlay: false),
-          itemBuilder: (context, selected) =>
-              Text(selected == custom ? l.customBaudRate : selected),
-          popup: (context) => shad.SelectPopup<String>(
-            items: shad.SelectItemList(
-              children: [
-                for (final rate in rates)
-                  shad.SelectItemButton<String>(value: rate, child: Text(rate)),
-                shad.SelectItemButton<String>(
-                  value: custom,
-                  child: Text(l.customBaudRate),
-                ),
-              ],
-            ),
-          ),
-        ),
-        if (isCustom) ...[
-          const SizedBox(height: 10),
-          _SettingField(
-            label: l.customBaudRate,
-            value: value,
-            onChanged: onChanged,
-            enabled: enabled,
-            keyboardType: TextInputType.number,
-          ),
-        ],
-      ],
-    );
-  }
-}
-
-class _SettingField extends StatelessWidget {
-  const _SettingField({
-    required this.label,
-    required this.value,
-    required this.onChanged,
-    required this.enabled,
-    this.keyboardType,
-    this.placeholder,
-  });
-
-  final String label, value;
-  final ValueChanged<String> onChanged;
-  final bool enabled;
-  final TextInputType? keyboardType;
-  final String? placeholder;
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = paletteOf(context);
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        Text(
-          label,
-          style: TextStyle(
-            fontWeight: FontWeight.w600,
-            color: colors.foreground,
-          ),
-        ),
-        const SizedBox(height: 8),
-        shad.TextField(
-          initialValue: value,
-          onChanged: onChanged,
-          enabled: enabled,
-          keyboardType: keyboardType,
-          placeholder: placeholder == null ? null : Text(placeholder!),
-        ),
-      ],
-    );
-  }
-}
-
-class SettingsPage extends StatelessWidget {
-  const SettingsPage({
-    super.key,
-    required this.locale,
-    required this.onLocaleChanged,
-    required this.appearance,
-    required this.onAppearanceChanged,
-    this.feedbackError,
-  });
-  final Locale locale;
-  final ValueChanged<Locale> onLocaleChanged;
-  final PovadAppearance appearance;
-  final ValueChanged<PovadAppearance> onAppearanceChanged;
-  final String? feedbackError;
-  @override
-  Widget build(BuildContext context) {
-    final l = AppLocalizations.of(context)!;
-    final colors = paletteOf(context);
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(28),
-      child: Center(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 580),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                l.settings,
+                body,
+                textAlign: TextAlign.center,
                 style: TextStyle(
-                  fontSize: 30,
-                  fontWeight: FontWeight.w700,
-                  color: colors.foreground,
+                  color: colors.muted,
+                  fontSize: 14,
+                  height: 1.5,
                 ),
               ),
-              const SizedBox(height: 28),
-              Text(
-                l.language,
-                style: TextStyle(
-                  fontSize: 17,
-                  fontWeight: FontWeight.w600,
-                  color: colors.foreground,
-                ),
-              ),
-              const SizedBox(height: 12),
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: [
-                  for (final (code, label) in [
-                    ('en', l.english),
-                    ('be', l.belarusian),
-                  ])
-                    code == locale.languageCode
-                        ? shad.PrimaryButton(
-                            onPressed: () => onLocaleChanged(Locale(code)),
-                            child: Text(label),
-                          )
-                        : shad.OutlineButton(
-                            onPressed: () => onLocaleChanged(Locale(code)),
-                            child: Text(label),
-                          ),
-                ],
-              ),
-              const SizedBox(height: 34),
-              Text(
-                l.appearance,
-                style: TextStyle(
-                  fontSize: 17,
-                  fontWeight: FontWeight.w600,
-                  color: colors.foreground,
-                ),
-              ),
-              const SizedBox(height: 12),
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: [
-                  for (final (option, label) in [
-                    (PovadAppearance.system, l.systemTheme),
-                    (PovadAppearance.light, l.lightTheme),
-                    (PovadAppearance.dark, l.darkTheme),
-                  ])
-                    option == appearance
-                        ? shad.PrimaryButton(
-                            onPressed: () => onAppearanceChanged(option),
-                            child: Text(label),
-                          )
-                        : shad.OutlineButton(
-                            onPressed: () => onAppearanceChanged(option),
-                            child: Text(label),
-                          ),
-                ],
-              ),
-              const SizedBox(height: 34),
-              Text(
-                l.about,
-                style: TextStyle(
-                  fontSize: 17,
-                  fontWeight: FontWeight.w600,
-                  color: colors.foreground,
-                ),
-              ),
-              const SizedBox(height: 7),
-              Text(l.aboutDescription, style: TextStyle(color: colors.muted)),
-              if (feedbackError != null) ...[
-                const SizedBox(height: 22),
-                Text(feedbackError!, style: TextStyle(color: colors.error)),
-              ],
+              const SizedBox(height: 26),
+              PreviewNotice(label: l.previewNotice),
             ],
           ),
         ),

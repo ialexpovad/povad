@@ -29,6 +29,9 @@ macos/Flutter/GeneratedPluginRegistrant.swift
 .pub-cache/
 .pub/
 /android/local.properties
+/android/key.properties
+/android/app/*.jks
+/android/app/*.keystore
 /android/.gradle/
 /android/app/debug/
 /android/app/profile/

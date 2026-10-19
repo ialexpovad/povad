@@ -30,6 +30,8 @@ final class DesktopPresence
     final presence = DesktopPresence._(session);
     windowManager.addListener(presence);
     await windowManager.setPreventClose(true);
+    // Below this size the setup form and the mark start to crowd each other.
+    await windowManager.setMinimumSize(const Size(400, 560));
     try {
       trayManager.addListener(presence);
       await trayManager.setIcon(
