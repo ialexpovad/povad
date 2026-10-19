@@ -411,4 +411,204 @@ class AppLocalizationsBe extends AppLocalizations {
 
   @override
   String get authorProfile => 'Адкрыць профіль аўтара';
+
+  @override
+  String get help => 'Даведка';
+
+  @override
+  String get helpSubtitle => 'Як пачаць і як выправіць частыя праблемы.';
+
+  @override
+  String get openHelp => 'Адкрыць даведку';
+
+  @override
+  String get closeHelp => 'Закрыць';
+
+  @override
+  String get quickStartTitle => 'Як пачаць';
+
+  @override
+  String get step1Title => 'Падключыце адаптар';
+
+  @override
+  String get step1Body =>
+      'Падключыце адаптар USB–Serial і выберыце яго порт у наладах моста.';
+
+  @override
+  String get step2Title => 'Запусціце мост';
+
+  @override
+  String get step2Body => 'Povad адкрывае порт і чакае аднаго TCP-кліента.';
+
+  @override
+  String get step3Title => 'Падключыце кліента';
+
+  @override
+  String get step3Body =>
+      'Укажыце ў TCP-праграме адрас з экрана «Агляд». Байты перадаюцца без змен.';
+
+  @override
+  String get faqTitle => 'Пытанні і рашэнні';
+
+  @override
+  String get faqClientQ => 'TCP-кліент не можа падключыцца';
+
+  @override
+  String get faqClientA =>
+      'Пераканайцеся, што стан — «Чакаем кліента», і выкарыстоўвайце адрас з экрана «Агляд». З іншага камп’ютара ўключыце «Дазволіць кліентаў лакальнай сеткі» і выкарыстоўвайце адрас лакальнай сеткі. Порт таксама можа блакаваць брандмаўэр.';
+
+  @override
+  String get faqPortQ => 'Не ўдаецца адкрыць паслядоўны порт';
+
+  @override
+  String get faqPortA =>
+      'Закрыйце іншыя праграмы, якія карыстаюцца портам, перападключыце адаптар і праверце назву порта. У Linux дадайце карыстальніка ў групу dialout. У Windows нумар COM-порта паказаны ў Дыспетчары прылад.';
+
+  @override
+  String get faqEndedQ => 'Чаму сеанс завяршыўся?';
+
+  @override
+  String get faqEndedA =>
+      'Адзін сеанс абслугоўвае аднаго TCP-кліента. Калі ён адключаецца, сеанс завяршаецца, каб байты не трапілі іншаму кліенту. Націсніце «Запусціць зноў», каб чакаць наступнага.';
+
+  @override
+  String get faqBytesQ => 'Ці змяняе Povad мае даныя?';
+
+  @override
+  String get faqBytesA =>
+      'Не. Povad перадае байты ў абодва бакі, не разбіраючы пратакол, не мяняючы кантрольныя сумы, не апытваючы прыладу і не адказваючы за яе.';
+
+  @override
+  String get faqLanQ => 'Ці бяспечна дазваляць кліентаў лакальнай сеткі?';
+
+  @override
+  String get faqLanA =>
+      'Кліенты лакальнай сеткі не правяраюцца і могуць адпраўляць байты ў вашу прыладу. Дазваляйце іх толькі ў даверанай сетцы і выключайце доступ пасля працы.';
+
+  @override
+  String get faqPrivacyQ => 'Ці адпраўляе Povad мае даныя кудысьці?';
+
+  @override
+  String get faqPrivacyA =>
+      'Не. Паслядоўныя даныя застаюцца паміж вашай прыладай і кліентам. Povad толькі пытаецца ў GitHub, ці ёсць новы выпуск.';
+
+  @override
+  String get shortcutsTitle => 'Спалучэнні клавіш';
+
+  @override
+  String get shortcutToggle => 'Запусціць або спыніць мост';
+
+  @override
+  String get shortcutNavigate => 'Пераключыць раздзел';
+
+  @override
+  String get shortcutHelp => 'Адкрыць даведку';
+
+  @override
+  String get stillStuck => 'Не атрымліваецца?';
+
+  @override
+  String get stillStuckBody =>
+      'Апішыце праблему на GitHub: АС, адаптар і крокі. Не дадавайце даныя прылады.';
+
+  @override
+  String get reportProblem => 'Паведаміць пра праблему';
+
+  @override
+  String get howToFix => 'Як выправіць';
+
+  @override
+  String get stoppedUnconfigured => 'Каб пачаць, выберыце паслядоўны порт.';
+
+  @override
+  String get hintSerialAccess =>
+      'Порт адсутнічае, заняты або недаступны. Закрыйце праграмы, якія ім карыстаюцца, перападключыце адаптар і праверце назву.';
+
+  @override
+  String get hintTcpPort =>
+      'Гэты порт TCP заняты або недаступны. Выберыце іншы порт у наладах моста.';
+
+  @override
+  String get hintDisconnected =>
+      'Адаптар перастаў адказваць або быў адключаны. Падключыце яго і запусціце зноў.';
+
+  @override
+  String get hintSettings =>
+      'Адаптар не прыняў гэтыя налады. Паспрабуйце стандартную хуткасць.';
+
+  @override
+  String get hintDelivery =>
+      'Частка байтаў магла не дайсці. Праверце стан прылады, перш чым паўтараць каманду.';
+
+  @override
+  String get hintClientLeft =>
+      'TCP-кліент адключыўся. Запусціце зноў, каб чакаць наступнага кліента.';
+
+  @override
+  String get autoUpdateTitle => 'Аўтаматычна спампоўваць абнаўленні';
+
+  @override
+  String get autoUpdateBody =>
+      'Кожнае спампоўванне правяраецца па кантрольнай суме выпуску. Усталяванне чакае, пакуль мост не спынены.';
+
+  @override
+  String updateDownloading(String version, int percent) {
+    return 'Спампоўваем Povad $version… $percent%';
+  }
+
+  @override
+  String updateReady(String version) {
+    return 'Povad $version гатовая да ўсталявання';
+  }
+
+  @override
+  String get restartToUpdate => 'Перазапусціць і абнавіць';
+
+  @override
+  String get installUpdate => 'Усталяваць абнаўленне';
+
+  @override
+  String get downloadUpdate => 'Спампаваць абнаўленне';
+
+  @override
+  String get updateInstalling => 'Усталёўваем абнаўленне…';
+
+  @override
+  String get updateWaitsForBridge => 'Каб усталяваць абнаўленне, спыніце мост.';
+
+  @override
+  String get updateDownloadFailed =>
+      'Не ўдалося спампаваць або праверыць абнаўленне. Povad паспрабуе пазней.';
+
+  @override
+  String get updateManualOnly =>
+      'Гэтая зборка абнаўляецца праз старонку выпуску.';
+
+  @override
+  String get updateNotWritable =>
+      'Povad не можа запісваць у сваю папку. Спампуйце абнаўленне са старонкі выпуску.';
+
+  @override
+  String updatedTo(String version) {
+    return 'Povad абноўлена да $version.';
+  }
+
+  @override
+  String updateIncomplete(String version) {
+    return 'Абнаўленне да $version не завяршылася. Усталюйце яго са старонкі выпуску.';
+  }
+
+  @override
+  String get updateInstallsOnQuit =>
+      'Усталюецца, калі вы выйдзеце з Povad, або перазапусціце зараз.';
+
+  @override
+  String get androidInstallPermission =>
+      'Дазвольце Povad усталёўваць праграмы і зноў націсніце «Усталяваць абнаўленне».';
+
+  @override
+  String get updateBannerAction => 'Абнавіць';
+
+  @override
+  String get dismiss => 'Схаваць';
 }

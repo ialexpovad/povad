@@ -16,13 +16,17 @@ import '../domain/bridge_view_state.dart';
 import '../domain/bridge_session.dart';
 import '../domain/android_usb_host.dart';
 import '../domain/serial_port_discovery.dart';
+import '../domain/trouble_hint.dart';
+import '../features/help_panel.dart';
 import '../features/overview_page.dart';
 import '../features/secondary_pages.dart';
 import '../l10n/generated/app_localizations.dart';
 import '../l10n/shadcn_localizations_be.dart';
 import 'ui_preferences.dart';
 import 'bridge_presence.dart';
+import 'desktop_presence.dart';
 import 'release_updates.dart';
+import 'update_installer.dart';
 
 const _repository = 'https://github.com/ialexpovad/povad';
 const _authorProfile =
@@ -37,6 +41,9 @@ class PovadApp extends StatefulWidget {
     this.updates,
     this.bridgeSettings,
     this.portDiscovery,
+    this.installer,
+    this.updatePreferences,
+    this.exitForUpdate,
   });
 
   final UiPreferences? preferences;
@@ -51,6 +58,13 @@ class PovadApp extends StatefulWidget {
 
   /// Suggests serial device paths on desktop. Absent in tests and previews.
   final SerialPortDiscovery? portDiscovery;
+
+  /// Downloads, verifies, and installs releases found by [updates].
+  final AppUpdater? installer;
+  final UpdatePreferences? updatePreferences;
+
+  /// Quits after confirmed worker shutdown so a desktop helper can install.
+  final Future<void> Function()? exitForUpdate;
 
   @override
   State<PovadApp> createState() => _PovadAppState();
@@ -79,6 +93,15 @@ class _PovadAppState extends State<PovadApp> {
   bool updateChecked = false;
   bool updateCheckFailed = false;
   bool projectLinkFailed = false;
+  UpdateStage updateStage = UpdateStage.none;
+  double updateProgress = 0;
+  StagedUpdate? stagedUpdate;
+  bool autoDownload = true;
+  bool updateBlocked = false;
+  String? updateNotice;
+  bool updateNoticeError = false;
+  bool updateNoticeDismissed = false;
+  Timer? updateTimer;
   String? backgroundError;
   bool presenceFailed = false;
   bool startPending = false;
@@ -116,7 +139,16 @@ class _PovadAppState extends State<PovadApp> {
     unawaited(loadBridgeSettings());
     if (androidHost) unawaited(refreshUsbPorts());
     unawaited(refreshSerialPorts());
-    if (widget.updates != null) unawaited(checkUpdates());
+    if (widget.updates != null) {
+      unawaited(checkUpdates());
+      // Long-running sessions still learn about new releases.
+      updateTimer = Timer.periodic(
+        const Duration(hours: 6),
+        (_) => unawaited(checkUpdates()),
+      );
+    }
+    final presence = widget.presence;
+    if (presence is DesktopPresence) presence.beforeExit = installOnQuit;
   }
 
   Future<void> loadBridgeSettings() async {
@@ -242,6 +274,11 @@ class _PovadAppState extends State<PovadApp> {
 
   @override
   void dispose() {
+    updateTimer?.cancel();
+    final presence = widget.presence;
+    if (presence is DesktopPresence && presence.beforeExit == installOnQuit) {
+      presence.beforeExit = null;
+    }
     widget.session?.removeListener(onNativeState);
     if (widget.session != null) unawaited(widget.session!.close());
     super.dispose();
@@ -325,6 +362,33 @@ class _PovadAppState extends State<PovadApp> {
     unawaited(saveAppearance(value));
   }
 
+  void openHelp(BuildContext context, {HelpTopic? topic}) {
+    unawaited(
+      showHelpPanel(
+        context,
+        topic: topic,
+        onReportProblem: () => unawaited(sendFeedback()),
+      ),
+    );
+  }
+
+  /// Desktop shortcuts. Text fields do not consume these combinations.
+  Map<ShortcutActivator, VoidCallback> shortcuts(BuildContext context) {
+    final mac =
+        defaultTargetPlatform == TargetPlatform.macOS ||
+        defaultTargetPlatform == TargetPlatform.iOS;
+    SingleActivator withModifier(LogicalKeyboardKey key) =>
+        SingleActivator(key, meta: mac, control: !mac);
+    return {
+      withModifier(LogicalKeyboardKey.enter): act,
+      withModifier(LogicalKeyboardKey.digit1): () => goTo(0),
+      withModifier(LogicalKeyboardKey.digit2): () => goTo(1),
+      withModifier(LogicalKeyboardKey.digit3): () => goTo(2),
+      withModifier(LogicalKeyboardKey.digit4): () => goTo(3),
+      const SingleActivator(LogicalKeyboardKey.f1): () => openHelp(context),
+    };
+  }
+
   void goTo(int value) {
     setState(() => page = value);
     if (value == 1) unawaited(refreshSerialPorts());
@@ -361,18 +425,181 @@ class _PovadAppState extends State<PovadApp> {
     try {
       final build = await updates.installedBuild();
       if (!mounted) return;
+      final firstCheck = installedBuild == null;
       setState(() => installedBuild = build);
+      if (firstCheck) await reportPendingUpdate(build);
       final release = await updates.check(build);
       if (!mounted) return;
       setState(() {
         availableRelease = release;
         updateChecked = true;
       });
+      if (release != null) unawaited(prepareUpdate(release));
     } catch (_) {
       if (mounted) setState(() => updateCheckFailed = true);
     } finally {
       if (mounted) setState(() => updateChecking = false);
     }
+  }
+
+  /// Tells the operator whether the update started before the last exit
+  /// actually replaced the installed version.
+  Future<void> reportPendingUpdate(AppBuild build) async {
+    final store = widget.updatePreferences;
+    if (store == null) return;
+    try {
+      autoDownload = await store.readAutoDownload();
+      final pending = await store.readPending();
+      if (pending == null) return;
+      await store.clearPending();
+      if (!mounted) return;
+      final l = lookupAppLocalizations(locale);
+      setState(() {
+        updateNoticeDismissed = false;
+        if (build.version == pending.to) {
+          updateNotice = l.updatedTo(pending.to);
+          updateNoticeError = false;
+        } else {
+          updateNotice = l.updateIncomplete(pending.to);
+          updateNoticeError = true;
+        }
+      });
+    } catch (error) {
+      debugPrint('Unable to read update state: $error');
+    }
+  }
+
+  /// Decides how a found release can be installed and, when allowed,
+  /// downloads and verifies it in the background.
+  Future<void> prepareUpdate(
+    AvailableRelease release, {
+    bool force = false,
+  }) async {
+    final installer = widget.installer;
+    if (installer == null || _preparingUpdate) return;
+    if (stagedUpdate?.version == release.version ||
+        updateStage == UpdateStage.downloading ||
+        updateStage == UpdateStage.installing) {
+      return;
+    }
+    _preparingUpdate = true;
+    try {
+      await _prepareUpdate(installer, release, force: force);
+    } finally {
+      _preparingUpdate = false;
+    }
+  }
+
+  /// Startup and a button press must not start two downloads at once.
+  bool _preparingUpdate = false;
+
+  Future<void> _prepareUpdate(
+    AppUpdater installer,
+    AvailableRelease release, {
+    required bool force,
+  }) async {
+    if (!release.installable || installer.method == InstallMethod.manual) {
+      if (mounted) setState(() => updateStage = UpdateStage.manual);
+      return;
+    }
+    if (!await installer.canInstall()) {
+      if (mounted) setState(() => updateStage = UpdateStage.notWritable);
+      return;
+    }
+    if (!autoDownload && !force) {
+      if (mounted) setState(() => updateStage = UpdateStage.available);
+      return;
+    }
+    if (!mounted) return;
+    setState(() {
+      updateStage = UpdateStage.downloading;
+      updateProgress = 0;
+    });
+    try {
+      final staged = await installer.download(
+        release,
+        onProgress: (value) {
+          if (mounted) setState(() => updateProgress = value);
+        },
+      );
+      if (!mounted) return;
+      setState(() {
+        stagedUpdate = staged;
+        updateStage = UpdateStage.ready;
+      });
+    } catch (error) {
+      debugPrint('Update download failed: $error');
+      if (mounted) setState(() => updateStage = UpdateStage.failed);
+    }
+  }
+
+  /// Installs a staged update now. Never while the worker owns a port: the
+  /// operator stops the bridge first, so shutdown is confirmed beforehand.
+  Future<void> installStagedUpdate() async {
+    final staged = stagedUpdate, installer = widget.installer;
+    if (staged == null || installer == null) return;
+    if (running || workerActive) {
+      setState(() => updateBlocked = true);
+      return;
+    }
+    setState(() {
+      updateBlocked = false;
+      updateStage = UpdateStage.installing;
+    });
+    try {
+      final from = installedBuild?.version;
+      if (from != null) {
+        await widget.updatePreferences?.savePending(from, staged.version);
+      }
+      final started = await installer.launch(staged, relaunch: true);
+      if (!started) {
+        await widget.updatePreferences?.clearPending();
+        if (mounted) setState(() => updateStage = UpdateStage.needsPermission);
+        return;
+      }
+      if (installer.method == InstallMethod.androidApk) {
+        // Android shows its own confirmation; the app is replaced from there.
+        if (mounted) setState(() => updateStage = UpdateStage.ready);
+        return;
+      }
+      stagedUpdate = null;
+      await widget.exitForUpdate?.call();
+    } catch (error) {
+      debugPrint('Update install failed: $error');
+      await widget.updatePreferences?.clearPending();
+      if (mounted) setState(() => updateStage = UpdateStage.failed);
+    }
+  }
+
+  /// A staged desktop update installs when Povad quits, so updates do not
+  /// depend on the operator remembering to restart.
+  Future<void> installOnQuit() async {
+    final staged = stagedUpdate, installer = widget.installer;
+    if (staged == null || installer == null) return;
+    if (installer.method != InstallMethod.windowsZip &&
+        installer.method != InstallMethod.linuxTarXz) {
+      return;
+    }
+    final from = installedBuild?.version;
+    if (from != null) {
+      await widget.updatePreferences?.savePending(from, staged.version);
+    }
+    stagedUpdate = null;
+    await installer.launch(staged, relaunch: false);
+  }
+
+  void changeAutoDownload(bool value) {
+    setState(() => autoDownload = value);
+    unawaited(
+      widget.updatePreferences
+          ?.saveAutoDownload(value)
+          .catchError(
+            (Object error) =>
+                debugPrint('Unable to save update choice: $error'),
+          ),
+    );
+    final release = availableRelease;
+    if (value && release != null) unawaited(prepareUpdate(release));
   }
 
   Future<void> openProjectPage(Uri uri) async {
@@ -502,6 +729,39 @@ class _PovadAppState extends State<PovadApp> {
     return extra > 0 ? '$endpoint +$extra' : endpoint;
   }
 
+  /// One short line above the mark: a ready update while the bridge is idle,
+  /// or the outcome of the last update. Never shown during a session.
+  Widget? _overviewNotice(AppLocalizations l) {
+    if (running || workerActive) return null;
+    final release = availableRelease;
+    if (updateStage == UpdateStage.ready && release != null) {
+      return UpdateNotice(
+        key: const ValueKey('update-notice'),
+        icon: shad.LucideIcons.circleArrowUp,
+        text: l.updateReady(release.version),
+        actionLabel: l.updateBannerAction,
+        onAction: () => unawaited(installStagedUpdate()),
+      );
+    }
+    if (updateNotice != null && !updateNoticeDismissed) {
+      return UpdateNotice(
+        key: const ValueKey('update-result'),
+        icon: updateNoticeError
+            ? shad.LucideIcons.circleAlert
+            : shad.LucideIcons.partyPopper,
+        text: updateNotice!,
+        error: updateNoticeError,
+        actionLabel: updateNoticeError && release != null
+            ? l.viewRelease
+            : l.dismiss,
+        onAction: updateNoticeError && release != null
+            ? () => unawaited(openProjectPage(release.page))
+            : () => setState(() => updateNoticeDismissed = true),
+      );
+    }
+    return null;
+  }
+
   @override
   Widget build(BuildContext context) => shad.ShadcnApp(
     title: 'Povad',
@@ -538,6 +798,10 @@ class _PovadAppState extends State<PovadApp> {
         ? null
         : selectedUsbLabel ?? serialPort;
     final detail = backgroundError ?? widget.session?.errorMessage;
+    final ended =
+        state == BridgeViewState.error || state == BridgeViewState.interrupted;
+    final hint = ended ? troubleHintFor(detail) : null;
+    final hintText = troubleHintText(hint, l);
     final endpoint = primaryEndpoint();
     final copyable =
         endpoint != null &&
@@ -547,6 +811,7 @@ class _PovadAppState extends State<PovadApp> {
 
     final content = switch (page) {
       0 => OverviewPage(
+        notice: _overviewNotice(l),
         state: state,
         onAction: act,
         tcpReceived: snapshot?.tcpReceived ?? 0,
@@ -555,8 +820,9 @@ class _PovadAppState extends State<PovadApp> {
         configured: !live || configurationReady,
         serialValue: live ? serialDisplay ?? l.serialValue : null,
         tcpValue: live ? endpointSummary(l) : null,
-        detail: live ? detail : null,
+        detail: live ? hintText ?? detail : null,
         onDetails: () => goTo(2),
+        onHelp: () => openHelp(context, topic: helpTopicFor(hint)),
         onEditSetup: () => goTo(1),
         onCopyEndpoint: copyable
             ? () => unawaited(copyEndpoint(endpoint))
@@ -608,6 +874,7 @@ class _PovadAppState extends State<PovadApp> {
         state: state,
         previewMode: !live,
         detail: live ? detail : null,
+        hint: live ? hintText : null,
         serialValue: live ? serialDisplay : null,
         baud: live && baud.isNotEmpty ? baud : null,
         endpoint: live ? endpoint : null,
@@ -643,6 +910,23 @@ class _PovadAppState extends State<PovadApp> {
         onOpenAuthor: () =>
             unawaited(openProjectPage(Uri.parse(_authorProfile))),
         onSendFeedback: () => unawaited(sendFeedback()),
+        updateStage: updateStage,
+        updateProgress: updateProgress,
+        updateBlocked: updateBlocked && (running || workerActive),
+        autoDownload: widget.installer == null ? null : autoDownload,
+        onAutoDownloadChanged: changeAutoDownload,
+        onDownloadUpdate: availableRelease == null
+            ? null
+            : () => unawaited(prepareUpdate(availableRelease!, force: true)),
+        onInstallUpdate: () => unawaited(installStagedUpdate()),
+        installLabel: widget.installer?.method == InstallMethod.androidApk
+            ? l.installUpdate
+            : l.restartToUpdate,
+        installsOnQuit:
+            widget.installer?.method == InstallMethod.windowsZip ||
+            widget.installer?.method == InstallMethod.linuxTarXz,
+        updateNotice: updateNotice,
+        updateNoticeError: updateNoticeError,
       ),
     };
 
@@ -668,189 +952,229 @@ class _PovadAppState extends State<PovadApp> {
     final statusLabel = StateCopy.of(state, l).badge;
     final updateReady = availableRelease != null;
 
-    return ColoredBox(
-      color: p.background,
-      child: SafeArea(
-        child: LayoutBuilder(
-          builder: (context, box) {
-            if (box.maxWidth < 760) {
-              return Column(
-                children: [
-                  Container(
-                    decoration: BoxDecoration(
-                      color: p.background,
-                      border: Border(bottom: BorderSide(color: p.border)),
-                    ),
-                    padding: const EdgeInsets.fromLTRB(16, 10, 8, 10),
-                    child: Row(
-                      children: [
-                        const PovadBrandLockup(compact: true),
-                        Expanded(
-                          child: Align(
-                            alignment: Alignment.centerRight,
-                            child: page == 0
-                                ? null
-                                : Padding(
-                                    padding: const EdgeInsets.only(
-                                      left: 8,
-                                      right: 4,
-                                    ),
-                                    child: StatusPill(
-                                      state: state,
-                                      label: statusLabel,
-                                    ),
-                                  ),
-                          ),
+    return CallbackShortcuts(
+      bindings: shortcuts(context),
+      child: Focus(
+        autofocus: true,
+        child: ColoredBox(
+          color: p.background,
+          child: SafeArea(
+            child: LayoutBuilder(
+              builder: (context, box) {
+                if (box.maxWidth < 760) {
+                  return Column(
+                    children: [
+                      Container(
+                        decoration: BoxDecoration(
+                          color: p.background,
+                          border: Border(bottom: BorderSide(color: p.border)),
                         ),
-                        Builder(
-                          builder: (menuContext) => shad.GhostButton(
-                            key: const ValueKey('mobile-menu'),
-                            onPressed: () => shad.showOverlay<void>(
-                              menuContext,
-                              const shad.PopoverConfiguration(
-                                alignment: Alignment.topRight,
-                                anchorAlignment: Alignment.bottomRight,
-                                offset: Offset(0, 6),
-                              ),
-                              adaptive: false,
-                              builder: (_) => shad.DropdownMenu(
-                                children: [
-                                  for (var i = 0; i < 4; i++)
-                                    shad.MenuButton(
-                                      leading: Icon(icons[i], size: 17),
-                                      trailing: i == 3 && updateReady
-                                          ? StatusDot(color: p.primary, size: 7)
-                                          : null,
-                                      onPressed: (_) => goTo(i),
-                                      child: Text(labels[i]),
-                                    ),
-                                  const shad.MenuDivider(),
-                                  shad.MenuButton(
-                                    leading: const Icon(
-                                      shad.LucideIcons.messageSquare,
-                                      size: 17,
-                                    ),
-                                    onPressed: (_) => unawaited(sendFeedback()),
-                                    child: Text(l.sendFeedback),
-                                  ),
-                                ],
+                        padding: const EdgeInsets.fromLTRB(16, 10, 8, 10),
+                        child: Row(
+                          children: [
+                            // Large system text shrinks the wordmark
+                            // before it can push the toolbar off screen.
+                            const Flexible(
+                              child: FittedBox(
+                                fit: BoxFit.scaleDown,
+                                alignment: Alignment.centerLeft,
+                                child: PovadBrandLockup(compact: true),
                               ),
                             ),
-                            child: Semantics(
-                              label: l.menu,
-                              button: true,
-                              child: SizedBox(
-                                width: 44,
-                                height: 44,
-                                child: Stack(
-                                  alignment: Alignment.center,
-                                  children: [
-                                    const Icon(shad.LucideIcons.menu, size: 22),
-                                    if (updateReady)
-                                      Positioned(
-                                        top: 9,
-                                        right: 8,
-                                        child: StatusDot(
-                                          color: p.primary,
-                                          size: 7,
+                            Expanded(
+                              child: Align(
+                                alignment: Alignment.centerRight,
+                                child: page == 0
+                                    ? null
+                                    : Padding(
+                                        padding: const EdgeInsets.only(
+                                          left: 8,
+                                          right: 8,
+                                        ),
+                                        child: StatusPill(
+                                          state: state,
+                                          label: statusLabel,
                                         ),
                                       ),
-                                  ],
+                              ),
+                            ),
+                            ToolbarIconButton(
+                              key: const ValueKey('header-help'),
+                              icon: shad.LucideIcons.circleHelp,
+                              label: l.openHelp,
+                              onPressed: () => openHelp(context),
+                            ),
+                            const SizedBox(width: 6),
+                            Builder(
+                              builder: (menuContext) => ToolbarIconButton(
+                                key: const ValueKey('mobile-menu'),
+                                icon: shad.LucideIcons.menu,
+                                label: l.menu,
+                                badge: updateReady,
+                                onPressed: () => shad.showOverlay<void>(
+                                  menuContext,
+                                  const shad.PopoverConfiguration(
+                                    alignment: Alignment.topRight,
+                                    anchorAlignment: Alignment.bottomRight,
+                                    offset: Offset(0, 8),
+                                  ),
+                                  adaptive: false,
+                                  builder: (_) => shad.DropdownMenu(
+                                    children: [
+                                      for (var i = 0; i < 4; i++)
+                                        shad.MenuButton(
+                                          leading: Icon(icons[i], size: 17),
+                                          trailing: i == 3 && updateReady
+                                              ? StatusDot(
+                                                  color: p.primary,
+                                                  size: 7,
+                                                )
+                                              : null,
+                                          onPressed: (_) => goTo(i),
+                                          child: Text(labels[i]),
+                                        ),
+                                      const shad.MenuDivider(),
+                                      shad.MenuButton(
+                                        leading: const Icon(
+                                          shad.LucideIcons.lifeBuoy,
+                                          size: 17,
+                                        ),
+                                        onPressed: (_) => openHelp(context),
+                                        child: Text(l.help),
+                                      ),
+                                      shad.MenuButton(
+                                        leading: const Icon(
+                                          shad.LucideIcons.messageSquare,
+                                          size: 17,
+                                        ),
+                                        onPressed: (_) =>
+                                            unawaited(sendFeedback()),
+                                        child: Text(l.sendFeedback),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      Expanded(child: animated),
+                    ],
+                  );
+                }
+                return Row(
+                  children: [
+                    Container(
+                      width: 212,
+                      decoration: BoxDecoration(
+                        color: p.sidebar,
+                        border: Border(right: BorderSide(color: p.border)),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          const Padding(
+                            padding: EdgeInsets.fromLTRB(18, 22, 14, 26),
+                            child: PovadBrandLockup(),
+                          ),
+                          for (var i = 0; i < 4; i++)
+                            Padding(
+                              padding: const EdgeInsets.fromLTRB(10, 0, 10, 3),
+                              child: _NavItem(
+                                key: ValueKey('nav-$i'),
+                                index: i,
+                                selected: page == i,
+                                icon: icons[i],
+                                label: labels[i],
+                                badge: i == 3 && updateReady
+                                    ? l.updateBadge
+                                    : null,
+                                onTap: () => goTo(i),
+                              ),
+                            ),
+                          const Spacer(),
+                          Padding(
+                            padding: const EdgeInsets.fromLTRB(14, 0, 14, 12),
+                            child: Align(
+                              alignment: Alignment.centerLeft,
+                              child: Semantics(
+                                liveRegion: false,
+                                child: StatusPill(
+                                  state: state,
+                                  label: statusLabel,
                                 ),
                               ),
                             ),
                           ),
-                        ),
-                      ],
+                          Container(height: 1, color: p.border),
+                          Padding(
+                            padding: const EdgeInsets.fromLTRB(10, 8, 10, 0),
+                            child: _FooterAction(
+                              key: const ValueKey('sidebar-help'),
+                              icon: shad.LucideIcons.lifeBuoy,
+                              label: l.help,
+                              onPressed: () => openHelp(context),
+                            ),
+                          ),
+                          Padding(
+                            padding: const EdgeInsets.fromLTRB(10, 2, 10, 10),
+                            child: _FooterAction(
+                              icon: shad.LucideIcons.messageSquare,
+                              label: l.feedbackNav,
+                              trailing: installedBuild?.version,
+                              onPressed: () => unawaited(sendFeedback()),
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
-                  ),
-                  Expanded(child: animated),
-                ],
-              );
-            }
-            return Row(
-              children: [
-                Container(
-                  width: 212,
-                  decoration: BoxDecoration(
-                    color: p.sidebar,
-                    border: Border(right: BorderSide(color: p.border)),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      const Padding(
-                        padding: EdgeInsets.fromLTRB(18, 22, 14, 26),
-                        child: PovadBrandLockup(),
-                      ),
-                      for (var i = 0; i < 4; i++)
-                        Padding(
-                          padding: const EdgeInsets.fromLTRB(10, 0, 10, 3),
-                          child: _NavItem(
-                            key: ValueKey('nav-$i'),
-                            index: i,
-                            selected: page == i,
-                            icon: icons[i],
-                            label: labels[i],
-                            badge: i == 3 && updateReady ? l.updateBadge : null,
-                            onTap: () => goTo(i),
-                          ),
-                        ),
-                      const Spacer(),
-                      Padding(
-                        padding: const EdgeInsets.fromLTRB(14, 0, 14, 12),
-                        child: Align(
-                          alignment: Alignment.centerLeft,
-                          child: Semantics(
-                            liveRegion: false,
-                            child: StatusPill(state: state, label: statusLabel),
-                          ),
-                        ),
-                      ),
-                      Container(height: 1, color: p.border),
-                      Padding(
-                        padding: const EdgeInsets.fromLTRB(10, 8, 10, 10),
-                        child: shad.GhostButton(
-                          onPressed: () => unawaited(sendFeedback()),
-                          child: Row(
-                            children: [
-                              Icon(
-                                shad.LucideIcons.messageSquare,
-                                size: 17,
-                                color: p.muted,
-                              ),
-                              const SizedBox(width: 12),
-                              Expanded(
-                                child: Text(
-                                  l.feedbackNav,
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: TextStyle(
-                                    color: p.foreground,
-                                    fontSize: 14,
-                                  ),
-                                ),
-                              ),
-                              if (installedBuild != null)
-                                Text(
-                                  installedBuild!.version,
-                                  style: TextStyle(
-                                    color: p.muted,
-                                    fontSize: 11.5,
-                                  ),
-                                ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                Expanded(child: animated),
-              ],
-            );
-          },
+                    Expanded(child: animated),
+                  ],
+                );
+              },
+            ),
+          ),
         ),
+      ),
+    );
+  }
+}
+
+class _FooterAction extends StatelessWidget {
+  const _FooterAction({
+    super.key,
+    required this.icon,
+    required this.label,
+    required this.onPressed,
+    this.trailing,
+  });
+
+  final IconData icon;
+  final String label;
+  final VoidCallback onPressed;
+  final String? trailing;
+
+  @override
+  Widget build(BuildContext context) {
+    final p = paletteOf(context);
+    return shad.GhostButton(
+      onPressed: onPressed,
+      child: Row(
+        children: [
+          Icon(icon, size: 17, color: p.muted),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(color: p.foreground, fontSize: 14),
+            ),
+          ),
+          if (trailing != null)
+            Text(trailing!, style: TextStyle(color: p.muted, fontSize: 11.5)),
+        ],
       ),
     );
   }

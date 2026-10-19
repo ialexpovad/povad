@@ -22,8 +22,12 @@ GitHub release checks.
 - macOS: unsigned QA ZIP for developer testing only. Public macOS distribution
   requires Developer ID signing and notarization.
 
-Povad checks GitHub for a newer release at startup and in Settings. It opens
-the release page for an available update; installation remains a user action.
+Povad checks GitHub for a newer release at startup. On Windows, Linux, and
+Android it can download the update in the background, verify it against
+SHA256SUMS.txt, and install it when you choose Restart to update (on Android,
+the system installer asks for confirmation). Installation never starts while
+the bridge is running. On Windows and Linux a downloaded update is also
+installed when Povad quits. Automatic download can be turned off in Settings.
 The macOS QA bundle is excluded from update offers.
 
 ## Validation status

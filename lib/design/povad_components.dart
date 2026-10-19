@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import 'package:shadcn_flutter/shadcn_flutter.dart' as shad;
@@ -609,4 +610,77 @@ String formatDuration(Duration value) {
   return hours > 0
       ? '$hours:${two(minutes)}:${two(seconds)}'
       : '${two(minutes)}:${two(seconds)}';
+}
+
+/// A square toolbar control for the compact header, sized for touch and
+/// legible beside the brand lockup. Desktop pointers get a tooltip.
+class ToolbarIconButton extends StatelessWidget {
+  const ToolbarIconButton({
+    super.key,
+    required this.icon,
+    required this.label,
+    required this.onPressed,
+    this.badge = false,
+  });
+
+  final IconData icon;
+  final String label;
+  final VoidCallback onPressed;
+
+  /// Shows a small accent dot, for example when an update is available.
+  final bool badge;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = paletteOf(context);
+    final button = Semantics(
+      label: label,
+      button: true,
+      excludeSemantics: true,
+      child: shad.Clickable(
+        onPressed: onPressed,
+        mouseCursor: const WidgetStatePropertyAll(SystemMouseCursors.click),
+        decoration: WidgetStateProperty.resolveWith(
+          (states) => BoxDecoration(
+            color:
+                states.contains(WidgetState.hovered) ||
+                    states.contains(WidgetState.pressed)
+                ? colors.subtle
+                : colors.background,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: states.contains(WidgetState.focused)
+                  ? colors.primary
+                  : colors.border,
+              width: states.contains(WidgetState.focused) ? 1.5 : 1,
+            ),
+          ),
+        ),
+        child: SizedBox.square(
+          // Touch platforms need a 48 dp target; pointers are fine at 44.
+          dimension:
+              defaultTargetPlatform == TargetPlatform.android ||
+                  defaultTargetPlatform == TargetPlatform.iOS
+              ? 48
+              : 44,
+          child: Stack(
+            alignment: Alignment.center,
+            children: [
+              Icon(icon, size: 21, color: colors.foreground),
+              if (badge)
+                Positioned(
+                  top: 8,
+                  right: 8,
+                  child: StatusDot(color: colors.primary, size: 8),
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+    return shad.Tooltip(
+      tooltip: (context) => shad.TooltipContainer(child: Text(label)),
+      child: button,
+    );
+  }
 }

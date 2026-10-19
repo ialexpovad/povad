@@ -4,6 +4,8 @@ import 'dart:typed_data';
 
 import 'package:package_info_plus/package_info_plus.dart';
 
+const checksumsAsset = 'SHA256SUMS.txt';
+
 const _releasesApi =
     'https://api.github.com/repos/ialexpovad/povad/releases?per_page=20';
 
@@ -20,10 +22,28 @@ final class AppBuild {
 }
 
 final class AvailableRelease {
-  const AvailableRelease(this.version, this.page);
+  const AvailableRelease(
+    this.version,
+    this.page, {
+    this.tag,
+    this.assetName,
+    this.asset,
+    this.checksums,
+  });
 
   final String version;
   final Uri page;
+  final String? tag;
+  final String? assetName;
+
+  /// Download URLs are built from the tag and the expected asset name, never
+  /// taken from the API response, so a response cannot redirect the update.
+  final Uri? asset;
+
+  /// The release's SHA256SUMS.txt. Without it the update is manual only.
+  final Uri? checksums;
+
+  bool get installable => asset != null && checksums != null;
 }
 
 /// Discovers published, platform-compatible GitHub releases. Installation is
@@ -62,20 +82,28 @@ final class ReleaseUpdates {
       }
       final wanted = 'Povad-$tag-$platform';
       final assets = item['assets'];
-      if (assets is! List ||
-          !assets.any(
+      bool uploaded(String name) =>
+          assets is List &&
+          assets.any(
             (asset) =>
                 asset is Map &&
-                asset['name'] == wanted &&
+                asset['name'] == name &&
                 asset['state'] == 'uploaded',
-          )) {
-        continue;
-      }
+          );
+      if (!uploaded(wanted)) continue;
       if (newest != null && newest.compareTo(version) >= 0) continue;
       newest = version;
+      Uri download(String name) => Uri.https(
+        'github.com',
+        '/ialexpovad/povad/releases/download/$tag/$name',
+      );
       selected = AvailableRelease(
         version.display,
         Uri.https('github.com', '/ialexpovad/povad/releases/tag/$tag'),
+        tag: tag,
+        assetName: wanted,
+        asset: download(wanted),
+        checksums: uploaded(checksumsAsset) ? download(checksumsAsset) : null,
       );
     }
     return selected;

@@ -859,6 +859,348 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Open author profile'**
   String get authorProfile;
+
+  /// No description provided for @help.
+  ///
+  /// In en, this message translates to:
+  /// **'Help'**
+  String get help;
+
+  /// No description provided for @helpSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Get started and fix common problems.'**
+  String get helpSubtitle;
+
+  /// No description provided for @openHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'Open help'**
+  String get openHelp;
+
+  /// No description provided for @closeHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'Close'**
+  String get closeHelp;
+
+  /// No description provided for @quickStartTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Get started'**
+  String get quickStartTitle;
+
+  /// No description provided for @step1Title.
+  ///
+  /// In en, this message translates to:
+  /// **'Connect the adapter'**
+  String get step1Title;
+
+  /// No description provided for @step1Body.
+  ///
+  /// In en, this message translates to:
+  /// **'Plug in the USB–Serial adapter, then pick its port in Bridge setup.'**
+  String get step1Body;
+
+  /// No description provided for @step2Title.
+  ///
+  /// In en, this message translates to:
+  /// **'Start the bridge'**
+  String get step2Title;
+
+  /// No description provided for @step2Body.
+  ///
+  /// In en, this message translates to:
+  /// **'Povad opens the port and waits for one TCP client.'**
+  String get step2Body;
+
+  /// No description provided for @step3Title.
+  ///
+  /// In en, this message translates to:
+  /// **'Connect your client'**
+  String get step3Title;
+
+  /// No description provided for @step3Body.
+  ///
+  /// In en, this message translates to:
+  /// **'Point your TCP software at the address shown on Overview. Bytes pass through unchanged.'**
+  String get step3Body;
+
+  /// No description provided for @faqTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Questions and fixes'**
+  String get faqTitle;
+
+  /// No description provided for @faqClientQ.
+  ///
+  /// In en, this message translates to:
+  /// **'My TCP client cannot connect'**
+  String get faqClientQ;
+
+  /// No description provided for @faqClientA.
+  ///
+  /// In en, this message translates to:
+  /// **'Check that the status reads “Waiting for a client” and use the address from Overview. From another computer, turn on Allow LAN clients and use a LAN address. A firewall can also block the port.'**
+  String get faqClientA;
+
+  /// No description provided for @faqPortQ.
+  ///
+  /// In en, this message translates to:
+  /// **'The serial port cannot be opened'**
+  String get faqPortQ;
+
+  /// No description provided for @faqPortA.
+  ///
+  /// In en, this message translates to:
+  /// **'Close other apps that use the port, reconnect the adapter, and check the port name. On Linux, add your user to the dialout group. On Windows, find the COM number in Device Manager.'**
+  String get faqPortA;
+
+  /// No description provided for @faqEndedQ.
+  ///
+  /// In en, this message translates to:
+  /// **'Why did the session end?'**
+  String get faqEndedQ;
+
+  /// No description provided for @faqEndedA.
+  ///
+  /// In en, this message translates to:
+  /// **'Each session serves one TCP client. When it disconnects, the session ends so no bytes reach the wrong client. Select Start again to wait for the next one.'**
+  String get faqEndedA;
+
+  /// No description provided for @faqBytesQ.
+  ///
+  /// In en, this message translates to:
+  /// **'Does Povad change my data?'**
+  String get faqBytesQ;
+
+  /// No description provided for @faqBytesA.
+  ///
+  /// In en, this message translates to:
+  /// **'No. Povad relays bytes in both directions without parsing a protocol, changing checksums, polling the device, or replying on its behalf.'**
+  String get faqBytesA;
+
+  /// No description provided for @faqLanQ.
+  ///
+  /// In en, this message translates to:
+  /// **'Is it safe to allow LAN clients?'**
+  String get faqLanQ;
+
+  /// No description provided for @faqLanA.
+  ///
+  /// In en, this message translates to:
+  /// **'LAN clients are not authenticated and can send bytes to your device. Allow them only on a network you trust, and turn LAN access off when you finish.'**
+  String get faqLanA;
+
+  /// No description provided for @faqPrivacyQ.
+  ///
+  /// In en, this message translates to:
+  /// **'Does Povad send my data anywhere?'**
+  String get faqPrivacyQ;
+
+  /// No description provided for @faqPrivacyA.
+  ///
+  /// In en, this message translates to:
+  /// **'No. Serial data stays between your device and your client. Povad only asks GitHub whether a newer release exists.'**
+  String get faqPrivacyA;
+
+  /// No description provided for @shortcutsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Keyboard shortcuts'**
+  String get shortcutsTitle;
+
+  /// No description provided for @shortcutToggle.
+  ///
+  /// In en, this message translates to:
+  /// **'Start or stop the bridge'**
+  String get shortcutToggle;
+
+  /// No description provided for @shortcutNavigate.
+  ///
+  /// In en, this message translates to:
+  /// **'Switch section'**
+  String get shortcutNavigate;
+
+  /// No description provided for @shortcutHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'Open help'**
+  String get shortcutHelp;
+
+  /// No description provided for @stillStuck.
+  ///
+  /// In en, this message translates to:
+  /// **'Still stuck?'**
+  String get stillStuck;
+
+  /// No description provided for @stillStuckBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Report the problem on GitHub with your OS, adapter, and steps. Do not include device data.'**
+  String get stillStuckBody;
+
+  /// No description provided for @reportProblem.
+  ///
+  /// In en, this message translates to:
+  /// **'Report a problem'**
+  String get reportProblem;
+
+  /// No description provided for @howToFix.
+  ///
+  /// In en, this message translates to:
+  /// **'How to fix'**
+  String get howToFix;
+
+  /// No description provided for @stoppedUnconfigured.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose a serial port to get started.'**
+  String get stoppedUnconfigured;
+
+  /// No description provided for @hintSerialAccess.
+  ///
+  /// In en, this message translates to:
+  /// **'The port is missing, busy, or not permitted. Close apps that use it, reconnect the adapter, and check its name.'**
+  String get hintSerialAccess;
+
+  /// No description provided for @hintTcpPort.
+  ///
+  /// In en, this message translates to:
+  /// **'This TCP port is in use or not allowed. Choose another port in Bridge setup.'**
+  String get hintTcpPort;
+
+  /// No description provided for @hintDisconnected.
+  ///
+  /// In en, this message translates to:
+  /// **'The adapter stopped responding or was unplugged. Reconnect it and start again.'**
+  String get hintDisconnected;
+
+  /// No description provided for @hintSettings.
+  ///
+  /// In en, this message translates to:
+  /// **'The adapter rejected these settings. Try a standard baud rate.'**
+  String get hintSettings;
+
+  /// No description provided for @hintDelivery.
+  ///
+  /// In en, this message translates to:
+  /// **'Some bytes may not have reached the other side. Check the device state before you repeat a command.'**
+  String get hintDelivery;
+
+  /// No description provided for @hintClientLeft.
+  ///
+  /// In en, this message translates to:
+  /// **'The TCP client disconnected. Start again to wait for the next client.'**
+  String get hintClientLeft;
+
+  /// No description provided for @autoUpdateTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Download updates automatically'**
+  String get autoUpdateTitle;
+
+  /// No description provided for @autoUpdateBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Each download is checked against the release checksum. Installation waits until the bridge is stopped.'**
+  String get autoUpdateBody;
+
+  /// No description provided for @updateDownloading.
+  ///
+  /// In en, this message translates to:
+  /// **'Downloading Povad {version}… {percent}%'**
+  String updateDownloading(String version, int percent);
+
+  /// No description provided for @updateReady.
+  ///
+  /// In en, this message translates to:
+  /// **'Povad {version} is ready to install'**
+  String updateReady(String version);
+
+  /// No description provided for @restartToUpdate.
+  ///
+  /// In en, this message translates to:
+  /// **'Restart to update'**
+  String get restartToUpdate;
+
+  /// No description provided for @installUpdate.
+  ///
+  /// In en, this message translates to:
+  /// **'Install update'**
+  String get installUpdate;
+
+  /// No description provided for @downloadUpdate.
+  ///
+  /// In en, this message translates to:
+  /// **'Download update'**
+  String get downloadUpdate;
+
+  /// No description provided for @updateInstalling.
+  ///
+  /// In en, this message translates to:
+  /// **'Installing the update…'**
+  String get updateInstalling;
+
+  /// No description provided for @updateWaitsForBridge.
+  ///
+  /// In en, this message translates to:
+  /// **'Stop the bridge to install the update.'**
+  String get updateWaitsForBridge;
+
+  /// No description provided for @updateDownloadFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'The update could not be downloaded or verified. Povad will try again later.'**
+  String get updateDownloadFailed;
+
+  /// No description provided for @updateManualOnly.
+  ///
+  /// In en, this message translates to:
+  /// **'This build is updated from the release page.'**
+  String get updateManualOnly;
+
+  /// No description provided for @updateNotWritable.
+  ///
+  /// In en, this message translates to:
+  /// **'Povad cannot write to its folder. Download the update from the release page.'**
+  String get updateNotWritable;
+
+  /// No description provided for @updatedTo.
+  ///
+  /// In en, this message translates to:
+  /// **'Povad was updated to {version}.'**
+  String updatedTo(String version);
+
+  /// No description provided for @updateIncomplete.
+  ///
+  /// In en, this message translates to:
+  /// **'The update to {version} did not complete. Install it from the release page.'**
+  String updateIncomplete(String version);
+
+  /// No description provided for @updateInstallsOnQuit.
+  ///
+  /// In en, this message translates to:
+  /// **'Installs when you quit Povad, or restart now.'**
+  String get updateInstallsOnQuit;
+
+  /// No description provided for @androidInstallPermission.
+  ///
+  /// In en, this message translates to:
+  /// **'Allow Povad to install apps, then tap Install update again.'**
+  String get androidInstallPermission;
+
+  /// No description provided for @updateBannerAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Update'**
+  String get updateBannerAction;
+
+  /// No description provided for @dismiss.
+  ///
+  /// In en, this message translates to:
+  /// **'Dismiss'**
+  String get dismiss;
 }
 
 class _AppLocalizationsDelegate

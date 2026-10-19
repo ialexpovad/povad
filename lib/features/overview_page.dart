@@ -10,6 +10,7 @@ import 'connection_diagram.dart';
 class OverviewPage extends StatelessWidget {
   const OverviewPage({
     super.key,
+    this.notice,
     required this.state,
     required this.onAction,
     this.previewMode = true,
@@ -21,10 +22,13 @@ class OverviewPage extends StatelessWidget {
     this.detail,
     this.onDetails,
     this.onEditSetup,
+    this.onHelp,
     this.onCopyEndpoint,
     this.endpointCopied = false,
   });
 
+  /// An optional one-line notice above the mark, such as a ready update.
+  final Widget? notice;
   final BridgeViewState state;
   final VoidCallback onAction;
   final bool previewMode, configured;
@@ -33,7 +37,7 @@ class OverviewPage extends StatelessWidget {
 
   /// The worker's own explanation for an error or ended session.
   final String? detail;
-  final VoidCallback? onDetails, onEditSetup, onCopyEndpoint;
+  final VoidCallback? onDetails, onEditSetup, onCopyEndpoint, onHelp;
   final bool endpointCopied;
 
   @override
@@ -54,6 +58,8 @@ class OverviewPage extends StatelessWidget {
         : copy.action;
     final context0 = ended && detail?.isNotEmpty == true
         ? detail!
+        : state == BridgeViewState.stopped && !configured
+        ? l.stoppedUnconfigured
         : copy.description;
     final reduce = MediaQuery.maybeOf(context)?.disableAnimations ?? false;
     const actionStyle = TextStyle(fontSize: 15, fontWeight: FontWeight.w600);
@@ -63,11 +69,27 @@ class OverviewPage extends StatelessWidget {
       builder: (context, box) {
         final narrow = box.maxWidth < 480;
         final padding = narrow ? 20.0 : 36.0;
+        // A WARP-sized window keeps the whole view visible by giving up
+        // some of the mark's size instead of scrolling the action away.
+        final markScale = box.maxHeight < 580
+            ? 0.72
+            : box.maxHeight < 680
+            ? 0.84
+            : 1.0;
+        final compact = markScale < 1;
         return SingleChildScrollView(
-          padding: EdgeInsets.fromLTRB(padding, 24, padding, 32),
+          padding: EdgeInsets.fromLTRB(
+            padding,
+            compact ? 12 : 24,
+            padding,
+            compact ? 16 : 32,
+          ),
           child: ConstrainedBox(
             constraints: BoxConstraints(
-              minHeight: (box.maxHeight - 56).clamp(0, double.infinity),
+              minHeight: (box.maxHeight - (compact ? 28 : 56)).clamp(
+                0,
+                double.infinity,
+              ),
             ),
             child: Center(
               child: ConstrainedBox(
@@ -76,14 +98,26 @@ class OverviewPage extends StatelessWidget {
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
+                    if (notice != null) ...[
+                      Center(child: notice!),
+                      SizedBox(height: compact ? 12 : 20),
+                    ],
                     if (previewMode) ...[
                       Center(child: PreviewNotice(label: l.previewNotice)),
                       const SizedBox(height: 18),
                     ],
-                    ConnectionDiagram(
-                      state: state,
-                      tcpReceived: tcpReceived,
-                      serialReceived: serialReceived,
+                    SizedBox(
+                      height: 212 * markScale,
+                      child: FittedBox(
+                        child: SizedBox.square(
+                          dimension: 212,
+                          child: ConnectionDiagram(
+                            state: state,
+                            tcpReceived: tcpReceived,
+                            serialReceived: serialReceived,
+                          ),
+                        ),
+                      ),
                     ),
                     const SizedBox(height: 20),
                     Semantics(
@@ -142,17 +176,33 @@ class OverviewPage extends StatelessWidget {
                               ),
                       ),
                     ),
-                    if (state == BridgeViewState.error &&
-                        onDetails != null) ...[
+                    if (state == BridgeViewState.error) ...[
                       const SizedBox(height: 6),
-                      Center(
-                        child: shad.GhostButton(
-                          onPressed: onDetails,
-                          child: Text(l.reviewDetails),
-                        ),
+                      Wrap(
+                        alignment: WrapAlignment.center,
+                        children: [
+                          if (onHelp != null)
+                            shad.GhostButton(
+                              onPressed: onHelp,
+                              leading: const Icon(
+                                shad.LucideIcons.lifeBuoy,
+                                size: 15,
+                              ),
+                              child: Text(l.howToFix),
+                            ),
+                          if (onDetails != null)
+                            shad.GhostButton(
+                              onPressed: onDetails,
+                              child: Text(l.reviewDetails),
+                            ),
+                        ],
                       ),
                     ],
-                    SizedBox(height: state == BridgeViewState.error ? 26 : 40),
+                    SizedBox(
+                      height: state == BridgeViewState.error || compact
+                          ? 24
+                          : 40,
+                    ),
                     _EndpointSummary(
                       serialLabel: l.serialLabel,
                       serialValue: serialValue ?? l.serialValue,
@@ -441,4 +491,60 @@ class StateCopy {
           l.startAgain,
         ),
       };
+}
+
+/// A compact pill with one action, used for update news on Overview.
+class UpdateNotice extends StatelessWidget {
+  const UpdateNotice({
+    super.key,
+    required this.icon,
+    required this.text,
+    required this.actionLabel,
+    required this.onAction,
+    this.error = false,
+  });
+
+  final IconData icon;
+  final String text, actionLabel;
+  final VoidCallback onAction;
+  final bool error;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = paletteOf(context);
+    final accent = error ? colors.error : colors.primary;
+    return Container(
+      padding: const EdgeInsets.fromLTRB(12, 5, 5, 5),
+      decoration: BoxDecoration(
+        color: error ? colors.errorSurface : colors.selection,
+        borderRadius: BorderRadius.circular(99),
+        border: Border.all(color: accent.withValues(alpha: 0.25)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 15, color: accent),
+          const SizedBox(width: 8),
+          Flexible(
+            child: Text(
+              text,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                fontSize: 12.5,
+                fontWeight: FontWeight.w500,
+                color: colors.foreground,
+              ),
+            ),
+          ),
+          const SizedBox(width: 8),
+          shad.PrimaryButton(
+            onPressed: onAction,
+            density: shad.ButtonDensity.dense,
+            child: Text(actionLabel),
+          ),
+        ],
+      ),
+    );
+  }
 }

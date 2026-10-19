@@ -2,6 +2,7 @@ import 'package:flutter/widgets.dart';
 import 'package:shadcn_flutter/shadcn_flutter.dart' as shad;
 
 import '../app/release_updates.dart';
+import '../app/update_installer.dart';
 import '../design/povad_components.dart';
 import '../design/povad_mark.dart';
 import '../design/povad_theme.dart';
@@ -27,6 +28,17 @@ class SettingsPage extends StatelessWidget {
     this.onOpenLicense,
     this.onOpenAuthor,
     this.onSendFeedback,
+    this.updateStage = UpdateStage.none,
+    this.updateProgress = 0,
+    this.updateBlocked = false,
+    this.autoDownload,
+    this.onAutoDownloadChanged,
+    this.onDownloadUpdate,
+    this.onInstallUpdate,
+    this.installLabel,
+    this.installsOnQuit = false,
+    this.updateNotice,
+    this.updateNoticeError = false,
   });
   final Locale locale;
   final ValueChanged<Locale> onLocaleChanged;
@@ -45,25 +57,102 @@ class SettingsPage extends StatelessWidget {
   final VoidCallback? onOpenLicense;
   final VoidCallback? onOpenAuthor;
   final VoidCallback? onSendFeedback;
+  final UpdateStage updateStage;
+  final double updateProgress;
+
+  /// The bridge must stop before a staged update can install.
+  final bool updateBlocked;
+
+  /// Null hides the automatic-download switch (no in-app installer).
+  final bool? autoDownload;
+  final ValueChanged<bool>? onAutoDownloadChanged;
+  final VoidCallback? onDownloadUpdate, onInstallUpdate;
+  final String? installLabel;
+  final bool installsOnQuit;
+  final String? updateNotice;
+  final bool updateNoticeError;
 
   @override
   Widget build(BuildContext context) {
     final l = AppLocalizations.of(context)!;
     final colors = paletteOf(context);
     final release = availableRelease;
-    final (statusIcon, statusColor, statusText) = updateChecking
-        ? (shad.LucideIcons.refreshCw, colors.muted, l.checkingForUpdates)
-        : updateCheckFailed
-        ? (shad.LucideIcons.cloudOff, colors.error, l.updateCheckFailed)
-        : release != null
-        ? (
-            shad.LucideIcons.circleArrowUp,
-            colors.primary,
-            l.updateAvailableVersion(release.version),
-          )
-        : updateChecked
-        ? (shad.LucideIcons.circleCheck, colors.primary, l.upToDate)
-        : (shad.LucideIcons.circleDashed, colors.muted, l.updateNotChecked);
+    final percent = (updateProgress * 100).clamp(0, 100).round();
+    final (statusIcon, statusColor, statusText) = switch (updateStage) {
+      UpdateStage.downloading when release != null => (
+        shad.LucideIcons.download,
+        colors.primary,
+        l.updateDownloading(release.version, percent),
+      ),
+      UpdateStage.ready || UpdateStage.needsPermission when release != null => (
+        shad.LucideIcons.circleArrowUp,
+        colors.primary,
+        l.updateReady(release.version),
+      ),
+      UpdateStage.installing => (
+        shad.LucideIcons.loader,
+        colors.primary,
+        l.updateInstalling,
+      ),
+      _ when updateChecking => (
+        shad.LucideIcons.refreshCw,
+        colors.muted,
+        l.checkingForUpdates,
+      ),
+      _ when updateCheckFailed => (
+        shad.LucideIcons.cloudOff,
+        colors.error,
+        l.updateCheckFailed,
+      ),
+      _ when release != null => (
+        shad.LucideIcons.circleArrowUp,
+        colors.primary,
+        l.updateAvailableVersion(release.version),
+      ),
+      _ when updateChecked => (
+        shad.LucideIcons.circleCheck,
+        colors.primary,
+        l.upToDate,
+      ),
+      _ => (shad.LucideIcons.circleDashed, colors.muted, l.updateNotChecked),
+    };
+    final String? statusDetail = switch (updateStage) {
+      UpdateStage.ready when updateBlocked => l.updateWaitsForBridge,
+      UpdateStage.ready when installsOnQuit => l.updateInstallsOnQuit,
+      UpdateStage.needsPermission => l.androidInstallPermission,
+      UpdateStage.failed => l.updateDownloadFailed,
+      UpdateStage.manual => l.updateManualOnly,
+      UpdateStage.notWritable => l.updateNotWritable,
+      _ => versionLabel == null ? null : '${l.versionLabel} $versionLabel',
+    };
+    Widget viewRelease() => shad.OutlineButton(
+      onPressed: onOpenRelease,
+      density: shad.ButtonDensity.dense,
+      trailing: const Icon(shad.LucideIcons.arrowUpRight, size: 14),
+      child: Text(l.viewRelease),
+    );
+    final Widget? updateAction = switch (updateStage) {
+      UpdateStage.downloading || UpdateStage.installing => null,
+      UpdateStage.ready || UpdateStage.needsPermission => shad.PrimaryButton(
+        key: const ValueKey('install-update'),
+        onPressed: onInstallUpdate,
+        density: shad.ButtonDensity.dense,
+        child: Text(installLabel ?? l.installUpdate),
+      ),
+      UpdateStage.available || UpdateStage.failed => shad.PrimaryButton(
+        onPressed: onDownloadUpdate,
+        density: shad.ButtonDensity.dense,
+        child: Text(l.downloadUpdate),
+      ),
+      UpdateStage.manual ||
+      UpdateStage.notWritable when release != null => viewRelease(),
+      _ when release != null && onOpenRelease != null => viewRelease(),
+      _ => shad.OutlineButton(
+        onPressed: updateChecking ? null : onCheckUpdates,
+        density: shad.ButtonDensity.dense,
+        child: Text(l.checkForUpdates),
+      ),
+    };
 
     Widget link(IconData icon) => Icon(icon, size: 15, color: colors.muted);
 
@@ -97,6 +186,17 @@ class SettingsPage extends StatelessWidget {
             ),
           ],
         ),
+        if (updateNotice != null)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 14),
+            child: Callout(
+              icon: updateNoticeError
+                  ? shad.LucideIcons.circleAlert
+                  : shad.LucideIcons.partyPopper,
+              tone: updateNoticeError ? CalloutTone.error : CalloutTone.info,
+              text: updateNotice!,
+            ),
+          ),
         Section(
           title: l.updates,
           icon: shad.LucideIcons.download,
@@ -113,25 +213,22 @@ class SettingsPage extends StatelessWidget {
                 child: Icon(statusIcon, size: 17, color: statusColor),
               ),
               label: statusText,
-              description: versionLabel == null
-                  ? null
-                  : '${l.versionLabel} $versionLabel',
-              trailing: release != null && onOpenRelease != null
-                  ? shad.PrimaryButton(
-                      onPressed: onOpenRelease,
-                      density: shad.ButtonDensity.dense,
-                      trailing: const Icon(
-                        shad.LucideIcons.arrowUpRight,
-                        size: 14,
-                      ),
-                      child: Text(l.viewRelease),
-                    )
-                  : shad.OutlineButton(
-                      onPressed: updateChecking ? null : onCheckUpdates,
-                      density: shad.ButtonDensity.dense,
-                      child: Text(l.checkForUpdates),
-                    ),
+              description: statusDetail,
+              trailing: updateAction,
+              below: updateStage == UpdateStage.downloading
+                  ? _Progress(value: updateProgress)
+                  : null,
             ),
+            if (autoDownload != null)
+              SectionRow(
+                label: l.autoUpdateTitle,
+                description: l.autoUpdateBody,
+                stackBelow: 0,
+                trailing: shad.Switch(
+                  value: autoDownload!,
+                  onChanged: onAutoDownloadChanged,
+                ),
+              ),
           ],
         ),
         Section(
@@ -281,4 +378,30 @@ class _Value extends StatelessWidget {
       ),
     ),
   );
+}
+
+class _Progress extends StatelessWidget {
+  const _Progress({required this.value});
+
+  final double value;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = paletteOf(context);
+    return Semantics(
+      value: '${(value * 100).round()}%',
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(99),
+        child: Container(
+          height: 6,
+          color: colors.subtle,
+          alignment: Alignment.centerLeft,
+          child: FractionallySizedBox(
+            widthFactor: value.clamp(0.0, 1.0),
+            child: Container(color: colors.primary),
+          ),
+        ),
+      ),
+    );
+  }
 }

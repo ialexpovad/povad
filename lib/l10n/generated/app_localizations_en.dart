@@ -408,4 +408,203 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get authorProfile => 'Open author profile';
+
+  @override
+  String get help => 'Help';
+
+  @override
+  String get helpSubtitle => 'Get started and fix common problems.';
+
+  @override
+  String get openHelp => 'Open help';
+
+  @override
+  String get closeHelp => 'Close';
+
+  @override
+  String get quickStartTitle => 'Get started';
+
+  @override
+  String get step1Title => 'Connect the adapter';
+
+  @override
+  String get step1Body =>
+      'Plug in the USB–Serial adapter, then pick its port in Bridge setup.';
+
+  @override
+  String get step2Title => 'Start the bridge';
+
+  @override
+  String get step2Body => 'Povad opens the port and waits for one TCP client.';
+
+  @override
+  String get step3Title => 'Connect your client';
+
+  @override
+  String get step3Body =>
+      'Point your TCP software at the address shown on Overview. Bytes pass through unchanged.';
+
+  @override
+  String get faqTitle => 'Questions and fixes';
+
+  @override
+  String get faqClientQ => 'My TCP client cannot connect';
+
+  @override
+  String get faqClientA =>
+      'Check that the status reads “Waiting for a client” and use the address from Overview. From another computer, turn on Allow LAN clients and use a LAN address. A firewall can also block the port.';
+
+  @override
+  String get faqPortQ => 'The serial port cannot be opened';
+
+  @override
+  String get faqPortA =>
+      'Close other apps that use the port, reconnect the adapter, and check the port name. On Linux, add your user to the dialout group. On Windows, find the COM number in Device Manager.';
+
+  @override
+  String get faqEndedQ => 'Why did the session end?';
+
+  @override
+  String get faqEndedA =>
+      'Each session serves one TCP client. When it disconnects, the session ends so no bytes reach the wrong client. Select Start again to wait for the next one.';
+
+  @override
+  String get faqBytesQ => 'Does Povad change my data?';
+
+  @override
+  String get faqBytesA =>
+      'No. Povad relays bytes in both directions without parsing a protocol, changing checksums, polling the device, or replying on its behalf.';
+
+  @override
+  String get faqLanQ => 'Is it safe to allow LAN clients?';
+
+  @override
+  String get faqLanA =>
+      'LAN clients are not authenticated and can send bytes to your device. Allow them only on a network you trust, and turn LAN access off when you finish.';
+
+  @override
+  String get faqPrivacyQ => 'Does Povad send my data anywhere?';
+
+  @override
+  String get faqPrivacyA =>
+      'No. Serial data stays between your device and your client. Povad only asks GitHub whether a newer release exists.';
+
+  @override
+  String get shortcutsTitle => 'Keyboard shortcuts';
+
+  @override
+  String get shortcutToggle => 'Start or stop the bridge';
+
+  @override
+  String get shortcutNavigate => 'Switch section';
+
+  @override
+  String get shortcutHelp => 'Open help';
+
+  @override
+  String get stillStuck => 'Still stuck?';
+
+  @override
+  String get stillStuckBody =>
+      'Report the problem on GitHub with your OS, adapter, and steps. Do not include device data.';
+
+  @override
+  String get reportProblem => 'Report a problem';
+
+  @override
+  String get howToFix => 'How to fix';
+
+  @override
+  String get stoppedUnconfigured => 'Choose a serial port to get started.';
+
+  @override
+  String get hintSerialAccess =>
+      'The port is missing, busy, or not permitted. Close apps that use it, reconnect the adapter, and check its name.';
+
+  @override
+  String get hintTcpPort =>
+      'This TCP port is in use or not allowed. Choose another port in Bridge setup.';
+
+  @override
+  String get hintDisconnected =>
+      'The adapter stopped responding or was unplugged. Reconnect it and start again.';
+
+  @override
+  String get hintSettings =>
+      'The adapter rejected these settings. Try a standard baud rate.';
+
+  @override
+  String get hintDelivery =>
+      'Some bytes may not have reached the other side. Check the device state before you repeat a command.';
+
+  @override
+  String get hintClientLeft =>
+      'The TCP client disconnected. Start again to wait for the next client.';
+
+  @override
+  String get autoUpdateTitle => 'Download updates automatically';
+
+  @override
+  String get autoUpdateBody =>
+      'Each download is checked against the release checksum. Installation waits until the bridge is stopped.';
+
+  @override
+  String updateDownloading(String version, int percent) {
+    return 'Downloading Povad $version… $percent%';
+  }
+
+  @override
+  String updateReady(String version) {
+    return 'Povad $version is ready to install';
+  }
+
+  @override
+  String get restartToUpdate => 'Restart to update';
+
+  @override
+  String get installUpdate => 'Install update';
+
+  @override
+  String get downloadUpdate => 'Download update';
+
+  @override
+  String get updateInstalling => 'Installing the update…';
+
+  @override
+  String get updateWaitsForBridge => 'Stop the bridge to install the update.';
+
+  @override
+  String get updateDownloadFailed =>
+      'The update could not be downloaded or verified. Povad will try again later.';
+
+  @override
+  String get updateManualOnly => 'This build is updated from the release page.';
+
+  @override
+  String get updateNotWritable =>
+      'Povad cannot write to its folder. Download the update from the release page.';
+
+  @override
+  String updatedTo(String version) {
+    return 'Povad was updated to $version.';
+  }
+
+  @override
+  String updateIncomplete(String version) {
+    return 'The update to $version did not complete. Install it from the release page.';
+  }
+
+  @override
+  String get updateInstallsOnQuit =>
+      'Installs when you quit Povad, or restart now.';
+
+  @override
+  String get androidInstallPermission =>
+      'Allow Povad to install apps, then tap Install update again.';
+
+  @override
+  String get updateBannerAction => 'Update';
+
+  @override
+  String get dismiss => 'Dismiss';
 }

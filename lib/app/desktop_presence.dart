@@ -25,6 +25,10 @@ final class DesktopPresence
   bool _quitting = false;
   bool _trayReady = false;
 
+  /// Runs after the worker has confirmed shutdown and before the process
+  /// exits, for example to start a staged update.
+  Future<void> Function()? beforeExit;
+
   static Future<DesktopPresence> initialize(BridgeSession session) async {
     await windowManager.ensureInitialized();
     final presence = DesktopPresence._(session);
@@ -141,6 +145,9 @@ final class DesktopPresence
     }
   }
 
+  /// Quits through the same confirmed-shutdown path as the tray menu.
+  Future<void> quit() => _quit();
+
   Future<void> _quit() async {
     if (_quitting) return;
     _quitting = true;
@@ -157,6 +164,11 @@ final class DesktopPresence
         }
       }
       await session.close();
+      try {
+        await beforeExit?.call();
+      } catch (error) {
+        debugPrint('Cannot start the staged update: $error');
+      }
       if (_trayReady) await trayManager.destroy();
       exit(0);
     } finally {

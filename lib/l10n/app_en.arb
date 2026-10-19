@@ -133,5 +133,93 @@
         "type": "String"
       }
     }
+  },
+  "help": "Help",
+  "helpSubtitle": "Get started and fix common problems.",
+  "openHelp": "Open help",
+  "closeHelp": "Close",
+  "quickStartTitle": "Get started",
+  "step1Title": "Connect the adapter",
+  "step1Body": "Plug in the USB–Serial adapter, then pick its port in Bridge setup.",
+  "step2Title": "Start the bridge",
+  "step2Body": "Povad opens the port and waits for one TCP client.",
+  "step3Title": "Connect your client",
+  "step3Body": "Point your TCP software at the address shown on Overview. Bytes pass through unchanged.",
+  "faqTitle": "Questions and fixes",
+  "faqClientQ": "My TCP client cannot connect",
+  "faqClientA": "Check that the status reads “Waiting for a client” and use the address from Overview. From another computer, turn on Allow LAN clients and use a LAN address. A firewall can also block the port.",
+  "faqPortQ": "The serial port cannot be opened",
+  "faqPortA": "Close other apps that use the port, reconnect the adapter, and check the port name. On Linux, add your user to the dialout group. On Windows, find the COM number in Device Manager.",
+  "faqEndedQ": "Why did the session end?",
+  "faqEndedA": "Each session serves one TCP client. When it disconnects, the session ends so no bytes reach the wrong client. Select Start again to wait for the next one.",
+  "faqBytesQ": "Does Povad change my data?",
+  "faqBytesA": "No. Povad relays bytes in both directions without parsing a protocol, changing checksums, polling the device, or replying on its behalf.",
+  "faqLanQ": "Is it safe to allow LAN clients?",
+  "faqLanA": "LAN clients are not authenticated and can send bytes to your device. Allow them only on a network you trust, and turn LAN access off when you finish.",
+  "faqPrivacyQ": "Does Povad send my data anywhere?",
+  "faqPrivacyA": "No. Serial data stays between your device and your client. Povad only asks GitHub whether a newer release exists.",
+  "shortcutsTitle": "Keyboard shortcuts",
+  "shortcutToggle": "Start or stop the bridge",
+  "shortcutNavigate": "Switch section",
+  "shortcutHelp": "Open help",
+  "stillStuck": "Still stuck?",
+  "stillStuckBody": "Report the problem on GitHub with your OS, adapter, and steps. Do not include device data.",
+  "reportProblem": "Report a problem",
+  "howToFix": "How to fix",
+  "stoppedUnconfigured": "Choose a serial port to get started.",
+  "hintSerialAccess": "The port is missing, busy, or not permitted. Close apps that use it, reconnect the adapter, and check its name.",
+  "hintTcpPort": "This TCP port is in use or not allowed. Choose another port in Bridge setup.",
+  "hintDisconnected": "The adapter stopped responding or was unplugged. Reconnect it and start again.",
+  "hintSettings": "The adapter rejected these settings. Try a standard baud rate.",
+  "hintDelivery": "Some bytes may not have reached the other side. Check the device state before you repeat a command.",
+  "hintClientLeft": "The TCP client disconnected. Start again to wait for the next client.",
+  "autoUpdateTitle": "Download updates automatically",
+  "autoUpdateBody": "Each download is checked against the release checksum. Installation waits until the bridge is stopped.",
+  "updateDownloading": "Downloading Povad {version}… {percent}%",
+  "updateReady": "Povad {version} is ready to install",
+  "restartToUpdate": "Restart to update",
+  "installUpdate": "Install update",
+  "downloadUpdate": "Download update",
+  "updateInstalling": "Installing the update…",
+  "updateWaitsForBridge": "Stop the bridge to install the update.",
+  "updateDownloadFailed": "The update could not be downloaded or verified. Povad will try again later.",
+  "updateManualOnly": "This build is updated from the release page.",
+  "updateNotWritable": "Povad cannot write to its folder. Download the update from the release page.",
+  "updatedTo": "Povad was updated to {version}.",
+  "updateIncomplete": "The update to {version} did not complete. Install it from the release page.",
+  "updateInstallsOnQuit": "Installs when you quit Povad, or restart now.",
+  "androidInstallPermission": "Allow Povad to install apps, then tap Install update again.",
+  "updateBannerAction": "Update",
+  "dismiss": "Dismiss",
+  "@updateDownloading": {
+    "placeholders": {
+      "version": {
+        "type": "String"
+      },
+      "percent": {
+        "type": "int"
+      }
+    }
+  },
+  "@updateReady": {
+    "placeholders": {
+      "version": {
+        "type": "String"
+      }
+    }
+  },
+  "@updatedTo": {
+    "placeholders": {
+      "version": {
+        "type": "String"
+      }
+    }
+  },
+  "@updateIncomplete": {
+    "placeholders": {
+      "version": {
+        "type": "String"
+      }
+    }
   }
 }

@@ -7,6 +7,7 @@ import 'app/bridge_presence.dart';
 import 'app/desktop_presence.dart';
 import 'app/povad_app.dart';
 import 'app/release_updates.dart';
+import 'app/update_installer.dart';
 import 'domain/bridge_session.dart';
 import 'domain/bridge_settings.dart';
 import 'domain/serial_port_discovery.dart';
@@ -33,6 +34,9 @@ Future<void> main() async {
         rememberSerialPort: !Platform.isAndroid,
       ),
       portDiscovery: SerialPortDiscovery(),
+      installer: UpdateInstaller(),
+      updatePreferences: DeviceUpdatePreferences(),
+      exitForUpdate: presence is DesktopPresence ? presence.quit : null,
     ),
   );
 }

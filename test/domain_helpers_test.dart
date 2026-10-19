@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:povad/design/povad_components.dart';
 import 'package:povad/domain/serial_port_discovery.dart';
+import 'package:povad/domain/trouble_hint.dart';
 
 void main() {
   test(
@@ -43,6 +44,42 @@ void main() {
     );
     expect(await discovery.discover(), isEmpty);
     expect(SerialPortDiscovery(operatingSystem: 'windows').supported, isFalse);
+  });
+
+  test('worker messages map to actionable hints', () {
+    expect(
+      troubleHintFor('Cannot open serial port exclusively'),
+      TroubleHint.serialAccess,
+    );
+    expect(
+      troubleHintFor(
+        'Cannot open USB serial device; check permission, adapter, and settings',
+      ),
+      TroubleHint.serialAccess,
+    );
+    expect(troubleHintFor('Cannot bind TCP listener'), TroubleHint.tcpPort);
+    expect(troubleHintFor('Cannot listen on TCP port'), TroubleHint.tcpPort);
+    expect(
+      troubleHintFor('Serial device disconnected'),
+      TroubleHint.disconnected,
+    );
+    expect(
+      troubleHintFor('Unsupported serial baud rate'),
+      TroubleHint.settings,
+    );
+    expect(
+      troubleHintFor('Client disconnected; restart for another session'),
+      TroubleHint.clientLeft,
+    );
+    // Uncertain delivery outranks the client leaving.
+    expect(
+      troubleHintFor(
+        'Client closed with output pending; delivery is uncertain',
+      ),
+      TroubleHint.delivery,
+    );
+    expect(troubleHintFor('Transport worker failed'), isNull);
+    expect(troubleHintFor(null), isNull);
   });
 
   test('byte counts and durations are compact and localized', () {

@@ -1,4 +1,6 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:povad/app/ui_preferences.dart';
@@ -417,18 +419,40 @@ void main() {
     await tester.tap(find.text('Start bridge'));
     await tester.pump(const Duration(seconds: 1));
     expect(find.text('Connection needs attention'), findsOneWidget);
-    // The overview explains the failure itself instead of a dead end.
-    expect(find.text('Cannot open serial port exclusively'), findsOneWidget);
+    // The overview turns the worker message into advice instead of a dead end.
+    expect(
+      find.text(
+        'The port is missing, busy, or not permitted. Close apps that use '
+        'it, reconnect the adapter, and check its name.',
+      ),
+      findsOneWidget,
+    );
     expect(find.text('Start again'), findsOneWidget);
+    expect(find.text('How to fix'), findsOneWidget);
 
     await tester.tap(find.text('Start again'));
     await tester.pump(const Duration(seconds: 1));
     expect(find.text('Connection needs attention'), findsOneWidget);
     expect(find.text('Start again'), findsOneWidget);
 
+    await tester.tap(find.text('How to fix'));
+    await tester.pumpAndSettle();
+    // Help opens on the matching answer.
+    expect(
+      find.textContaining('add your user to the dialout group'),
+      findsOneWidget,
+    );
+    await tester.tap(find.byKey(const ValueKey('help-close')));
+    await tester.pumpAndSettle();
+
     await tester.tap(find.byKey(const ValueKey('nav-2')));
     await tester.pumpAndSettle();
+    // Details keeps the worker's own words next to the advice.
     expect(find.text('Cannot open serial port exclusively'), findsOneWidget);
+    expect(
+      find.textContaining('missing, busy, or not permitted'),
+      findsOneWidget,
+    );
     expect(find.text('Edit setup'), findsOneWidget);
     await tester.tap(find.text('Edit setup'));
     await tester.pumpAndSettle();
@@ -527,7 +551,7 @@ void main() {
         preferences: MemoryUiPreferences(),
         portDiscovery: SerialPortDiscovery(
           operatingSystem: 'linux',
-          list: () async => ['ttyS0', 'ttyUSB0', 'ttyACM1', 'null'],
+          list: () async => ['ttyS0', 'ttyUSB3', 'ttyACM1', 'null'],
         ),
       ),
     );
@@ -536,13 +560,15 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Detected ports'), findsOneWidget);
     expect(find.text('ttyS0'), findsNothing);
-    await tester.tap(find.text('ttyUSB0'));
+    // The port differs from every platform placeholder, such as Linux's
+    // /dev/ttyUSB0, so a match can only come from the selected value.
+    await tester.tap(find.text('ttyUSB3'));
     await tester.pumpAndSettle();
-    expect(find.text('/dev/ttyUSB0'), findsOneWidget);
+    expect(find.text('/dev/ttyUSB3'), findsOneWidget);
     await tester.tap(find.byKey(const ValueKey('nav-0')));
     await tester.pumpAndSettle();
     expect(find.text('Start bridge'), findsOneWidget);
-    expect(find.text('/dev/ttyUSB0'), findsOneWidget);
+    expect(find.text('/dev/ttyUSB3'), findsOneWidget);
   });
 
   testWidgets('details report live facts without a running session', (
@@ -560,6 +586,63 @@ void main() {
     expect(find.text('Not connected'), findsOneWidget);
     expect(find.text('0 B'), findsNWidgets(2));
     expect(find.textContaining('PREVIEW'), findsNothing);
+  });
+
+  testWidgets('compact header opens help beside the menu', (tester) async {
+    tester.view.physicalSize = const Size(390, 760);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    await tester.pumpWidget(PovadApp(preferences: MemoryUiPreferences()));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('header-help')), findsOneWidget);
+    expect(find.byKey(const ValueKey('mobile-menu')), findsOneWidget);
+    final help = tester.getSize(find.byKey(const ValueKey('header-help')));
+    expect(help.width, greaterThanOrEqualTo(44));
+    expect(help.width, help.height);
+
+    await tester.tap(find.byKey(const ValueKey('header-help')));
+    await tester.pumpAndSettle();
+    expect(find.text('Get started'), findsOneWidget);
+    expect(find.text('Connect the adapter'), findsOneWidget);
+    // Answers stay collapsed until asked for.
+    expect(find.textContaining('dialout'), findsNothing);
+    await tester.tap(find.byKey(const ValueKey('faq-port')));
+    await tester.pumpAndSettle();
+    expect(find.textContaining('dialout'), findsOneWidget);
+    expect(find.text('Report a problem'), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('help-close')));
+    await tester.pumpAndSettle();
+    expect(find.text('Get started'), findsNothing);
+    // Help is an overlay: the four destinations are unchanged.
+    expect(find.text('Bridge stopped'), findsOneWidget);
+  });
+
+  testWidgets('desktop sidebar opens help and F1 does too', (tester) async {
+    await tester.pumpWidget(PovadApp(preferences: MemoryUiPreferences()));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('sidebar-help')));
+    await tester.pumpAndSettle();
+    expect(find.text('Get started'), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('help-close')));
+    await tester.pumpAndSettle();
+    await tester.sendKeyEvent(LogicalKeyboardKey.f1);
+    await tester.pumpAndSettle();
+    expect(find.text('Get started'), findsOneWidget);
+  });
+
+  testWidgets('modifier shortcuts switch sections', (tester) async {
+    await tester.pumpWidget(PovadApp(preferences: MemoryUiPreferences()));
+    await tester.pumpAndSettle();
+    final mac = defaultTargetPlatform == TargetPlatform.macOS;
+    final modifier = mac
+        ? LogicalKeyboardKey.metaLeft
+        : LogicalKeyboardKey.controlLeft;
+    await tester.sendKeyDownEvent(modifier);
+    await tester.sendKeyEvent(LogicalKeyboardKey.digit4);
+    await tester.sendKeyUpEvent(modifier);
+    await tester.pumpAndSettle();
+    expect(find.text('Language'), findsOneWidget);
   });
 }
 

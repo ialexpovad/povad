@@ -9,11 +9,15 @@ import android.content.IntentFilter
 import android.content.pm.PackageManager
 import android.hardware.usb.UsbDevice
 import android.hardware.usb.UsbManager
+import android.net.Uri
 import android.os.Build
+import android.provider.Settings
+import androidx.core.content.FileProvider
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.embedding.engine.dart.DartExecutor
 import io.flutter.plugin.common.MethodChannel
+import java.io.File
 
 class MainActivity : FlutterActivity() {
     private val permissionAction = "io.github.ialexpovad.povad.USB_PERMISSION"
@@ -120,11 +124,44 @@ class MainActivity : FlutterActivity() {
                     else -> result.notImplemented()
                 }
             }
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "povad/update")
+            .setMethodCallHandler { call, result ->
+                when (call.method) {
+                    "cacheDir" -> result.success(cacheDir.absolutePath)
+                    "install" -> result.success(installUpdate(call.argument<String>("path")))
+                    else -> result.notImplemented()
+                }
+            }
         if (!flutterEngine.dartExecutor.isExecutingDart) {
             flutterEngine.dartExecutor.executeDartEntrypoint(
                 DartExecutor.DartEntrypoint.createDefault()
             )
         }
+    }
+
+    /**
+     * Hands a verified APK to Android's package installer. Android asks the
+     * user to confirm, and checks that the signing certificate matches.
+     */
+    private fun installUpdate(path: String?): String {
+        val updates = File(cacheDir, "povad-update").canonicalFile
+        val file = path?.let { File(it).canonicalFile }
+        if (file == null || !file.isFile || !file.path.startsWith(updates.path + File.separator)) {
+            return "missing"
+        }
+        if (Build.VERSION.SDK_INT >= 26 && !packageManager.canRequestPackageInstalls()) {
+            startActivity(
+                Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES, Uri.parse("package:$packageName"))
+            )
+            return "permission"
+        }
+        val uri = FileProvider.getUriForFile(this, "$packageName.updates", file)
+        startActivity(
+            Intent(Intent.ACTION_VIEW)
+                .setDataAndType(uri, "application/vnd.android.package-archive")
+                .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_ACTIVITY_NEW_TASK)
+        )
+        return "started"
     }
 
     override fun onDestroy() {
@@ -135,6 +172,7 @@ class MainActivity : FlutterActivity() {
         receiverRegistered = false
         flutterEngine?.dartExecutor?.binaryMessenger?.let {
             MethodChannel(it, "povad/usb_host").setMethodCallHandler(null)
+            MethodChannel(it, "povad/update").setMethodCallHandler(null)
         }
         (application as PovadApplication).setActivity(null)
         super.onDestroy()

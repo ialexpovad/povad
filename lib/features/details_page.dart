@@ -17,6 +17,7 @@ class DetailsPage extends StatefulWidget {
     required this.state,
     required this.previewMode,
     this.detail,
+    this.hint,
     this.serialValue,
     this.baud,
     this.endpoint,
@@ -30,7 +31,7 @@ class DetailsPage extends StatefulWidget {
 
   final BridgeViewState state;
   final bool previewMode;
-  final String? detail, serialValue, baud, endpoint;
+  final String? detail, hint, serialValue, baud, endpoint;
   final int serialReceived, tcpReceived;
   final DateTime? sessionStartedAt;
   final VoidCallback? onStartAgain, onEditSetup;
@@ -161,6 +162,10 @@ class _DetailsPageState extends State<DetailsPage> {
                     : CalloutTone.info,
                 text: widget.detail!,
               ),
+            ],
+            if (widget.hint != null) ...[
+              const SizedBox(height: 10),
+              Callout(icon: shad.LucideIcons.lightbulb, text: widget.hint!),
             ],
             if (ended && widget.onStartAgain != null) ...[
               const SizedBox(height: 16),
