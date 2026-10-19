@@ -7,6 +7,8 @@ import 'package:povad/domain/bridge_session.dart';
 import 'package:povad/main.dart';
 import 'package:shadcn_flutter/shadcn_flutter.dart' as shad;
 
+import 'bonjour_test.dart' show verifyBonjour;
+
 void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
 
@@ -27,7 +29,7 @@ void main() {
         find.byType(shad.TextField).first,
         '/dev/povad-test-port-does-not-exist',
       );
-      await tester.tap(find.byKey(const ValueKey('nav-0')));
+      await tester.tap(find.byKey(const ValueKey('brand-home-mobile')));
       await tester.pumpAndSettle();
       await tester.tap(find.text('Start bridge'));
       await tester.pump(const Duration(seconds: 1));
@@ -36,19 +38,25 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.text('Cannot open serial port exclusively'), findsOneWidget);
 
-      await tester.tap(find.byKey(const ValueKey('nav-3')));
+      await tester.tap(find.byKey(const ValueKey('mobile-menu')));
+      await tester.pump(const Duration(milliseconds: 300));
+      await tester.tap(find.text('Settings').last);
       await tester.pumpAndSettle();
       await tester.tap(find.text('Беларуская'));
       await tester.pumpAndSettle();
       await tester.tap(find.text('Цёмная'));
       await tester.pumpAndSettle();
-      await tester.tap(find.byKey(const ValueKey('nav-0')));
+      await tester.tap(find.byKey(const ValueKey('brand-home-mobile')));
       await tester.pumpAndSettle();
 
       expect(find.text('Злучэнне патрабуе ўвагі'), findsOneWidget);
       expect(tester.takeException(), isNull);
     },
   );
+
+  testWidgets('macOS advertises Povad through Bonjour', (tester) async {
+    await verifyBonjour();
+  });
 }
 
 class _MemoryPreferences implements UiPreferences {
