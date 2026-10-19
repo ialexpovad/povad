@@ -87,6 +87,12 @@ void Bridge::add_tcp_accepted(size_t bytes) {
   status_.tcp_accepted += bytes;
 }
 
+void Bridge::reject_client(bool busy) {
+  std::lock_guard<std::mutex> lock(mutex_);
+  if (busy) ++status_.rejected_busy;
+  else ++status_.rejected_ip;
+}
+
 void Bridge::finish(uint32_t state, uint32_t error_code, const char* message) {
   std::lock_guard<std::mutex> lock(mutex_);
   status_.state = state;
@@ -119,9 +125,12 @@ void Bridge::run(pv_config config) noexcept {
     uint8_t buffer[4096];
     while (!stop_) {
       bool progressed = false;
-      const int arrival = tcp->accept();
+      const int arrival = tcp->accept(config.allowed_clients);
       if (arrival == 1) {
         set_state(PV_STATE_CONNECTED, true, true);
+        progressed = true;
+      } else if (arrival == 2 || arrival == 3) {
+        reject_client(arrival == 2);
         progressed = true;
       }
       if (tcp->connected()) {
@@ -158,14 +167,26 @@ void Bridge::run(pv_config config) noexcept {
         if (tcp_room != 0) {
           const int64_t count = tcp->receive(buffer, std::min(tcp_room, sizeof(buffer)));
           if (count == 0) {
-            final_state = PV_STATE_INTERRUPTED;
-            if (!to_serial.empty() || !to_tcp.empty() || serial->write_pending()) {
+            const bool pending = !to_serial.empty() || !to_tcp.empty() ||
+                serial->write_pending();
+            if (pending) {
+              final_state = PV_STATE_INTERRUPTED;
               error_code = PV_DELIVERY_UNCERTAIN;
               message = "Client closed with output pending; delivery is uncertain";
-            } else {
-              message = "Client disconnected; restart for another session";
+              break;
             }
-            break;
+            if (config.wait_next_client == 0) {
+              final_state = PV_STATE_INTERRUPTED;
+              message = "Client disconnected; restart for another session";
+              break;
+            }
+            if (!tcp->close_client()) {
+              throw TransportError(PV_NATIVE_FAILURE, "Cannot close TCP client");
+            }
+            to_serial.clear();
+            to_tcp.clear();
+            set_state(PV_STATE_LISTENING, true, false);
+            progressed = true;
           }
           if (count > 0) {
             to_serial.push(buffer, static_cast<size_t>(count), monotonic_ms());

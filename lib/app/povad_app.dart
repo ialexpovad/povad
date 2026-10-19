@@ -12,6 +12,7 @@ import '../design/povad_components.dart';
 import '../design/povad_mark.dart';
 import '../design/povad_theme.dart';
 import '../domain/bridge_settings.dart';
+import '../domain/client_allowlist.dart';
 import '../domain/bridge_view_state.dart';
 import '../domain/bridge_session.dart';
 import '../domain/android_usb_host.dart';
@@ -25,6 +26,7 @@ import '../l10n/shadcn_localizations_be.dart';
 import 'ui_preferences.dart';
 import 'bridge_presence.dart';
 import 'desktop_presence.dart';
+import 'lan_discovery.dart';
 import 'release_updates.dart';
 import 'update_installer.dart';
 
@@ -71,6 +73,10 @@ class PovadApp extends StatefulWidget {
 }
 
 class _PovadAppState extends State<PovadApp> {
+  final GlobalKey<NavigatorState> _navigatorKey = GlobalKey<NavigatorState>();
+  final LanDiscoveryPublisher _discovery = LanDiscoveryPublisher();
+  String? _discoveryTarget;
+  String? discoveryError;
   Locale locale = const Locale('en');
   PovadAppearance appearance = PovadAppearance.system;
   BridgeViewState state = BridgeViewState.stopped;
@@ -80,8 +86,14 @@ class _PovadAppState extends State<PovadApp> {
   bool bridgeFormChanged = false;
   String serialPort = '';
   String baud = '115200';
+  String serialParity = 'N';
   String tcpPort = '9268';
   bool allowLan = false;
+  bool waitNextClient = false;
+  String allowedClients = '';
+  int rejectedBusySeen = 0;
+  int rejectedIpSeen = 0;
+  int rejectionNotice = 0;
   List<({String name, String address})> lanAddresses = const [];
   List<String> discoveredPorts = const [];
   String? copiedEndpoint;
@@ -116,7 +128,8 @@ class _PovadAppState extends State<PovadApp> {
       !kIsWeb && Platform.isAndroid && widget.session != null;
 
   bool get configurationReady =>
-      !BridgeFieldErrors.of(serialPort, baud, tcpPort).any;
+      !BridgeFieldErrors.of(serialPort, baud, tcpPort).any &&
+      (!allowLan || parseClientAllowlist(allowedClients) != null);
 
   bool get running =>
       state == BridgeViewState.starting ||
@@ -148,7 +161,10 @@ class _PovadAppState extends State<PovadApp> {
       );
     }
     final presence = widget.presence;
-    if (presence is DesktopPresence) presence.beforeExit = installOnQuit;
+    if (presence is DesktopPresence) {
+      presence.beforeExit = installOnQuit;
+      presence.chooseCloseAction = chooseActiveCloseAction;
+    }
   }
 
   Future<void> loadBridgeSettings() async {
@@ -160,19 +176,32 @@ class _PovadAppState extends State<PovadApp> {
       setState(() {
         serialPort = saved.serialPort;
         baud = saved.baud;
+        serialParity = saved.parity;
         tcpPort = saved.tcpPort;
+        waitNextClient = saved.waitNextClient;
+        allowedClients = saved.allowedClients;
       });
     } catch (error) {
       debugPrint('Unable to load bridge settings: $error');
     }
   }
 
-  void updateBridgeForm({String? serial, String? speed, String? port}) {
+  void updateBridgeForm({
+    String? serial,
+    String? speed,
+    String? parity,
+    String? port,
+    bool? waitNext,
+    String? allowedIps,
+  }) {
     bridgeFormChanged = true;
     setState(() {
       serialPort = serial ?? serialPort;
       baud = speed ?? baud;
+      serialParity = parity ?? serialParity;
       tcpPort = port ?? tcpPort;
+      waitNextClient = waitNext ?? waitNextClient;
+      allowedClients = allowedIps ?? allowedClients;
     });
     final store = widget.bridgeSettings;
     if (store == null) return;
@@ -182,7 +211,10 @@ class _PovadAppState extends State<PovadApp> {
             BridgeSettings(
               serialPort: serialPort,
               baud: baud,
+              parity: serialParity,
               tcpPort: tcpPort,
+              waitNextClient: waitNextClient,
+              allowedClients: allowedClients,
             ),
           )
           .catchError(
@@ -275,9 +307,11 @@ class _PovadAppState extends State<PovadApp> {
   @override
   void dispose() {
     updateTimer?.cancel();
+    unawaited(_discovery.update(null));
     final presence = widget.presence;
-    if (presence is DesktopPresence && presence.beforeExit == installOnQuit) {
+    if (presence is DesktopPresence) {
       presence.beforeExit = null;
+      presence.chooseCloseAction = null;
     }
     widget.session?.removeListener(onNativeState);
     if (widget.session != null) unawaited(widget.session!.close());
@@ -304,8 +338,19 @@ class _PovadAppState extends State<PovadApp> {
 
   void onNativeState() {
     if (!mounted) return;
+    final snapshot = widget.session?.snapshot;
     setState(() {
       state = nativeViewState();
+      if (snapshot != null) {
+        if (snapshot.rejectedBusy > rejectedBusySeen) {
+          rejectionNotice = 1;
+          rejectedBusySeen = snapshot.rejectedBusy;
+        }
+        if (snapshot.rejectedIp > rejectedIpSeen) {
+          rejectionNotice = 2;
+          rejectedIpSeen = snapshot.rejectedIp;
+        }
+      }
       if (state == BridgeViewState.listening ||
           state == BridgeViewState.connected) {
         sessionStartedAt ??= DateTime.now();
@@ -314,6 +359,38 @@ class _PovadAppState extends State<PovadApp> {
       }
     });
     unawaited(reflectPresence());
+    unawaited(syncDiscovery());
+  }
+
+  Future<void> syncDiscovery() async {
+    final port = int.tryParse(tcpPort);
+    final active =
+        widget.session != null &&
+        allowLan &&
+        port != null &&
+        (state == BridgeViewState.listening ||
+            state == BridgeViewState.connected);
+    final desired = active
+        ? BridgeAdvertisement(
+            port: port,
+            serial: selectedUsbLabel ?? serialPort,
+            busy: state == BridgeViewState.connected,
+          )
+        : null;
+    final signature = desired?.signature;
+    if (signature == _discoveryTarget) return;
+    _discoveryTarget = signature;
+    try {
+      await _discovery.update(desired);
+      if (mounted && discoveryError != null) {
+        setState(() => discoveryError = null);
+      }
+    } catch (error) {
+      // A failed registration must be retryable on the next state update.
+      if (_discoveryTarget == signature) _discoveryTarget = null;
+      debugPrint('Cannot advertise Povad on LAN: $error');
+      if (mounted) setState(() => discoveryError = error.toString());
+    }
   }
 
   Future<void> reflectPresence() async {
@@ -360,6 +437,66 @@ class _PovadAppState extends State<PovadApp> {
     settingsChanged = true;
     setState(() => appearance = value);
     unawaited(saveAppearance(value));
+  }
+
+  Future<ActiveCloseAction> chooseActiveCloseAction() async {
+    if (!mounted) return ActiveCloseAction.keepRunning;
+    final dialogContext = _navigatorKey.currentContext;
+    if (dialogContext == null) return ActiveCloseAction.keepRunning;
+    final l = lookupAppLocalizations(locale);
+    return await showGeneralDialog<ActiveCloseAction>(
+          context: dialogContext,
+          barrierDismissible: true,
+          barrierLabel: l.cancel,
+          barrierColor: const Color(0x59000000),
+          pageBuilder: (dialogContext, _, _) => Center(
+            child: Padding(
+              padding: const EdgeInsets.all(20),
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 380),
+                child: shad.AlertDialog(
+                  leading: const Icon(shad.LucideIcons.cable),
+                  title: Text(l.closeActiveTitle),
+                  content: Text(l.closeActiveDescription),
+                  actions: [
+                    SizedBox(
+                      width: 290,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          shad.PrimaryButton(
+                            onPressed: () => Navigator.pop(
+                              dialogContext,
+                              ActiveCloseAction.keepRunning,
+                            ),
+                            child: Center(child: Text(l.keepRunning)),
+                          ),
+                          const SizedBox(height: 8),
+                          shad.OutlineButton(
+                            onPressed: () => Navigator.pop(
+                              dialogContext,
+                              ActiveCloseAction.stopAndQuit,
+                            ),
+                            child: Center(child: Text(l.stopAndQuit)),
+                          ),
+                          const SizedBox(height: 8),
+                          shad.GhostButton(
+                            onPressed: () => Navigator.pop(
+                              dialogContext,
+                              ActiveCloseAction.cancel,
+                            ),
+                            child: Center(child: Text(l.cancel)),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ) ??
+        ActiveCloseAction.cancel;
   }
 
   void openHelp(BuildContext context, {HelpTopic? topic}) {
@@ -672,6 +809,9 @@ class _PovadAppState extends State<PovadApp> {
       startPending = true;
       backgroundError = null;
       showFieldErrors = false;
+      rejectedBusySeen = 0;
+      rejectedIpSeen = 0;
+      rejectionNotice = 0;
     });
     try {
       await widget.presence?.prepareStart(serialPort, locale);
@@ -687,9 +827,14 @@ class _PovadAppState extends State<PovadApp> {
         core.BridgeConfig(
           serialPort: serialPort.trim(),
           baud: int.parse(baud),
+          parity: serialParity,
           tcpPort: int.parse(tcpPort),
           bindAddress: allowLan ? '0.0.0.0' : '127.0.0.1',
           allowLan: allowLan,
+          waitNextClient: waitNextClient,
+          allowedClients: allowLan
+              ? parseClientAllowlist(allowedClients) ?? const []
+              : const [],
         ),
       );
     } catch (error) {
@@ -732,7 +877,16 @@ class _PovadAppState extends State<PovadApp> {
   /// One short line above the mark: a ready update while the bridge is idle,
   /// or the outcome of the last update. Never shown during a session.
   Widget? _overviewNotice(AppLocalizations l) {
-    if (running || workerActive) return null;
+    if (running || workerActive) {
+      if (rejectionNotice == 0) return null;
+      return UpdateNotice(
+        key: const ValueKey('client-rejection-notice'),
+        icon: shad.LucideIcons.circleAlert,
+        text: rejectionNotice == 1 ? l.clientRejectedBusy : l.clientRejectedIp,
+        actionLabel: l.dismiss,
+        onAction: () => setState(() => rejectionNotice = 0),
+      );
+    }
     final release = availableRelease;
     if (updateStage == UpdateStage.ready && release != null) {
       return UpdateNotice(
@@ -765,6 +919,7 @@ class _PovadAppState extends State<PovadApp> {
   @override
   Widget build(BuildContext context) => shad.ShadcnApp(
     title: 'Povad',
+    navigatorKey: _navigatorKey,
     debugShowCheckedModeBanner: false,
     locale: locale,
     supportedLocales: AppLocalizations.supportedLocales,
@@ -839,11 +994,19 @@ class _PovadAppState extends State<PovadApp> {
             : BridgeSetupPage(
                 serialPort: serialPort,
                 baud: baud,
+                parity: serialParity,
                 tcpPort: tcpPort,
                 onSerialPortChanged: (value) => updateBridgeForm(serial: value),
                 onBaudChanged: (value) => updateBridgeForm(speed: value),
+                onParityChanged: (value) => updateBridgeForm(parity: value),
                 onTcpPortChanged: (value) => updateBridgeForm(port: value),
                 allowLan: allowLan,
+                waitNextClient: waitNextClient,
+                allowedClients: allowedClients,
+                discoveryUnavailable: discoveryError != null,
+                onWaitNextChanged: (value) => updateBridgeForm(waitNext: value),
+                onAllowedClientsChanged: (value) =>
+                    updateBridgeForm(allowedIps: value),
                 onAllowLanChanged: (value) {
                   setState(() => allowLan = value);
                   if (value) unawaited(refreshLanAddresses());
@@ -877,6 +1040,7 @@ class _PovadAppState extends State<PovadApp> {
         hint: live ? hintText : null,
         serialValue: live ? serialDisplay : null,
         baud: live && baud.isNotEmpty ? baud : null,
+        parity: live ? serialParity : null,
         endpoint: live ? endpoint : null,
         serialReceived: snapshot?.serialReceived ?? 0,
         tcpReceived: snapshot?.tcpReceived ?? 0,
@@ -965,6 +1129,7 @@ class _PovadAppState extends State<PovadApp> {
                   return Column(
                     children: [
                       Container(
+                        width: double.infinity,
                         decoration: BoxDecoration(
                           color: p.background,
                           border: Border(bottom: BorderSide(color: p.border)),
@@ -974,11 +1139,16 @@ class _PovadAppState extends State<PovadApp> {
                           children: [
                             // Large system text shrinks the wordmark
                             // before it can push the toolbar off screen.
-                            const Flexible(
+                            Flexible(
                               child: FittedBox(
                                 fit: BoxFit.scaleDown,
                                 alignment: Alignment.centerLeft,
-                                child: PovadBrandLockup(compact: true),
+                                child: _BrandHomeButton(
+                                  key: const ValueKey('brand-home-mobile'),
+                                  compact: true,
+                                  label: l.overview,
+                                  onPressed: () => goTo(0),
+                                ),
                               ),
                             ),
                             Expanded(
@@ -1074,9 +1244,13 @@ class _PovadAppState extends State<PovadApp> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
-                          const Padding(
-                            padding: EdgeInsets.fromLTRB(18, 22, 14, 26),
-                            child: PovadBrandLockup(),
+                          Padding(
+                            padding: const EdgeInsets.fromLTRB(18, 22, 14, 26),
+                            child: _BrandHomeButton(
+                              key: const ValueKey('brand-home-desktop'),
+                              label: l.overview,
+                              onPressed: () => goTo(0),
+                            ),
                           ),
                           for (var i = 0; i < 4; i++)
                             Padding(
@@ -1135,6 +1309,47 @@ class _PovadAppState extends State<PovadApp> {
               },
             ),
           ),
+        ),
+      ),
+    );
+  }
+}
+
+class _BrandHomeButton extends StatelessWidget {
+  const _BrandHomeButton({
+    super.key,
+    required this.label,
+    required this.onPressed,
+    this.compact = false,
+  });
+
+  final String label;
+  final VoidCallback onPressed;
+  final bool compact;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = paletteOf(context);
+    return Semantics(
+      button: true,
+      label: 'Povad, $label',
+      excludeSemantics: true,
+      child: shad.Clickable(
+        onPressed: onPressed,
+        mouseCursor: const WidgetStatePropertyAll(SystemMouseCursors.click),
+        decoration: WidgetStateProperty.resolveWith(
+          (states) => BoxDecoration(
+            color:
+                states.contains(WidgetState.hovered) ||
+                    states.contains(WidgetState.focused)
+                ? colors.subtle
+                : null,
+            borderRadius: BorderRadius.circular(10),
+          ),
+        ),
+        child: Padding(
+          padding: EdgeInsets.symmetric(vertical: compact ? 6 : 0),
+          child: PovadBrandLockup(compact: compact),
         ),
       ),
     );

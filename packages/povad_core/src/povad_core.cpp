@@ -30,6 +30,26 @@ bool ipv4(const char* text, uint8_t octets[4]) {
   return *text == '\0';
 }
 
+bool allowed_clients_valid(const char* text) {
+  if (*text == '\0') return true;
+  unsigned entries = 0;
+  while (*text != '\0') {
+    char address[16]{};
+    unsigned length = 0;
+    while (*text != '\0' && *text != ',') {
+      if (length >= sizeof(address) - 1) return false;
+      address[length++] = *text++;
+    }
+    uint8_t octets[4]{};
+    if (length == 0 || !ipv4(address, octets) || ++entries > 32) return false;
+    if (*text == ',') {
+      ++text;
+      if (*text == '\0') return false;
+    }
+  }
+  return true;
+}
+
 int32_t fail(pv_error* error, int32_t code, const char* message) {
   if (error != nullptr && error->size == sizeof(pv_error)) {
     error->code = static_cast<uint32_t>(code);
@@ -53,7 +73,8 @@ int32_t pv_config_validate(const pv_config* config, pv_error* error) {
     return fail(error, PV_ABI_MISMATCH, "Configuration ABI mismatch");
   }
   if (!terminated(config->serial_port, sizeof(config->serial_port)) ||
-      !terminated(config->bind_address, sizeof(config->bind_address))) {
+      !terminated(config->bind_address, sizeof(config->bind_address)) ||
+      !terminated(config->allowed_clients, sizeof(config->allowed_clients))) {
     return fail(error, PV_INVALID_CONFIG, "Unterminated configuration field");
   }
   if (config->serial_port[0] == '\0' ||
@@ -68,7 +89,8 @@ int32_t pv_config_validate(const pv_config* config, pv_error* error) {
     return fail(error, PV_INVALID_CONFIG, "Invalid serial format");
   }
   if (config->tcp_port == 0 || config->tcp_port > 65535 ||
-      config->allow_lan > 1 || config->queue_limit < 4096 ||
+      config->allow_lan > 1 || config->wait_next_client > 1 ||
+      config->queue_limit < 4096 ||
       config->queue_limit > 1048576 || config->queue_age_ms < 100 ||
       config->queue_age_ms > 30000) {
     return fail(error, PV_INVALID_CONFIG, "Invalid listener or queue setting");
@@ -82,6 +104,10 @@ int32_t pv_config_validate(const pv_config* config, pv_error* error) {
   if ((octets[0] != 127 || std::strcmp(config->bind_address, "0.0.0.0") == 0) &&
       config->allow_lan == 0) {
     return fail(error, PV_LAN_CONSENT_REQUIRED, "LAN listening requires explicit consent");
+  }
+  if (!allowed_clients_valid(config->allowed_clients) ||
+      (config->allowed_clients[0] != '\0' && config->allow_lan == 0)) {
+    return fail(error, PV_INVALID_CONFIG, "Allowed clients require LAN mode and exact IPv4 addresses");
   }
   if (error != nullptr) {
     error->code = PV_OK;

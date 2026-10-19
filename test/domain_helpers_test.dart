@@ -1,9 +1,40 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:povad/design/povad_components.dart';
+import 'package:povad/app/lan_discovery.dart';
+import 'package:povad/domain/client_allowlist.dart';
 import 'package:povad/domain/serial_port_discovery.dart';
 import 'package:povad/domain/trouble_hint.dart';
 
 void main() {
+  test('LAN service uses neutral Povad identity and exact TXT fields', () {
+    const advertisement = BridgeAdvertisement(
+      port: 9268,
+      serial: '/dev/cu.usbserial-01',
+      busy: true,
+    );
+    final service = advertisement.toService();
+    expect(service.type, '_povad-bridge._tcp');
+    expect(service.port, 9268);
+    expect(service.attributes, {
+      'v': '1',
+      'mode': 'raw-rtu',
+      'port': '9268',
+      'serial': 'cu.usbserial-01',
+      'busy': '1',
+    });
+  });
+
+  test('LAN allowlist accepts exact IPv4 peers only', () {
+    expect(parseClientAllowlist(''), isEmpty);
+    expect(parseClientAllowlist('192.168.1.20, 10.0.0.7'), [
+      '192.168.1.20',
+      '10.0.0.7',
+    ]);
+    expect(parseClientAllowlist('192.168.1.020'), isNull);
+    expect(parseClientAllowlist('192.168.1.256'), isNull);
+    expect(parseClientAllowlist('192.168.1.20,'), isNull);
+    expect(parseClientAllowlist('example.org'), isNull);
+  });
   test(
     'macOS discovery lists callout devices and skips system ports',
     () async {
@@ -43,8 +74,19 @@ void main() {
       list: () async => throw const FileSystemDenied(),
     );
     expect(await discovery.discover(), isEmpty);
-    expect(SerialPortDiscovery(operatingSystem: 'windows').supported, isFalse);
+    expect(SerialPortDiscovery(operatingSystem: 'windows').supported, isTrue);
   });
+
+  test(
+    'Windows discovery suggests current COM names in numeric order',
+    () async {
+      final discovery = SerialPortDiscovery(
+        operatingSystem: 'windows',
+        list: () async => ['COM11', 'LPT1', 'com2', 'COM1', 'COM0', 'COM3:'],
+      );
+      expect(await discovery.discover(), ['COM1', 'COM2', 'COM11']);
+    },
+  );
 
   test('worker messages map to actionable hints', () {
     expect(

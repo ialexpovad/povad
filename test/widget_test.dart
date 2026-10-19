@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:povad/app/ui_preferences.dart';
+import 'package:povad/app/desktop_presence.dart';
 import 'package:povad/app/release_updates.dart';
 import 'package:povad/design/povad_mark.dart';
 import 'package:povad/design/povad_theme.dart';
@@ -12,10 +13,12 @@ import 'package:povad/domain/bridge_settings.dart';
 import 'package:povad/domain/serial_port_discovery.dart';
 import 'package:povad/domain/bridge_view_state.dart';
 import 'package:povad/features/connection_diagram.dart';
+import 'package:povad/features/bridge_setup_page.dart';
 import 'package:povad/l10n/generated/app_localizations.dart';
 import 'package:povad/l10n/shadcn_localizations_be.dart';
 import 'package:povad/main.dart';
 import 'package:shadcn_flutter/shadcn_flutter.dart' as shad;
+import 'package:qr_flutter/qr_flutter.dart';
 
 void main() {
   testWidgets(
@@ -77,6 +80,123 @@ void main() {
     await tester.pumpAndSettle();
     expect(tester.widget<shad.Select<String>>(selector).value, 'custom');
     expect(find.text('Custom rate'), findsWidgets);
+  });
+
+  testWidgets('parity selection is restored for the next bridge session', (
+    tester,
+  ) async {
+    final store = MemoryBridgeSettingsStore();
+    Widget app() => PovadApp(
+      session: BridgeSession(),
+      preferences: MemoryUiPreferences(),
+      bridgeSettings: store,
+    );
+    await tester.pumpWidget(app());
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Configure bridge'));
+    await tester.pumpAndSettle();
+
+    final selector = find.byKey(const ValueKey('parity-select'));
+    expect(tester.widget<shad.Select<String>>(selector).value, 'N');
+    await tester.tap(selector);
+    await tester.pump(const Duration(milliseconds: 300));
+    await tester.tap(find.text('Even · 8E1').last);
+    await tester.pumpAndSettle();
+    expect(store.saved?.parity, 'E');
+
+    await tester.pumpWidget(const SizedBox());
+    await tester.pumpWidget(app());
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('nav-1')));
+    await tester.pumpAndSettle();
+    expect(tester.widget<shad.Select<String>>(selector).value, 'E');
+  });
+
+  testWidgets('wait-next and exact LAN allowlist are saved; LAN stays off', (
+    tester,
+  ) async {
+    final store = MemoryBridgeSettingsStore();
+    Widget app() => PovadApp(
+      session: BridgeSession(),
+      preferences: MemoryUiPreferences(),
+      bridgeSettings: store,
+    );
+    await tester.pumpWidget(app());
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Configure bridge'));
+    await tester.pumpAndSettle();
+    final waitNext = find.byKey(const ValueKey('wait-next-client'));
+    await tester.ensureVisible(waitNext);
+    await tester.tap(waitNext);
+    await tester.pumpAndSettle();
+    expect(store.saved?.waitNextClient, isTrue);
+
+    final lan = find.byKey(const ValueKey('allow-lan'));
+    await tester.ensureVisible(lan);
+    await tester.tap(lan);
+    await tester.pumpAndSettle();
+    final allowed = find.descendant(
+      of: find.byKey(const ValueKey('allowed-clients-field')),
+      matching: find.byType(shad.TextField),
+    );
+    await tester.ensureVisible(allowed);
+    await tester.enterText(allowed, '192.168.1.256');
+    await tester.pump();
+    expect(find.text('Enter up to 32 exact IPv4 addresses.'), findsOneWidget);
+    await tester.enterText(allowed, '192.168.1.20');
+    await tester.pump();
+    expect(store.saved?.allowedClients, '192.168.1.20');
+
+    await tester.pumpWidget(const SizedBox());
+    await tester.pumpWidget(app());
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('nav-1')));
+    await tester.pumpAndSettle();
+    expect(tester.widget<shad.Switch>(waitNext).value, isTrue);
+    expect(tester.widget<shad.Switch>(lan).value, isFalse);
+  });
+
+  testWidgets('LAN address QR encodes the Povad bridge URI', (tester) async {
+    await tester.pumpWidget(
+      shad.ShadcnApp(
+        locale: const Locale('en'),
+        supportedLocales: AppLocalizations.supportedLocales,
+        localizationsDelegates: const [
+          AppLocalizations.delegate,
+          PovadShadcnDelegate(),
+        ],
+        theme: const PovadPalette(false).toShadcn(),
+        home: BridgeSetupPage(
+          serialPort: '/dev/cu.test',
+          baud: '115200',
+          parity: 'N',
+          tcpPort: '9268',
+          onSerialPortChanged: (_) {},
+          onBaudChanged: (_) {},
+          onParityChanged: (_) {},
+          onTcpPortChanged: (_) {},
+          allowLan: true,
+          waitNextClient: false,
+          allowedClients: '',
+          onWaitNextChanged: (_) {},
+          onAllowedClientsChanged: (_) {},
+          onAllowLanChanged: (_) {},
+          lanAddresses: const [(name: 'Wi-Fi', address: '192.168.1.20')],
+          copiedEndpoint: null,
+          onRefreshLan: () {},
+          onCopyEndpoint: (_) {},
+          showErrors: false,
+          running: false,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    final button = find.byKey(const ValueKey('qr-192.168.1.20:9268'));
+    await tester.ensureVisible(button);
+    await tester.tap(button);
+    await tester.pumpAndSettle();
+    expect(find.byType(QrImageView), findsOneWidget);
+    expect(find.text('povad-bridge://192.168.1.20:9268'), findsOneWidget);
   });
 
   testWidgets('narrow overview remains usable with large system text', (
@@ -531,8 +651,12 @@ void main() {
       ),
       '5020',
     );
-    await tester.tap(find.byType(shad.Switch));
+    final lanSwitch = find.byKey(const ValueKey('allow-lan'));
+    await tester.ensureVisible(lanSwitch);
     await tester.pumpAndSettle();
+    await tester.tap(lanSwitch);
+    await tester.pumpAndSettle();
+    expect(tester.widget<shad.Switch>(lanSwitch).value, isTrue);
     expect(store.saved?.serialPort, '/dev/ttyUSB7');
     expect(store.saved?.tcpPort, '5020');
 
@@ -541,7 +665,9 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('/dev/ttyUSB7'), findsOneWidget);
     expect(find.text('127.0.0.1:5020'), findsOneWidget);
-    expect(find.text('Start bridge'), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('nav-1')));
+    await tester.pumpAndSettle();
+    expect(tester.widget<shad.Switch>(lanSwitch).value, isFalse);
   });
 
   testWidgets('detected serial ports fill the setup form', (tester) async {
@@ -600,6 +726,17 @@ void main() {
     final help = tester.getSize(find.byKey(const ValueKey('header-help')));
     expect(help.width, greaterThanOrEqualTo(44));
     expect(help.width, help.height);
+    final helpRight = tester
+        .getTopRight(find.byKey(const ValueKey('header-help')))
+        .dx;
+    final menuLeft = tester
+        .getTopLeft(find.byKey(const ValueKey('mobile-menu')))
+        .dx;
+    final menuRight = tester
+        .getTopRight(find.byKey(const ValueKey('mobile-menu')))
+        .dx;
+    expect(menuLeft - helpRight, inInclusiveRange(0, 10));
+    expect(390 - menuRight, inInclusiveRange(0, 10));
 
     await tester.tap(find.byKey(const ValueKey('header-help')));
     await tester.pumpAndSettle();
@@ -616,6 +753,46 @@ void main() {
     expect(find.text('Get started'), findsNothing);
     // Help is an overlay: the four destinations are unchanged.
     expect(find.text('Bridge stopped'), findsOneWidget);
+
+    await tester.tap(find.byKey(const ValueKey('mobile-menu')));
+    await tester.pump(const Duration(milliseconds: 300));
+    await tester.tap(find.text('Settings').last);
+    await tester.pumpAndSettle();
+    expect(find.text('Appearance'), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('brand-home-mobile')));
+    await tester.pumpAndSettle();
+    expect(find.text('Bridge stopped'), findsOneWidget);
+  });
+
+  testWidgets('desktop brand returns to Overview', (tester) async {
+    await tester.pumpWidget(PovadApp(preferences: MemoryUiPreferences()));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('nav-3')));
+    await tester.pumpAndSettle();
+    expect(find.text('Appearance'), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('brand-home-desktop')));
+    await tester.pumpAndSettle();
+    expect(find.text('Bridge stopped'), findsOneWidget);
+  });
+
+  testWidgets('active close choice fits a compact desktop window', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(400, 600);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    await tester.pumpWidget(PovadApp(preferences: MemoryUiPreferences()));
+    await tester.pumpAndSettle();
+
+    final state = tester.state(find.byType(PovadApp)) as dynamic;
+    final choice = state.chooseActiveCloseAction() as Future<ActiveCloseAction>;
+    await tester.pumpAndSettle();
+    expect(find.text('Bridge is running'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+    await tester.tap(find.text('Keep running'));
+    await tester.pumpAndSettle();
+    expect(await choice, ActiveCloseAction.keepRunning);
   });
 
   testWidgets('desktop sidebar opens help and F1 does too', (tester) async {

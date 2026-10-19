@@ -1,99 +1,85 @@
-<p align="center"><img src="assets/brand/icon-256.png" width="88" alt="Povad icon"></p>
+<p align="center">
+  <img src="assets/brand/icon-256.png" width="88" alt="Povad icon">
+</p>
 
-# Povad
+<h1 align="center">Povad</h1>
 
-**Device connectivity, starting with a transparent Serial ↔ TCP bridge.**
+<p align="center">A simple way to connect a serial device to a TCP client.</p>
 
-Povad is an open-source application in development for connecting devices and
-network clients. Its first module relays bytes between a serial port and TCP
-in both directions without changing the byte stream.
+<p align="center">
+  <a href="https://github.com/ialexpovad/povad/releases"><img alt="Latest release" src="https://img.shields.io/github/v/release/ialexpovad/povad?include_prereleases&label=release"></a>
+  <a href="https://github.com/ialexpovad/povad/actions/workflows/ui.yml"><img alt="Build and UI checks" src="https://github.com/ialexpovad/povad/actions/workflows/ui.yml/badge.svg"></a>
+  <a href="LICENSE"><img alt="MIT license" src="https://img.shields.io/badge/license-MIT-18181b"></a>
+</p>
 
-`Serial device ↔ Povad ↔ TCP client`
+<p align="center">
+  <a href="https://github.com/ialexpovad/povad/releases">Download</a> ·
+  <a href="https://github.com/ialexpovad/povad/issues/new/choose">Feedback</a> ·
+  <a href="PRIVACY.md">Privacy</a>
+</p>
 
-The platform is designed to grow with other transports, protocols, and virtual
-ports as each capability is specified and tested.
+![Povad running a serial to TCP bridge](assets/preview/connection_activity.gif)
 
-![Povad desktop interface](assets/preview/overview.png)
+Povad's first module is a **transparent Serial ↔ TCP bridge**. It forwards the
+bytes it receives in both directions, shows the actual connection state, and
+keeps an active desktop session reachable from the system tray. The interface
+is available in English and Belarusian, with light and dark themes.
 
-[Connected overview preview](assets/preview/connected_overview.png)
+## Get started
 
-![Connected bridge with repeated traffic in both directions](assets/preview/connection_activity.gif)
+1. Download the package for your platform from [Releases](https://github.com/ialexpovad/povad/releases).
+2. Connect a serial device. In **Bridge**, choose its port, baud rate, and parity.
+3. Select **Start bridge**. Povad listens on `127.0.0.1:9268` by default.
+4. Point a TCP client at the displayed endpoint. To accept clients on your
+   local network, explicitly enable **Allow LAN clients** and copy a listed
+   LAN address.
 
-These connected views use illustrative endpoints and traffic. In a live
-session, each direction lights up only when its received-byte counter
-increases.
+Povad accepts one TCP client at a time and immediately rejects a second.
+By default, a disconnect ends the session. **Wait for next client** can keep
+the listener open for reconnection; a late device response could reach a later
+client, so use it only when your device protocol makes that acceptable.
+LAN clients can send bytes directly to the serial device. The bridge has no
+authentication; use LAN access on a trusted network and optionally restrict it
+to exact client IPv4 addresses.
 
-## Current status
+| Platform | Release package | Notes |
+| --- | --- | --- |
+| Windows | x64 ZIP | Extract the entire folder before launching. |
+| Linux | x64 tar.xz | Extract the bundle before launching. |
+| Android | arm64 APK | The phone hosts a USB–Serial adapter through USB-OTG. |
+| macOS | unsigned QA ZIP | Developer testing only; public distribution needs signing and notarization. |
 
-The desktop app now connects its overview and setup screen to an embedded
-C++17 transport worker through typed Dart FFI. It accepts a local serial port,
-baud rate, and loopback TCP port. One TCP client can connect per session;
-disconnect ends that session. Status and errors come from the native worker.
-The UI is available in English and Belarusian.
+The current [release candidate](https://github.com/ialexpovad/povad/releases)
+includes SHA-256 checksums. Povad can check GitHub Releases for updates and
+download matching Windows, Linux, and Android packages. It verifies downloaded
+packages before offering installation; installing on Android also requires
+system confirmation. An active bridge is stopped before an update is installed.
 
-Native contract tests exercise bidirectional binary transfer with a
-pseudo-terminal and loopback socket on desktop platforms. This is developer
-functionality: physical serial adapters, instrument behavior, and the full
-shutdown matrix still need hardware validation. Android includes USB Host
-device selection and permission handling backed by the same native worker.
-CI builds Android APKs with arm64 and x86_64 libraries and checks the app,
-USB channel, and JNI worker on an emulator. Physical USB-serial permission,
-detach, and byte-transfer behavior has not been validated. Release candidates
-are previews until those hardware checks pass.
+## What the bridge does
 
-The mobile interface has one main connection action and a top-right menu for
-Bridge, Details, Settings, and feedback. On desktop, closing the window during
-an active session keeps the process available from the system tray or menu bar;
-on Linux the active window minimizes so it remains reachable on desktops
-without a tray extension. Explicit Quit stops the worker before exit. On
-Android, a connected-device foreground service and persistent notification
-keep the same Flutter engine and native worker alive after the Activity closes.
-The service requires a USB serial device with permission and starts while the
-app is visible. Operating-system force-stop and process termination still end
-the connection.
+- Relays serial and TCP bytes without changing their contents or order.
+- Shows whether the serial port is open, a client is waiting or connected, and
+  whether bytes have actually arrived in each direction.
+- Remembers local bridge settings; LAN access resets to off on every launch.
+- Lets a running desktop bridge remain active when its window is closed.
+- Advertises an active LAN bridge as `_povad-bridge._tcp` with its port, serial
+  name, and busy state. The Bridge page shows a QR code for each LAN address.
 
-Povad checks published GitHub releases at startup and on request in Settings.
-RC builds can see later RC and stable releases; stable builds see stable
-releases only. An update is offered only when a matching platform asset is
-available. The release page opens for download and installation by the user.
-In-place installation is not enabled yet. The macOS QA bundle is excluded
-until Developer ID signing and notarization are available.
+Povad does **not** interpret Modbus, choose a device address, recalculate a
+CRC, or swap CRC bytes. A frame such as `01 07 41 E2` passes through exactly as
+received. Protocol-aware tools may come later as a separate, explicit mode.
+Povad is currently a bridge host, not a TCP client for another Povad host.
 
-## Run a developer build
+Automated checks cover UI behavior, native bridge contracts, simulated binary
+traffic, desktop builds, and an Android emulator. Physical USB–Serial adapters
+and instruments still require validation. The macOS package is an unsigned QA
+build.
 
-With Flutter installed, run:
+## Contribute
 
-```sh
-flutter pub get
-flutter run -d macos
-```
+See [CONTRIBUTING.md](CONTRIBUTING.md) for development and testing. Use
+[GitHub Issues](https://github.com/ialexpovad/povad/issues/new/choose) for
+feedback, and [SECURITY.md](SECURITY.md) for security reports. Povad does not
+attach device data or local logs when opening the feedback page.
 
-Open **Bridge** to enter a local serial port, then use **Overview** to start
-the listener. The default endpoint is `127.0.0.1`. The operator can explicitly
-enable listening on all network interfaces. Bridge setup then lists the current
-LAN IPv4 endpoints with copy controls. A separate TCP client can connect to
-one of those addresses; Povad does not yet have a client mode. The TCP bridge
-has no client authentication. The macOS build was checked with Flutter 3.47.1.
-Run `flutter analyze` and `flutter test` before submitting a change. UI tests use
-[Alchemist](https://pub.dev/packages/alchemist) to compare the overview with
-committed reference images in English and Belarusian at desktop and narrow
-screen sizes. A widget test checks the primary action's label alignment.
-GitHub Actions runs formatting, analysis, widget, visual, and accessibility
-checks on every push and pull request. It also runs a macOS app smoke test and
-builds the app for macOS, Linux, Windows, and Android. A successful
-build does not establish serial hardware support. After an intentional visual
-change, inspect the generated images and update the references with
-`flutter test --update-goldens`.
-
-## Feedback
-
-Use [GitHub Issues](https://github.com/ialexpovad/povad/issues/new/choose) for
-feature requests and reproducible problems. Please follow the
-[security policy](SECURITY.md) for suspected vulnerabilities.
-The in-app **Send feedback** action opens the same issue chooser in a browser.
-Povad does not attach logs, device data, or local paths automatically.
-See the [privacy summary](PRIVACY.md) for the app's network behavior.
-
-## License
-
-Povad is available under the [MIT License](LICENSE).
+Povad is released under the [MIT License](LICENSE).

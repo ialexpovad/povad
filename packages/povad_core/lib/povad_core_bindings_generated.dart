@@ -29,8 +29,9 @@ external int pv_config_validate(
 /// handles and queues. A stop request is asynchronous; destroy returns PV_BUSY
 /// until the worker has completed cleanup. Control and destruction calls must
 /// be serialized by the caller; snapshots may be read while the worker runs.
-/// A disconnected client ends the generation, so late device bytes cannot be
-/// assigned to a successor.
+/// In wait-next mode pending queues are discarded on disconnect. Late serial
+/// responses after a successor connects remain protocol-ambiguous; callers
+/// must use this mode only when that risk is acceptable.
 @ffi.Native<ffi.Pointer<pv_handle> Function()>()
 external ffi.Pointer<pv_handle> pv_create();
 
@@ -114,7 +115,7 @@ enum pv_state {
 }
 
 /// All fields are fixed width. Strings are UTF-8 and must be NUL terminated.
-/// This v1 contract defines local serial selections and IPv4 listeners.
+/// This v2 contract defines local serial selections and IPv4 listeners.
 /// Android selections use the usb:<device-name>:<port-index> form.
 final class pv_config extends ffi.Struct {
   @ffi.Uint32()
@@ -163,6 +164,14 @@ final class pv_config extends ffi.Struct {
 
   @ffi.Array.multi([64])
   external ffi.Array<ffi.Char> bind_address;
+
+  /// 0 ends on disconnect; 1 keeps listening.
+  @ffi.Uint32()
+  external int wait_next_client;
+
+  /// Comma-separated exact IPv4 addresses, or empty.
+  @ffi.Array.multi([512])
+  external ffi.Array<ffi.Char> allowed_clients;
 }
 
 final class pv_error extends ffi.Struct {
@@ -206,8 +215,14 @@ final class pv_snapshot extends ffi.Struct {
 
   @ffi.Array.multi([192])
   external ffi.Array<ffi.Char> error_message;
+
+  @ffi.Uint32()
+  external int rejected_busy;
+
+  @ffi.Uint32()
+  external int rejected_ip;
 }
 
 final class pv_handle extends ffi.Opaque {}
 
-const int PV_ABI_VERSION = 1;
+const int PV_ABI_VERSION = 2;

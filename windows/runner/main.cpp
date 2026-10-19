@@ -2,6 +2,8 @@
 #include <flutter/flutter_view_controller.h>
 #include <windows.h>
 
+#include <algorithm>
+
 #include "flutter_window.h"
 #include "utils.h"
 
@@ -25,8 +27,12 @@ int APIENTRY wWinMain(_In_ HINSTANCE instance, _In_opt_ HINSTANCE prev,
   project.set_dart_entrypoint_arguments(std::move(command_line_arguments));
 
   FlutterWindow window(project);
-  Win32Window::Point origin(10, 10);
-  Win32Window::Size size(1280, 720);
+  Win32Window::Size size(520, 720);
+  Win32Window::Point origin(
+      std::max(0, (::GetSystemMetrics(SM_CXSCREEN) -
+                   static_cast<int>(size.width)) / 2),
+      std::max(0, (::GetSystemMetrics(SM_CYSCREEN) -
+                   static_cast<int>(size.height)) / 2));
   if (!window.Create(L"Povad", origin, size)) {
     return EXIT_FAILURE;
   }

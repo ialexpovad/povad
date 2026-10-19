@@ -50,6 +50,19 @@ class AppLocalizationsBe extends AppLocalizations {
   String get stopAndQuit => 'Спыніць мост і выйсці';
 
   @override
+  String get closeActiveTitle => 'Мост працуе';
+
+  @override
+  String get closeActiveDescription =>
+      'Пакінуць злучэнне актыўным пасля закрыцця акна?';
+
+  @override
+  String get keepRunning => 'Пакінуць працаваць';
+
+  @override
+  String get cancel => 'Скасаваць';
+
+  @override
   String get previewNotice => 'ПРАГЛЯД · Няма сапраўднага злучэння';
 
   @override
@@ -154,6 +167,18 @@ class AppLocalizationsBe extends AppLocalizations {
 
   @override
   String get baudRate => 'Хуткасць перадачы';
+
+  @override
+  String get parity => 'Цотнасць';
+
+  @override
+  String get parityNone => 'Без цотнасці · 8N1';
+
+  @override
+  String get parityEven => 'Цотная · 8E1';
+
+  @override
+  String get parityOdd => 'Няцотная · 8O1';
 
   @override
   String get customBaudRate => 'Іншая хуткасць';
@@ -611,4 +636,38 @@ class AppLocalizationsBe extends AppLocalizations {
 
   @override
   String get dismiss => 'Схаваць';
+
+  @override
+  String get waitNextClient => 'Чакаць наступнага кліента';
+
+  @override
+  String get waitNextDescription =>
+      'Пасля адключэння чакаць зноў. Позні адказ прылады можа трапіць наступнаму кліенту.';
+
+  @override
+  String get allowedClients => 'Дазволеныя IP-адрасы кліентаў';
+
+  @override
+  String get allowedClientsHint =>
+      'Неабавязкова. Пакіньце пустым для ўсіх кліентаў LAN; раздзяляйце IP коскамі.';
+
+  @override
+  String get allowedClientsInvalid =>
+      'Увядзіце не больш за 32 дакладныя адрасы IPv4.';
+
+  @override
+  String get clientRejectedBusy => 'Кліент адхілены: мост заняты';
+
+  @override
+  String get clientRejectedIp => 'Кліент адхілены: IP не дазволены';
+
+  @override
+  String get discoveryUnavailable =>
+      'Пошук у лакальнай сетцы недаступны. Падключыцеся праз адрас ніжэй.';
+
+  @override
+  String get scanBridgeAddress => 'Скануйце адрас моста';
+
+  @override
+  String get close => 'Закрыць';
 }

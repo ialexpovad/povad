@@ -3,7 +3,7 @@ import 'package:test/test.dart';
 
 void main() {
   test('bundled native ABI matches the Dart package', () {
-    expect(nativeAbiVersion(), 1);
+    expect(nativeAbiVersion(), 2);
   });
 
   test('typed Dart binding rejects invalid config and closes safely', () async {
