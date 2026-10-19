@@ -92,7 +92,7 @@ jobs:
           test -n "$KEYSTORE_BASE64"
           test -n "$KEYSTORE_PASSWORD"
           printf '%s' "$KEYSTORE_BASE64" | base64 --decode > android/app/release.jks
-          printf 'storeFile=release.jks\nstorePassword=%s\nkeyAlias=povad\nkeyPassword=%s\n' +            "$KEYSTORE_PASSWORD" "$KEYSTORE_PASSWORD" > android/key.properties
+          printf 'storeFile=release.jks\nstorePassword=%s\nkeyAlias=povad\nkeyPassword=%s\n' "$KEYSTORE_PASSWORD" "$KEYSTORE_PASSWORD" > android/key.properties
           chmod 600 android/app/release.jks android/key.properties
       - run: flutter build apk --release --target-platform android-arm64
       - name: Verify signed APK and pinned certificate
@@ -223,5 +223,5 @@ jobs:
             test "$(cat /tmp/povad-release-draft-state)" = true
             gh release upload "$RC_TAG" dist/* --clobber
           else
-            gh release create "$RC_TAG" dist/* --verify-tag --draft --prerelease +              --title "Povad $RC_TAG" --notes-file release/RC_NOTES.md
+            gh release create "$RC_TAG" dist/* --verify-tag --draft --prerelease --title "Povad $RC_TAG" --notes-file release/RC_NOTES.md
           fi
