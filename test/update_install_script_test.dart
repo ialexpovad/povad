@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:crypto/crypto.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:povad/app/update_installer.dart';
 
@@ -169,6 +170,35 @@ void main() {
         running.kill();
         await running.exitCode;
       }
+    });
+
+    test('launches the detached installer used by the app', () async {
+      final target = '${root.path}\\app';
+      write('$target\\povad.exe', 'old');
+      final archive = await pack({'povad.exe': 'new'});
+      final installer = UpdateInstaller(
+        operatingSystem: 'windows',
+        executable: '$target\\povad.exe',
+        processId: await exitedPid(),
+      );
+      expect(
+        await installer.launch(
+          StagedUpdate(
+            version: '0.1.0-rc.2',
+            file: File(archive),
+            sha256: sha256.convert(File(archive).readAsBytesSync()).toString(),
+          ),
+          relaunch: false,
+        ),
+        isTrue,
+      );
+      final log = File('${root.path}\\work\\install.log');
+      for (var i = 0; i < 100 && !log.existsSync(); i++) {
+        await Future<void>.delayed(const Duration(milliseconds: 200));
+      }
+      expect(log.existsSync(), isTrue, reason: 'PowerShell never ran');
+      expect(log.readAsStringSync(), contains('Installed'));
+      expect(File('$target\\povad.exe').readAsStringSync(), 'new');
     });
 
     test('keeps the app folder when the update is unusable', () async {
