@@ -17,7 +17,7 @@
 extern "C" {
 #endif
 
-#define PV_ABI_VERSION 1u
+#define PV_ABI_VERSION 2u
 
 enum pv_result {
   PV_OK = 0,
@@ -42,7 +42,7 @@ enum pv_state {
 };
 
 // All fields are fixed width. Strings are UTF-8 and must be NUL terminated.
-// This v1 contract defines local serial selections and IPv4 listeners.
+// This v2 contract defines local serial selections and IPv4 listeners.
 // Android selections use the usb:<device-name>:<port-index> form.
 typedef struct pv_config {
   uint32_t size;
@@ -60,6 +60,8 @@ typedef struct pv_config {
   uint32_t queue_age_ms;
   char serial_port[256];
   char bind_address[64];
+  uint32_t wait_next_client; // 0 ends on disconnect; 1 keeps listening.
+  char allowed_clients[512]; // Comma-separated exact IPv4 addresses, or empty.
 } pv_config;
 
 typedef struct pv_error {
@@ -79,6 +81,8 @@ typedef struct pv_snapshot {
   uint64_t tcp_accepted;
   uint32_t error_code;
   char error_message[192];
+  uint32_t rejected_busy;
+  uint32_t rejected_ip;
 } pv_snapshot;
 
 typedef struct pv_handle pv_handle;
@@ -97,8 +101,9 @@ PV_API int32_t pv_config_validate(const pv_config* config, pv_error* error);
 // handles and queues. A stop request is asynchronous; destroy returns PV_BUSY
 // until the worker has completed cleanup. Control and destruction calls must
 // be serialized by the caller; snapshots may be read while the worker runs.
-// A disconnected client ends the generation, so late device bytes cannot be
-// assigned to a successor.
+// In wait-next mode pending queues are discarded on disconnect. Late serial
+// responses after a successor connects remain protocol-ambiguous; callers
+// must use this mode only when that risk is acceptable.
 PV_API pv_handle* pv_create(void);
 PV_API int32_t pv_start(pv_handle* handle, const pv_config* config, pv_error* error);
 PV_API int32_t pv_request_stop(pv_handle* handle);

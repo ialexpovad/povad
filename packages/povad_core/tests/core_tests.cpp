@@ -1,5 +1,6 @@
 #include "povad_core.h"
 #include "byte_queue.hpp"
+#include "transport.hpp"
 
 #include <array>
 #include <chrono>
@@ -48,18 +49,37 @@ pv_config config() {
 }
 
 void test_abi_and_validation() {
-  require(sizeof(pv_config) == 372 && sizeof(pv_error) == 200 &&
-          sizeof(pv_snapshot) == 248, "Fixed ABI layout");
-  require(pv_abi_version() == 1 && pv_config_size() == 372 &&
-          pv_error_size() == 200 && pv_snapshot_size() == 248,
+  require(sizeof(pv_config) == 888 && sizeof(pv_error) == 200 &&
+          sizeof(pv_snapshot) == 256, "Fixed ABI layout");
+  require(pv_abi_version() == 2 && pv_config_size() == 888 &&
+          pv_error_size() == 200 && pv_snapshot_size() == 256,
           "ABI version and sizes");
   auto value = config();
   pv_error error{};
   error.size = sizeof(error);
   require(pv_config_validate(&value, &error) == PV_OK && error.code == PV_OK,
           "Valid loopback config");
-  value.abi = 2;
+  value.abi = 1;
   require(pv_config_validate(&value, &error) == PV_ABI_MISMATCH, "ABI mismatch");
+  value = config();
+  value.wait_next_client = 1;
+  require(pv_config_validate(&value, &error) == PV_OK, "Wait-next consent");
+  value.wait_next_client = 2;
+  require(pv_config_validate(&value, &error) == PV_INVALID_CONFIG, "Invalid wait-next flag");
+  value = config();
+  std::strcpy(value.allowed_clients, "192.168.1.20");
+  require(pv_config_validate(&value, &error) == PV_INVALID_CONFIG, "Allowlist requires LAN");
+  value.allow_lan = 1;
+  require(pv_config_validate(&value, &error) == PV_OK, "Exact LAN IP allowed");
+  require(povad::peer_allowed(value.allowed_clients, "192.168.1.20") &&
+          !povad::peer_allowed(value.allowed_clients, "192.168.1.21"),
+          "Exact peer match");
+  std::strcpy(value.allowed_clients, "192.168.1.20,10.0.0.7");
+  require(pv_config_validate(&value, &error) == PV_OK &&
+          povad::peer_allowed(value.allowed_clients, "10.0.0.7"),
+          "Two allowed clients");
+  std::strcpy(value.allowed_clients, "192.168.1.20,");
+  require(pv_config_validate(&value, &error) == PV_INVALID_CONFIG, "Trailing comma rejected");
   value = config();
   std::strcpy(value.bind_address, "192.168.1.3");
   require(pv_config_validate(&value, &error) == PV_LAN_CONSENT_REQUIRED, "LAN consent");
@@ -288,6 +308,8 @@ void test_transparent_bridge() {
   send_all(rig.master, response.data(), response.size(), false);
   receive_exact(rig.client, response.data(), response.size());
   reject_second_client(rig);
+  require(snapshot(rig.handle).rejected_busy == 1,
+          "Busy rejection appears in snapshot");
   std::vector<uint8_t> bulk(8192);
   for (size_t index = 0; index < bulk.size(); ++index) bulk[index] = static_cast<uint8_t>(index);
   send_all(rig.client, bulk.data(), bulk.size(), true);
@@ -306,6 +328,55 @@ void test_transparent_bridge() {
   const auto final = snapshot(rig.handle);
   require(final.serial_open == 0 && final.client_connected == 0,
           "Worker released handles after disconnect");
+}
+
+void test_three_clients_without_restart() {
+  Rig rig;
+  rig.settings.wait_next_client = 1;
+  rig.start();
+  for (int round = 0; round < 3; ++round) {
+    rig.connect_client();
+    const std::array<uint8_t, 3> request{0x01, static_cast<uint8_t>(round), 0xff};
+    const std::array<uint8_t, 3> response{0x02, static_cast<uint8_t>(round), 0x00};
+    send_all(rig.client, request.data(), request.size(), true);
+    receive_exact(rig.master, request.data(), request.size());
+    send_all(rig.master, response.data(), response.size(), false);
+    receive_exact(rig.client, response.data(), response.size());
+    until([&] {
+      const auto current = snapshot(rig.handle);
+      return current.serial_accepted == static_cast<uint64_t>((round + 1) * 3) &&
+             current.tcp_accepted == static_cast<uint64_t>((round + 1) * 3);
+    }, "Round output did not settle");
+    ::close(rig.client);
+    rig.client = -1;
+    until([&] { return snapshot(rig.handle).state == PV_STATE_LISTENING; },
+          "Worker did not wait for the next client");
+    require(snapshot(rig.handle).serial_open == 1,
+            "Serial handle closed between clients");
+  }
+}
+
+void test_ip_allowlist_rejects_nonmember() {
+  Rig rig;
+  rig.settings.allow_lan = 1;
+  std::strcpy(rig.settings.allowed_clients, "127.0.0.2");
+  rig.start();
+  const int client = socket(AF_INET, SOCK_STREAM, 0);
+  require(client >= 0, "Create denied client");
+  sockaddr_in address{};
+  address.sin_family = AF_INET;
+  address.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
+  address.sin_port = htons(static_cast<uint16_t>(rig.settings.tcp_port));
+  require(connect(client, reinterpret_cast<sockaddr*>(&address), sizeof(address)) == 0,
+          "Connect denied client");
+  until([&] { return snapshot(rig.handle).rejected_ip == 1; },
+        "Denied IP was not counted");
+  uint8_t byte = 0;
+  require(recv(client, &byte, 1, 0) == 0,
+          "Denied client was not closed immediately");
+  ::close(client);
+  require(snapshot(rig.handle).state == PV_STATE_LISTENING,
+          "Denied client changed listener state");
 }
 
 void test_stop_releases_handles() {
@@ -411,6 +482,8 @@ int main() {
     test_byte_queue();
 #ifndef _WIN32
     test_transparent_bridge();
+    test_three_clients_without_restart();
+    test_ip_allowlist_rejects_nonmember();
     test_stop_releases_handles();
     test_repeated_start_stop_on_same_endpoints();
     test_serial_disconnect_is_reported();

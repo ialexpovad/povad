@@ -20,6 +20,7 @@ class DetailsPage extends StatefulWidget {
     this.hint,
     this.serialValue,
     this.baud,
+    this.parity,
     this.endpoint,
     this.serialReceived = 0,
     this.tcpReceived = 0,
@@ -31,7 +32,7 @@ class DetailsPage extends StatefulWidget {
 
   final BridgeViewState state;
   final bool previewMode;
-  final String? detail, hint, serialValue, baud, endpoint;
+  final String? detail, hint, serialValue, baud, parity, endpoint;
   final int serialReceived, tcpReceived;
   final DateTime? sessionStartedAt;
   final VoidCallback? onStartAgain, onEditSetup;
@@ -194,6 +195,12 @@ class _DetailsPageState extends State<DetailsPage> {
           children: [
             _Fact(l.serialPortPath, widget.serialValue ?? dash),
             _Fact(l.baudRate, widget.baud ?? dash),
+            _Fact(l.parity, switch (widget.parity) {
+              'E' => l.parityEven,
+              'O' => l.parityOdd,
+              'N' => l.parityNone,
+              _ => dash,
+            }),
             _Fact(l.endpointLabel, widget.endpoint ?? dash),
             _Fact(
               l.clientLabel,

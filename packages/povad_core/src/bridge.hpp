@@ -28,6 +28,7 @@ class Bridge final {
   void add_serial_received(size_t bytes);
   void add_serial_accepted(size_t bytes);
   void add_tcp_accepted(size_t bytes);
+  void reject_client(bool busy);
   void finish(uint32_t state, uint32_t error_code, const char* message);
 
   mutable std::mutex mutex_;

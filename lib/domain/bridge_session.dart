@@ -71,7 +71,9 @@ final class BridgeSession extends ChangeNotifier {
       if (previous?.state != next.state ||
           previous?.errorCode != next.errorCode ||
           previous?.tcpReceived != next.tcpReceived ||
-          previous?.serialReceived != next.serialReceived) {
+          previous?.serialReceived != next.serialReceived ||
+          previous?.rejectedBusy != next.rejectedBusy ||
+          previous?.rejectedIp != next.rejectedIp) {
         notifyListeners();
       }
     } on NativeBridgeError catch (error) {

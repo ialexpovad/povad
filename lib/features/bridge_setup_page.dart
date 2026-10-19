@@ -3,10 +3,12 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
 import 'package:shadcn_flutter/shadcn_flutter.dart' as shad;
+import 'package:qr_flutter/qr_flutter.dart';
 
 import '../design/povad_components.dart';
 import '../design/povad_theme.dart';
 import '../domain/android_usb_host.dart';
+import '../domain/client_allowlist.dart';
 import '../l10n/generated/app_localizations.dart';
 
 /// Field-level validation shared by the form and the start action.
@@ -36,11 +38,18 @@ class BridgeSetupPage extends StatelessWidget {
     super.key,
     required this.serialPort,
     required this.baud,
+    required this.parity,
     required this.tcpPort,
     required this.onSerialPortChanged,
     required this.onBaudChanged,
+    required this.onParityChanged,
     required this.onTcpPortChanged,
     required this.allowLan,
+    required this.waitNextClient,
+    required this.allowedClients,
+    this.discoveryUnavailable = false,
+    required this.onWaitNextChanged,
+    required this.onAllowedClientsChanged,
     required this.onAllowLanChanged,
     required this.lanAddresses,
     required this.copiedEndpoint,
@@ -59,11 +68,17 @@ class BridgeSetupPage extends StatelessWidget {
     this.onUsbPortSelected,
   });
 
-  final String serialPort, baud, tcpPort;
+  final String serialPort, baud, parity, tcpPort;
   final ValueChanged<String> onSerialPortChanged;
   final ValueChanged<String> onBaudChanged;
+  final ValueChanged<String> onParityChanged;
   final ValueChanged<String> onTcpPortChanged;
   final bool allowLan;
+  final bool waitNextClient;
+  final String allowedClients;
+  final bool discoveryUnavailable;
+  final ValueChanged<bool> onWaitNextChanged;
+  final ValueChanged<String> onAllowedClientsChanged;
   final ValueChanged<bool> onAllowLanChanged;
   final List<({String name, String address})> lanAddresses;
   final String? copiedEndpoint;
@@ -179,6 +194,12 @@ class BridgeSetupPage extends StatelessWidget {
               enabled: !running,
               error: baudError ? l.baudInvalid : null,
             ),
+            const SizedBox(height: 16),
+            _ParitySelector(
+              value: parity,
+              onChanged: onParityChanged,
+              enabled: !running,
+            ),
           ],
         ),
         Section(
@@ -204,10 +225,21 @@ class BridgeSetupPage extends StatelessWidget {
               ),
             ),
             SectionRow(
+              label: l.waitNextClient,
+              description: l.waitNextDescription,
+              stackBelow: 0,
+              trailing: shad.Switch(
+                key: const ValueKey('wait-next-client'),
+                value: waitNextClient,
+                onChanged: running ? null : onWaitNextChanged,
+              ),
+            ),
+            SectionRow(
               label: l.lanAccessTitle,
               description: allowLan ? null : l.loopbackNote,
               stackBelow: 0,
               trailing: shad.Switch(
+                key: const ValueKey('allow-lan'),
                 value: allowLan,
                 onChanged: running ? null : onAllowLanChanged,
               ),
@@ -220,6 +252,35 @@ class BridgeSetupPage extends StatelessWidget {
                   : null,
             ),
             if (allowLan) ...[
+              if (discoveryUnavailable)
+                Padding(
+                  padding: const EdgeInsets.all(18),
+                  child: Callout(
+                    icon: shad.LucideIcons.triangleAlert,
+                    tone: CalloutTone.warning,
+                    text: l.discoveryUnavailable,
+                  ),
+                ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(18, 16, 18, 18),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    _FieldLabel(l.allowedClients),
+                    _SettingField(
+                      key: const ValueKey('allowed-clients-field'),
+                      value: allowedClients,
+                      onChanged: onAllowedClientsChanged,
+                      enabled: !running,
+                      placeholder: '192.168.1.20, 192.168.1.21',
+                      error: parseClientAllowlist(allowedClients) == null
+                          ? l.allowedClientsInvalid
+                          : null,
+                      hint: l.allowedClientsHint,
+                    ),
+                  ],
+                ),
+              ),
               SectionRow(
                 label: l.lanAddressesTitle,
                 stackBelow: 0,
@@ -449,6 +510,7 @@ class _AddressRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = paletteOf(context);
+    final l = AppLocalizations.of(context)!;
     return Padding(
       padding: const EdgeInsets.only(bottom: 6),
       child: Container(
@@ -480,6 +542,61 @@ class _AddressRow extends StatelessWidget {
               ),
             ),
             shad.GhostButton(
+              key: ValueKey('qr-$endpoint'),
+              onPressed: () => showGeneralDialog<void>(
+                context: context,
+                barrierDismissible: true,
+                barrierLabel: l.close,
+                barrierColor: const Color(0x59000000),
+                pageBuilder: (dialogContext, _, _) => Center(
+                  child: Padding(
+                    padding: const EdgeInsets.all(20),
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 320),
+                      child: shad.AlertDialog(
+                        title: Text(l.scanBridgeAddress),
+                        content: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            QrImageView(
+                              data: 'povad-bridge://$endpoint',
+                              size: 208,
+                              padding: const EdgeInsets.all(8),
+                              backgroundColor: const Color(0xFFFFFFFF),
+                              eyeStyle: const QrEyeStyle(
+                                color: Color(0xFF18181B),
+                              ),
+                              dataModuleStyle: const QrDataModuleStyle(
+                                color: Color(0xFF18181B),
+                              ),
+                              semanticsLabel: l.scanBridgeAddress,
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              'povad-bridge://$endpoint',
+                              style: TextStyle(color: colors.muted),
+                            ),
+                          ],
+                        ),
+                        actions: [
+                          shad.GhostButton(
+                            onPressed: () => Navigator.pop(dialogContext),
+                            child: Text(l.close),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+              density: shad.ButtonDensity.icon,
+              child: Icon(
+                shad.LucideIcons.qrCode,
+                size: 17,
+                color: colors.muted,
+              ),
+            ),
+            shad.GhostButton(
               onPressed: () => onCopy(endpoint),
               density: shad.ButtonDensity.dense,
               leading: Icon(
@@ -492,6 +609,57 @@ class _AddressRow extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+class _ParitySelector extends StatelessWidget {
+  const _ParitySelector({
+    required this.value,
+    required this.onChanged,
+    required this.enabled,
+  });
+
+  final String value;
+  final ValueChanged<String> onChanged;
+  final bool enabled;
+
+  @override
+  Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context)!;
+    String label(String parity) => switch (parity) {
+      'E' => l.parityEven,
+      'O' => l.parityOdd,
+      _ => l.parityNone,
+    };
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        _FieldLabel(l.parity),
+        shad.Select<String>(
+          key: const ValueKey('parity-select'),
+          value: value,
+          onChanged: enabled
+              ? (selected) {
+                  if (selected != null) onChanged(selected);
+                }
+              : null,
+          enabled: enabled,
+          theme: const shad.SelectTheme(adaptiveOverlay: false),
+          itemBuilder: (context, selected) => Text(label(selected)),
+          popup: (context) => shad.SelectPopup<String>(
+            items: shad.SelectItemList(
+              children: [
+                for (final parity in const ['N', 'E', 'O'])
+                  shad.SelectItemButton<String>(
+                    value: parity,
+                    child: Text(label(parity)),
+                  ),
+              ],
+            ),
+          ),
+        ),
+      ],
     );
   }
 }

@@ -50,6 +50,19 @@ class AppLocalizationsEn extends AppLocalizations {
   String get stopAndQuit => 'Stop bridge and quit';
 
   @override
+  String get closeActiveTitle => 'Bridge is running';
+
+  @override
+  String get closeActiveDescription =>
+      'Keep the connection active after closing this window?';
+
+  @override
+  String get keepRunning => 'Keep running';
+
+  @override
+  String get cancel => 'Cancel';
+
+  @override
   String get previewNotice => 'PREVIEW · No live connection';
 
   @override
@@ -152,6 +165,18 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get baudRate => 'Baud rate';
+
+  @override
+  String get parity => 'Parity';
+
+  @override
+  String get parityNone => 'None · 8N1';
+
+  @override
+  String get parityEven => 'Even · 8E1';
+
+  @override
+  String get parityOdd => 'Odd · 8O1';
 
   @override
   String get customBaudRate => 'Custom rate';
@@ -607,4 +632,37 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get dismiss => 'Dismiss';
+
+  @override
+  String get waitNextClient => 'Wait for next client';
+
+  @override
+  String get waitNextDescription =>
+      'Reconnect automatically after a client leaves. A late device response may reach the next client.';
+
+  @override
+  String get allowedClients => 'Allowed client IPs';
+
+  @override
+  String get allowedClientsHint =>
+      'Optional. Leave empty to allow any LAN client; separate exact IPv4 addresses with commas.';
+
+  @override
+  String get allowedClientsInvalid => 'Enter up to 32 exact IPv4 addresses.';
+
+  @override
+  String get clientRejectedBusy => 'Client rejected: bridge busy';
+
+  @override
+  String get clientRejectedIp => 'Client rejected: IP not allowed';
+
+  @override
+  String get discoveryUnavailable =>
+      'Local discovery is unavailable. Connect using the address below.';
+
+  @override
+  String get scanBridgeAddress => 'Scan bridge address';
+
+  @override
+  String get close => 'Close';
 }

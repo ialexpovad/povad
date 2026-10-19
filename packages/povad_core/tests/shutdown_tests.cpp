@@ -92,8 +92,9 @@ struct TcpServer::Impl {};
 TcpServer::TcpServer() : impl_(new Impl) {}
 TcpServer::~TcpServer() = default;
 void TcpServer::listen(const char*, uint16_t) {}
-int TcpServer::accept() { return 0; }
+int TcpServer::accept(const char*) { return 0; }
 bool TcpServer::connected() const { return false; }
+bool TcpServer::close_client() { return true; }
 int64_t TcpServer::receive(uint8_t*, size_t) { return -1; }
 size_t TcpServer::send(const uint8_t*, size_t length) { return length; }
 bool TcpServer::close() {

@@ -6,8 +6,21 @@
 #include <cstdint>
 #include <memory>
 #include <stdexcept>
+#include <string_view>
 
 namespace povad {
+
+inline bool peer_allowed(std::string_view list, std::string_view peer) {
+  if (list.empty()) return true;
+  while (!list.empty()) {
+    const size_t separator = list.find(',');
+    const auto candidate = list.substr(0, separator);
+    if (candidate == peer) return true;
+    if (separator == std::string_view::npos) break;
+    list.remove_prefix(separator + 1);
+  }
+  return false;
+}
 
 class TransportError final : public std::runtime_error {
  public:
@@ -40,9 +53,11 @@ class TcpServer final {
   TcpServer(const TcpServer&) = delete;
   TcpServer& operator=(const TcpServer&) = delete;
   void listen(const char* address, uint16_t port);
-  // 0: no arrival, 1: admitted, 2: extra client rejected.
-  int accept();
+  // 0: none, 1: admitted, 2: busy rejected, 3: IP rejected.
+  int accept(const char* allowed_clients);
   bool connected() const;
+  // Keeps the listener open for a later client. False means close uncertain.
+  bool close_client();
   // -1: would block, 0: peer closed, positive: byte count.
   int64_t receive(uint8_t* data, size_t capacity);
   size_t send(const uint8_t* data, size_t length);

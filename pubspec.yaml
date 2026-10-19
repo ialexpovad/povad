@@ -1,7 +1,7 @@
 name: povad
 description: Device connectivity, starting with a transparent Serial to TCP bridge.
 publish_to: none
-version: 0.1.0-rc.1+2
+version: 0.1.0-rc.2+3
 
 environment:
   sdk: ^3.13.1
@@ -16,6 +16,8 @@ dependencies:
     sdk: flutter
   shadcn_flutter: 0.0.55
   crypto: ^3.0.7
+  ffi: ^2.2.0
+  screen_retriever: ^0.2.2
   shared_preferences: 2.5.5
   package_info_plus: ^10.2.2
   url_launcher: ^6.3.3
@@ -23,6 +25,8 @@ dependencies:
   window_manager: ^0.5.2
   povad_core:
     path: packages/povad_core
+  bonsoir: ^7.1.5
+  qr_flutter: ^4.1.0
 
 dev_dependencies:
   flutter_test:
@@ -38,6 +42,7 @@ flutter:
     - THIRD_PARTY_NOTICES.md
     - assets/brand/icon-256.png
     - assets/brand/icon.ico
+    - assets/tray/
   fonts:
     - family: Inter
       fonts:

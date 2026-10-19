@@ -251,8 +251,11 @@ void TcpServer::listen(const char* address, uint16_t port) {
   }
 }
 
-int TcpServer::accept() {
-  const SOCKET incoming = ::accept(impl_->listener, nullptr, nullptr);
+int TcpServer::accept(const char* allowed_clients) {
+  sockaddr_in peer{};
+  int peer_length = sizeof(peer);
+  const SOCKET incoming = ::accept(impl_->listener,
+      reinterpret_cast<sockaddr*>(&peer), &peer_length);
   if (incoming == INVALID_SOCKET) {
     if (socket_blocked()) return 0;
     throw TransportError(PV_NATIVE_FAILURE, "TCP accept failed");
@@ -260,6 +263,13 @@ int TcpServer::accept() {
   if (impl_->client != INVALID_SOCKET) {
     closesocket(incoming);
     return 2;
+  }
+  char peer_address[INET_ADDRSTRLEN]{};
+  if (peer.sin_family != AF_INET ||
+      InetNtopA(AF_INET, &peer.sin_addr, peer_address, sizeof(peer_address)) == nullptr ||
+      !peer_allowed(allowed_clients, peer_address)) {
+    closesocket(incoming);
+    return 3;
   }
   try {
     nonblocking(incoming);
@@ -277,6 +287,13 @@ int TcpServer::accept() {
 }
 
 bool TcpServer::connected() const { return impl_->client != INVALID_SOCKET; }
+
+bool TcpServer::close_client() {
+  if (impl_->client == INVALID_SOCKET) return true;
+  if (closesocket(impl_->client) != 0) return false;
+  impl_->client = INVALID_SOCKET;
+  return true;
+}
 
 int64_t TcpServer::receive(uint8_t* data, size_t capacity) {
   const int count = recv(impl_->client, reinterpret_cast<char*>(data),
@@ -301,10 +318,7 @@ size_t TcpServer::send(const uint8_t* data, size_t length) {
 bool TcpServer::close() {
   if (impl_->close_uncertain) return false;
   bool closed = true;
-  if (impl_->client != INVALID_SOCKET) {
-    closed = closesocket(impl_->client) == 0 && closed;
-    impl_->client = INVALID_SOCKET;
-  }
+  if (impl_->client != INVALID_SOCKET) closed = close_client() && closed;
   if (impl_->listener != INVALID_SOCKET) {
     closed = closesocket(impl_->listener) == 0 && closed;
     impl_->listener = INVALID_SOCKET;

@@ -176,6 +176,30 @@ abstract class AppLocalizations {
   /// **'Stop bridge and quit'**
   String get stopAndQuit;
 
+  /// No description provided for @closeActiveTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Bridge is running'**
+  String get closeActiveTitle;
+
+  /// No description provided for @closeActiveDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Keep the connection active after closing this window?'**
+  String get closeActiveDescription;
+
+  /// No description provided for @keepRunning.
+  ///
+  /// In en, this message translates to:
+  /// **'Keep running'**
+  String get keepRunning;
+
+  /// No description provided for @cancel.
+  ///
+  /// In en, this message translates to:
+  /// **'Cancel'**
+  String get cancel;
+
   /// No description provided for @previewNotice.
   ///
   /// In en, this message translates to:
@@ -379,6 +403,30 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Baud rate'**
   String get baudRate;
+
+  /// No description provided for @parity.
+  ///
+  /// In en, this message translates to:
+  /// **'Parity'**
+  String get parity;
+
+  /// No description provided for @parityNone.
+  ///
+  /// In en, this message translates to:
+  /// **'None · 8N1'**
+  String get parityNone;
+
+  /// No description provided for @parityEven.
+  ///
+  /// In en, this message translates to:
+  /// **'Even · 8E1'**
+  String get parityEven;
+
+  /// No description provided for @parityOdd.
+  ///
+  /// In en, this message translates to:
+  /// **'Odd · 8O1'**
+  String get parityOdd;
 
   /// No description provided for @customBaudRate.
   ///
@@ -1201,6 +1249,66 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Dismiss'**
   String get dismiss;
+
+  /// No description provided for @waitNextClient.
+  ///
+  /// In en, this message translates to:
+  /// **'Wait for next client'**
+  String get waitNextClient;
+
+  /// No description provided for @waitNextDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Reconnect automatically after a client leaves. A late device response may reach the next client.'**
+  String get waitNextDescription;
+
+  /// No description provided for @allowedClients.
+  ///
+  /// In en, this message translates to:
+  /// **'Allowed client IPs'**
+  String get allowedClients;
+
+  /// No description provided for @allowedClientsHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Optional. Leave empty to allow any LAN client; separate exact IPv4 addresses with commas.'**
+  String get allowedClientsHint;
+
+  /// No description provided for @allowedClientsInvalid.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter up to 32 exact IPv4 addresses.'**
+  String get allowedClientsInvalid;
+
+  /// No description provided for @clientRejectedBusy.
+  ///
+  /// In en, this message translates to:
+  /// **'Client rejected: bridge busy'**
+  String get clientRejectedBusy;
+
+  /// No description provided for @clientRejectedIp.
+  ///
+  /// In en, this message translates to:
+  /// **'Client rejected: IP not allowed'**
+  String get clientRejectedIp;
+
+  /// No description provided for @discoveryUnavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'Local discovery is unavailable. Connect using the address below.'**
+  String get discoveryUnavailable;
+
+  /// No description provided for @scanBridgeAddress.
+  ///
+  /// In en, this message translates to:
+  /// **'Scan bridge address'**
+  String get scanBridgeAddress;
+
+  /// No description provided for @close.
+  ///
+  /// In en, this message translates to:
+  /// **'Close'**
+  String get close;
 }
 
 class _AppLocalizationsDelegate

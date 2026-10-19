@@ -34,6 +34,7 @@ jobs:
 
   macos-build:
     runs-on: macos-latest
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v6
       - uses: subosito/flutter-action@v2
@@ -43,6 +44,7 @@ jobs:
           cache: true
       - run: flutter pub get
       - run: flutter test integration_test/app_test.dart -d macos
+        timeout-minutes: 8
       - run: flutter build macos --release
 
   linux-build:
@@ -131,4 +133,6 @@ jobs:
           arch: x86_64
           emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim
           disable-animations: true
-          script: flutter test integration_test/android_native_test.dart -d emulator-5554
+          script: |
+            flutter test integration_test/android_native_test.dart -d emulator-5554
+            flutter test integration_test/bonjour_android_test.dart -d emulator-5554

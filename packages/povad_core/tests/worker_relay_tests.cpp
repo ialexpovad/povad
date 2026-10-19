@@ -24,6 +24,9 @@ struct FakeTransport {
   bool listening = false;
   bool admit_client = false;
   bool client_connected = false;
+  bool disconnect_client = false;
+  bool reject_busy = false;
+  bool reject_ip = false;
 } fake;
 
 void require(bool condition, const char* message) {
@@ -126,6 +129,45 @@ void test_repeated_full_duplex_relay() {
   }
 }
 
+void test_wait_next_client_and_rejections() {
+  pv_config config{};
+  config.queue_limit = 64;
+  config.queue_age_ms = 5000;
+  config.wait_next_client = 1;
+  povad::Bridge bridge;
+  struct StopOnExit final {
+    povad::Bridge& bridge;
+    ~StopOnExit() { bridge.request_stop(); }
+  } stop_on_exit{bridge};
+  require(bridge.start(config) == PV_OK, "Start waiting worker");
+  wait_for([&] { return snapshot(bridge).state == PV_STATE_LISTENING; },
+      "Worker did not listen");
+  for (int round = 0; round < 3; ++round) {
+    {
+      std::lock_guard<std::mutex> lock(fake.mutex);
+      fake.admit_client = true;
+    }
+    wait_for([&] { return snapshot(bridge).state == PV_STATE_CONNECTED; },
+        "Client did not connect");
+    {
+      std::lock_guard<std::mutex> lock(fake.mutex);
+      fake.reject_busy = true;
+    }
+    wait_for([&] { return snapshot(bridge).rejected_busy == static_cast<uint32_t>(round + 1); },
+        "Busy client was not counted");
+    {
+      std::lock_guard<std::mutex> lock(fake.mutex);
+      fake.disconnect_client = true;
+    }
+    wait_for([&] { return snapshot(bridge).state == PV_STATE_LISTENING; },
+        "Worker did not wait for a successor");
+  }
+  require(snapshot(bridge).serial_open == 1, "Serial port was closed between clients");
+  bridge.request_stop();
+  wait_for([&] { return snapshot(bridge).state == PV_STATE_STOPPED; },
+      "Waiting worker did not stop");
+}
+
 } // namespace
 
 namespace povad {
@@ -166,9 +208,18 @@ void TcpServer::listen(const char*, uint16_t) {
   std::lock_guard<std::mutex> lock(fake.mutex);
   fake.listening = true;
 }
-int TcpServer::accept() {
+int TcpServer::accept(const char*) {
   std::lock_guard<std::mutex> lock(fake.mutex);
+  if (fake.reject_busy) {
+    fake.reject_busy = false;
+    return 2;
+  }
+  if (fake.reject_ip) {
+    fake.reject_ip = false;
+    return 3;
+  }
   if (!fake.admit_client || fake.client_connected) return 0;
+  fake.admit_client = false;
   fake.client_connected = true;
   return 1;
 }
@@ -176,8 +227,17 @@ bool TcpServer::connected() const {
   std::lock_guard<std::mutex> lock(fake.mutex);
   return fake.client_connected;
 }
+bool TcpServer::close_client() {
+  std::lock_guard<std::mutex> lock(fake.mutex);
+  fake.client_connected = false;
+  return true;
+}
 int64_t TcpServer::receive(uint8_t* data, size_t capacity) {
   std::lock_guard<std::mutex> lock(fake.mutex);
+  if (fake.disconnect_client) {
+    fake.disconnect_client = false;
+    return 0;
+  }
   if (fake.tcp_input.empty()) return -1;
   const size_t count = std::min({capacity, size_t(17), fake.tcp_input.size()});
   for (size_t index = 0; index < count; ++index) {
@@ -205,6 +265,8 @@ int main() {
   try {
     test_repeated_full_duplex_relay();
     std::cout << "PASS repeated full-duplex worker relay\n";
+    test_wait_next_client_and_rejections();
+    std::cout << "PASS three sequential clients and busy rejection\n";
     return 0;
   } catch (const std::exception& error) {
     std::cerr << "FAIL " << error.what() << '\n';

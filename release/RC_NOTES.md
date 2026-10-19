@@ -1,17 +1,26 @@
-# Povad release candidate
+# Povad 0.1.0-rc.2
 
-The first Povad release candidate introduces the transparent Serial ↔ TCP
-bridge, a compact connection view, English and Belarusian interfaces, and
-GitHub release checks.
+This candidate improves the bridge setup and desktop experience while keeping
+Serial ↔ TCP traffic byte-transparent.
 
-- An animated status mark follows confirmed bridge stages and observed
-  traffic, and respects reduced-motion settings.
-- After an error or a client disconnect, the bridge restarts from Overview
-  or Details. The worker's reason is shown directly.
-- Bridge setup validates each field, suggests detected serial ports on macOS
-  and Linux, and remembers the last port, baud rate, and TCP port on this
-  device. LAN access is never remembered.
-- Details shows session facts and received-byte counts.
+- The compact header keeps Help and Menu at the right edge. Select the Povad
+  brand to return to Overview from any page.
+- Windows now discovers current COM ports and lets you refresh the list,
+  alongside existing macOS and Linux port discovery.
+- Serial setup exposes None, Even, and Odd parity with standard 8N1, 8E1,
+  and 8O1 framing. The selection is remembered locally.
+- Desktop starts in a compact window and restores its saved size and position.
+  When a bridge is active, closing the window offers to keep it running in the
+  tray, stop and quit, or cancel.
+- Monochrome tray icons show stopped, listening, connected, and error states.
+- Optional **Wait for next client** accepts three or more sequential clients
+  without reopening the serial port. It is off by default because late device
+  responses can be ambiguous across clients.
+- A second client is closed immediately and counted as a busy rejection.
+- Optional exact IPv4 allowlist restricts LAN clients. The Bridge page shows
+  QR codes with `povad-bridge://` addresses.
+- When LAN access is enabled and the bridge is listening, DNS-SD advertises
+  `_povad-bridge._tcp` with `v`, `mode`, `port`, `serial`, and `busy` TXT fields.
 
 ## Download
 
@@ -22,19 +31,16 @@ GitHub release checks.
 - macOS: unsigned QA ZIP for developer testing only. Public macOS distribution
   requires Developer ID signing and notarization.
 
-Povad checks GitHub for a newer release at startup. On Windows, Linux, and
-Android it can download the update in the background, verify it against
-SHA256SUMS.txt, and install it when you choose Restart to update (on Android,
-the system installer asks for confirmation). Installation never starts while
-the bridge is running. On Windows and Linux a downloaded update is also
-installed when Povad quits. Automatic download can be turned off in Settings.
+Povad checks GitHub for newer releases. On Windows, Linux, and Android it can
+download a matching package, verify it against `SHA256SUMS.txt`, and install it
+after the active bridge stops. Android installation needs system confirmation.
 The macOS QA bundle is excluded from update offers.
 
 ## Validation status
 
-Automated checks cover native C ABI contracts, binary bridge exchange through
-simulated serial endpoints, Flutter UI, desktop builds, Android native-library
-packaging and an emulator smoke test. A real USB–Serial adapter and instrument
-have not yet been tested. No Modbus protocol handling is claimed.
+Automated checks cover the Flutter UI, native C ABI, simulated binary traffic,
+desktop builds, Android packaging, and an emulator smoke test. A real
+USB–Serial adapter and instrument have not yet been tested. Raw bridge mode
+does not interpret Modbus, choose a bus address, or change CRC byte order.
 
-Use the attached SHA256SUMS.txt to verify downloaded assets.
+Use the attached `SHA256SUMS.txt` to verify downloaded assets.
