@@ -1405,6 +1405,42 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Stop all bridges'**
   String get bridgesStopAll;
+
+  /// No description provided for @startupSection.
+  ///
+  /// In en, this message translates to:
+  /// **'Startup'**
+  String get startupSection;
+
+  /// No description provided for @startAtLogin.
+  ///
+  /// In en, this message translates to:
+  /// **'Open at login'**
+  String get startAtLogin;
+
+  /// No description provided for @startAtLoginDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Open Povad when you sign in. Start bridges when you need them.'**
+  String get startAtLoginDescription;
+
+  /// No description provided for @startAtLoginFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not change startup. Try again or check your system settings.'**
+  String get startAtLoginFailed;
+
+  /// No description provided for @startAtLoginApproval.
+  ///
+  /// In en, this message translates to:
+  /// **'Allow Povad in your system’s login or startup settings.'**
+  String get startAtLoginApproval;
+
+  /// No description provided for @startAtLoginUnavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'Automatic startup requires macOS 13 or later and an installed app.'**
+  String get startAtLoginUnavailable;
 }
 
 class _AppLocalizationsDelegate

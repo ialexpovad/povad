@@ -1,7 +1,7 @@
 # Contributing
 
-Povad is in the release candidate stage. Feature proposals and feedback on hardware
-support are welcome through the GitHub issue templates. If you tested a
+Feature proposals and feedback on hardware support are welcome through the
+GitHub issue templates. If you tested a
 development build, include its commit ID, operating system, serial adapter,
 and clear reproduction steps.
 

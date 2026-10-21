@@ -740,4 +740,26 @@ class AppLocalizationsBe extends AppLocalizations {
 
   @override
   String get bridgesStopAll => 'Спыніць усе масты';
+
+  @override
+  String get startupSection => 'Запуск';
+
+  @override
+  String get startAtLogin => 'Адкрываць пры ўваходзе';
+
+  @override
+  String get startAtLoginDescription =>
+      'Адкрываць Povad пры ўваходзе ў сістэму. Запускайце масты, калі яны патрэбныя.';
+
+  @override
+  String get startAtLoginFailed =>
+      'Не ўдалося змяніць аўтазапуск. Паўтарыце спробу або праверце налады сістэмы.';
+
+  @override
+  String get startAtLoginApproval =>
+      'Дазвольце Povad у сістэмных наладах уваходу або аўтазапуску.';
+
+  @override
+  String get startAtLoginUnavailable =>
+      'Аўтазапуск патрабуе macOS 13 або навейшай версіі і ўсталяванай праграмы.';
 }

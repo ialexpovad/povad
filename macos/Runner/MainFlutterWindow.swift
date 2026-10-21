@@ -1,6 +1,7 @@
 import Cocoa
 import FlutterMacOS
 import dnssd
+import ServiceManagement
 
 class MainFlutterWindow: NSWindow {
   private var bonjour: PovadBonjourRegistry?
@@ -12,6 +13,47 @@ class MainFlutterWindow: NSWindow {
     self.setFrame(windowFrame, display: true)
 
     RegisterGeneratedPlugins(registry: flutterViewController)
+
+    let startupChannel = FlutterMethodChannel(
+      name: "povad/login-startup",
+      binaryMessenger: flutterViewController.engine.binaryMessenger)
+    startupChannel.setMethodCallHandler { call, result in
+      guard #available(macOS 13.0, *) else {
+        if call.method == "status" { result("unavailable") }
+        else { result(FlutterError(code: "UNAVAILABLE", message: "Requires macOS 13", details: nil)) }
+        return
+      }
+      let service = SMAppService.mainApp
+      switch call.method {
+      case "status":
+        switch service.status {
+        case .enabled: result("enabled")
+        case .requiresApproval: result("approvalRequired")
+        case .notRegistered: result("disabled")
+        // A main app may not yet have a Service Management record.
+        case .notFound: result("disabled")
+        @unknown default: result("unavailable")
+        }
+      case "setEnabled":
+        guard let enabled = call.arguments as? Bool else {
+          result(FlutterError(code: "ARGUMENT", message: "Expected enabled boolean", details: nil))
+          return
+        }
+        do {
+          if enabled {
+            if service.status == .notRegistered || service.status == .notFound {
+              try service.register()
+            }
+          } else if service.status == .enabled || service.status == .requiresApproval {
+            try service.unregister()
+          }
+          result(nil)
+        } catch {
+          result(FlutterError(code: "STARTUP", message: error.localizedDescription, details: nil))
+        }
+      default: result(FlutterMethodNotImplemented)
+      }
+    }
 
     let bonjour = PovadBonjourRegistry()
     self.bonjour = bonjour

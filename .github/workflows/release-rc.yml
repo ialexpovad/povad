@@ -1,12 +1,12 @@
-name: Build RC draft
+name: Build release draft
 
 on:
   push:
-    tags: ['v*-rc.*']
+    tags: ['v*']
   workflow_dispatch:
     inputs:
       tag:
-        description: Existing RC tag, for example v0.1.0-rc.1
+        description: Existing release tag, for example v0.1.0
         required: true
         type: string
 
@@ -14,7 +14,7 @@ permissions:
   contents: read
 
 env:
-  RC_TAG: ${{ inputs.tag || github.ref_name }}
+  RELEASE_TAG: ${{ inputs.tag || github.ref_name }}
   FLUTTER_VERSION: 3.47.1
 
 jobs:
@@ -25,17 +25,14 @@ jobs:
     steps:
       - uses: actions/checkout@v6
         with:
-          ref: ${{ env.RC_TAG }}
+          ref: ${{ env.RELEASE_TAG }}
       - id: version
         run: |
           version=$(sed -n 's/^version: //p' pubspec.yaml)
           expected="v${version%%+*}"
-          test "$RC_TAG" = "$expected"
-          case "$version" in
-            *-rc.*+*) ;;
-            *) exit 1 ;;
-          esac
-          printf 'tag=%s\n' "$RC_TAG" >> "$GITHUB_OUTPUT"
+          test "$RELEASE_TAG" = "$expected"
+          [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-rc\.[0-9]+)?\+[0-9]+$ ]]
+          printf 'tag=%s\n' "$RELEASE_TAG" >> "$GITHUB_OUTPUT"
       - uses: subosito/flutter-action@v2
         with:
           channel: stable
@@ -112,7 +109,7 @@ jobs:
           test -n "$actual_certificate"
           test "$actual_certificate" = "$expected_certificate"
           mkdir -p dist
-          cp "$apk" "dist/Povad-$RC_TAG-android-arm64.apk"
+          cp "$apk" "dist/Povad-$RELEASE_TAG-android-arm64.apk"
       - uses: actions/upload-artifact@v7
         with:
           name: rc-android
@@ -138,7 +135,7 @@ jobs:
       - name: Package Linux bundle
         run: |
           mkdir -p dist
-          tar -C build/linux/x64/release/bundle -cJf "dist/Povad-$RC_TAG-linux-x64.tar.xz" .
+          tar -C build/linux/x64/release/bundle -cJf "dist/Povad-$RELEASE_TAG-linux-x64.tar.xz" .
       - uses: actions/upload-artifact@v7
         with:
           name: rc-linux
@@ -165,7 +162,7 @@ jobs:
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Force -Path dist | Out-Null
-          Compress-Archive -Path "build/windows/x64/runner/Release/*" -DestinationPath "dist/Povad-$env:RC_TAG-windows-x64.zip"
+          Compress-Archive -Path "build/windows/x64/runner/Release/*" -DestinationPath "dist/Povad-$env:RELEASE_TAG-windows-x64.zip"
       - uses: actions/upload-artifact@v7
         with:
           name: rc-windows
@@ -192,7 +189,7 @@ jobs:
           app=(build/macos/Build/Products/Release/*.app)
           test -d "${app[0]}"
           mkdir -p dist
-          ditto -c -k --sequesterRsrc --keepParent "${app[0]}" "dist/Povad-$RC_TAG-macos-unsigned-qa.zip"
+          ditto -c -k --sequesterRsrc --keepParent "${app[0]}" "dist/Povad-$RELEASE_TAG-macos-unsigned-qa.zip"
       - uses: actions/upload-artifact@v7
         with:
           name: rc-macos-qa
@@ -216,19 +213,21 @@ jobs:
           merge-multiple: true
       - name: Verify artifacts and calculate checksums
         run: |
-          test -f "dist/Povad-$RC_TAG-android-arm64.apk"
-          test -f "dist/Povad-$RC_TAG-linux-x64.tar.xz"
-          test -f "dist/Povad-$RC_TAG-windows-x64.zip"
-          test -f "dist/Povad-$RC_TAG-macos-unsigned-qa.zip"
+          test -f "dist/Povad-$RELEASE_TAG-android-arm64.apk"
+          test -f "dist/Povad-$RELEASE_TAG-linux-x64.tar.xz"
+          test -f "dist/Povad-$RELEASE_TAG-windows-x64.zip"
+          test -f "dist/Povad-$RELEASE_TAG-macos-unsigned-qa.zip"
           cd dist
           sha256sum Povad-* > SHA256SUMS.txt
-      - name: Create or refresh draft prerelease
+      - name: Create or refresh release draft
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          if gh release view "$RC_TAG" --json isDraft --jq .isDraft > /tmp/povad-release-draft-state 2>/dev/null; then
+          if gh release view "$RELEASE_TAG" --json isDraft --jq .isDraft > /tmp/povad-release-draft-state 2>/dev/null; then
             test "$(cat /tmp/povad-release-draft-state)" = true
-            gh release upload "$RC_TAG" dist/* --clobber
+            gh release upload "$RELEASE_TAG" dist/* --clobber
           else
-            gh release create "$RC_TAG" dist/* --verify-tag --draft --prerelease --title "Povad $RC_TAG" --notes-file release/RC_NOTES.md
+            flags=()
+            if [[ "$RELEASE_TAG" == *-rc.* ]]; then flags+=(--prerelease); fi
+            gh release create "$RELEASE_TAG" dist/* --verify-tag --draft "${flags[@]}" --title "Povad $RELEASE_TAG" --notes-file release/NOTES.md
           fi

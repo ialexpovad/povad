@@ -1,6 +1,9 @@
 import 'dart:io';
 
 import 'package:flutter/widgets.dart';
+import 'package:flutter/foundation.dart';
+
+import 'app/login_startup.dart';
 
 import 'app/android_presence.dart';
 import 'app/bridge_presence.dart';
@@ -29,6 +32,7 @@ Future<void> main() async {
   runApp(
     PovadApp(
       fleet: fleet,
+      loginStartup: kReleaseMode ? LoginStartup.forDesktop() : null,
       presence: presence,
       updates: ReleaseUpdates(),
       bridgeProfiles: DeviceBridgeProfilesStore(

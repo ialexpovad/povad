@@ -45,6 +45,8 @@ jobs:
       - run: flutter pub get
       - run: flutter test integration_test/app_test.dart -d macos
         timeout-minutes: 8
+      - run: flutter test integration_test/login_startup_test.dart -d macos
+        timeout-minutes: 8
       - run: flutter build macos --release
 
   linux-build:
@@ -71,6 +73,8 @@ jobs:
           cache: true
       - run: flutter pub get
       - run: flutter test test/update_install_script_test.dart
+      - run: flutter test integration_test/login_startup_test.dart -d windows
+        timeout-minutes: 8
       - run: flutter build windows --release
 
   android-build:
