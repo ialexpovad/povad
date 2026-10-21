@@ -23,7 +23,7 @@ jobs:
     outputs:
       tag: ${{ steps.version.outputs.tag }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         with:
           ref: ${{ env.RELEASE_TAG }}
       - id: version
@@ -57,7 +57,7 @@ jobs:
             sanitize: 'OFF'
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         with:
           ref: ${{ needs.validate.outputs.tag }}
       - run: cmake -S packages/povad_core -B build/native -DCMAKE_BUILD_TYPE=Debug -DPOVAD_SANITIZE=${{ matrix.sanitize }}
@@ -68,7 +68,7 @@ jobs:
     needs: validate
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         with:
           ref: ${{ needs.validate.outputs.tag }}
       - uses: actions/setup-java@v4
@@ -121,7 +121,7 @@ jobs:
     needs: validate
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         with:
           ref: ${{ needs.validate.outputs.tag }}
       - uses: subosito/flutter-action@v2
@@ -147,7 +147,7 @@ jobs:
     needs: validate
     runs-on: windows-2022
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         with:
           ref: ${{ needs.validate.outputs.tag }}
       - uses: subosito/flutter-action@v2
@@ -174,7 +174,7 @@ jobs:
     needs: validate
     runs-on: macos-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         with:
           ref: ${{ needs.validate.outputs.tag }}
       - uses: subosito/flutter-action@v2
@@ -203,7 +203,7 @@ jobs:
     permissions:
       contents: write
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         with:
           ref: ${{ needs.validate.outputs.tag }}
       - uses: actions/download-artifact@v7

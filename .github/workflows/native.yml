@@ -22,7 +22,7 @@ jobs:
             sanitize: 'OFF'
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - run: cmake -S packages/povad_core -B build/native -DCMAKE_BUILD_TYPE=Debug -DPOVAD_SANITIZE=${{ matrix.sanitize }}
       - run: cmake --build build/native --config Debug --parallel
       - run: ctest --test-dir build/native --build-config Debug --output-on-failure
