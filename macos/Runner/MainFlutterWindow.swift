@@ -30,7 +30,8 @@ class MainFlutterWindow: NSWindow {
         case .enabled: result("enabled")
         case .requiresApproval: result("approvalRequired")
         case .notRegistered: result("disabled")
-        case .notFound: result("unavailable")
+        // A main app may not yet have a Service Management record.
+        case .notFound: result("disabled")
         @unknown default: result("unavailable")
         }
       case "setEnabled":
@@ -40,8 +41,10 @@ class MainFlutterWindow: NSWindow {
         }
         do {
           if enabled {
-            if service.status == .notRegistered { try service.register() }
-          } else if service.status != .notRegistered {
+            if service.status == .notRegistered || service.status == .notFound {
+              try service.register()
+            }
+          } else if service.status == .enabled || service.status == .requiresApproval {
             try service.unregister()
           }
           result(nil)

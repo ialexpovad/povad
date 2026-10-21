@@ -148,6 +148,43 @@ void main() {
       expect(await linux.read(), LoginStartupStatus.disabled);
     });
 
+    test(
+      'desktop launcher executes a path with spaces and reserved characters',
+      () async {
+        final executable = File(
+          '${directory.path}/Povad \"quoted\" \$cash%/povad',
+        );
+        await executable.parent.create();
+        await executable.writeAsString(
+          '#!/bin/sh\nprintf launched > "\$0.marker"\n',
+        );
+        expect(
+          (await Process.run('chmod', ['+x', executable.path])).exitCode,
+          0,
+        );
+        final registration = LinuxLoginStartup(
+          environment: {'XDG_CONFIG_HOME': directory.path},
+          executable: executable.path,
+        );
+        await registration.setEnabled(true);
+        final result = await Process.run('gio', [
+          'launch',
+          registration.entry.path,
+        ]);
+        expect(result.exitCode, 0, reason: result.stderr.toString());
+        final marker = File('${executable.path}.marker');
+        for (
+          var attempt = 0;
+          attempt < 20 && !await marker.exists();
+          attempt++
+        ) {
+          await Future<void>.delayed(const Duration(milliseconds: 50));
+        }
+        expect(await marker.readAsString(), 'launched');
+      },
+      skip: !Platform.isLinux,
+    );
+
     test('relative XDG path falls back to user home', () {
       final fallback = LinuxLoginStartup(
         environment: {'XDG_CONFIG_HOME': 'relative', 'HOME': directory.path},
