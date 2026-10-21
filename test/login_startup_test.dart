@@ -152,7 +152,7 @@ void main() {
       'desktop launcher executes a path with spaces and reserved characters',
       () async {
         final executable = File(
-          '${directory.path}/Povad \"quoted\" \$cash%/povad',
+          '${directory.path}/Povad "quoted" \$cash%/povad',
         );
         await executable.parent.create();
         await executable.writeAsString(
