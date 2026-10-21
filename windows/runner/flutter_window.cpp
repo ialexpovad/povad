@@ -1,6 +1,7 @@
 #include "flutter_window.h"
 
 #include <optional>
+#include "login_startup.h"
 
 #include "flutter/generated_plugin_registrant.h"
 
@@ -25,6 +26,7 @@ bool FlutterWindow::OnCreate() {
     return false;
   }
   RegisterPlugins(flutter_controller_->engine());
+  RegisterLoginStartup(flutter_controller_->engine()->messenger());
   SetChildContent(flutter_controller_->view()->GetNativeWindow());
 
   flutter_controller_->engine()->SetNextFrameCallback([&]() {

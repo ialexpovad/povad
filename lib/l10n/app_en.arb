@@ -290,5 +290,11 @@
       }
     }
   },
-  "bridgesStopAll": "Stop all bridges"
+  "bridgesStopAll": "Stop all bridges",
+  "startupSection": "Startup",
+  "startAtLogin": "Open at login",
+  "startAtLoginDescription": "Open Povad when you sign in. Start bridges when you need them.",
+  "startAtLoginFailed": "Could not change startup. Try again or check your system settings.",
+  "startAtLoginApproval": "Allow Povad in your system’s login or startup settings.",
+  "startAtLoginUnavailable": "Automatic startup requires macOS 13 or later and an installed app."
 }

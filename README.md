@@ -1,108 +1,73 @@
 <p align="center">
-  <img src="assets/brand/icon-256.png" width="88" alt="Povad icon">
+  <img src="assets/brand/icon-256.png" width="80" alt="Povad">
 </p>
 
 <h1 align="center">Povad</h1>
-
-<p align="center">A simple way to connect serial devices to TCP clients.</p>
+<p align="center">Your serial devices. Connected.</p>
 
 <p align="center">
-  <a href="https://github.com/ialexpovad/povad/releases"><img alt="Latest release" src="https://img.shields.io/github/v/release/ialexpovad/povad?include_prereleases&label=release"></a>
+  <a href="https://github.com/ialexpovad/povad/releases/latest"><img alt="Latest release" src="https://img.shields.io/github/v/release/ialexpovad/povad?color=2563eb"></a>
   <a href="https://github.com/ialexpovad/povad/actions/workflows/ui.yml"><img alt="Build and UI checks" src="https://github.com/ialexpovad/povad/actions/workflows/ui.yml/badge.svg"></a>
   <a href="LICENSE"><img alt="MIT license" src="https://img.shields.io/badge/license-MIT-18181b"></a>
 </p>
 
 <p align="center">
-  <a href="https://github.com/ialexpovad/povad/releases">Download</a> ·
+  <a href="https://github.com/ialexpovad/povad/releases/latest">Download</a> ·
   <a href="https://github.com/ialexpovad/povad/issues/new/choose">Feedback</a> ·
-  <a href="PRIVACY.md">Privacy</a>
+  <a href="CONTRIBUTING.md">Contribute</a>
 </p>
 
-Povad's first module is a **transparent Serial ↔ TCP bridge**. It forwards the
-bytes it receives in both directions, shows the actual connection state, and
-keeps an active desktop session reachable from the system tray. The interface
-is available in English and Belarusian, with light and dark themes.
+**Povad connects serial devices to TCP clients**, on your computer or across
+your local network. A small, focused interface with independent bridges,
+clear connection states, and light and dark themes.
 
-## Get started
+<p align="center">
+  <a href="assets/screenshots/overview.png"><img src="assets/screenshots/overview.gif" width="872" alt="Povad in light and dark themes, showing an active bridge and bidirectional traffic animation"></a>
+  <br><sub>Actual interface with sample connection data. <a href="assets/screenshots/overview.png">View static screenshot</a>.</sub>
+</p>
 
-1. Download the package for your platform from [Releases](https://github.com/ialexpovad/povad/releases).
-2. Connect a serial device. In **Bridge**, choose its port, baud rate, and parity.
-3. Select **Start bridge**. Povad listens on `127.0.0.1:9268` by default.
-4. Point a TCP client at the displayed endpoint. To accept clients on your
-   local network, explicitly enable **Allow LAN clients** and copy a listed
-   LAN address.
+## Built for everyday connections
 
-Each bridge accepts one TCP client at a time and immediately rejects a second.
-By default, a disconnect ends the session. **Wait for next client** can keep
-the listener open for reconnection; a late device response could reach a later
-client, so use it only when your device protocol makes that acceptable.
-LAN clients can send bytes directly to the serial device. The bridge has no
-authentication; use LAN access on a trusted network and optionally restrict it
-to exact client IPv4 addresses.
+- **Multiple bridges** — separate serial devices, settings, and TCP ports.
+- **Easy LAN setup** — copy an address, scan a QR code, or discover a bridge with Bonjour.
+- **Background operation** — desktop tray controls and an Android foreground notification.
+- **Open at login** — enabled by default on supported desktops; change it in Settings.
+- **Updates from GitHub** — verified downloads for Windows, Linux, and Android.
+- **Your preferences** — English or Belarusian, light or dark, optional traffic animation.
 
-| Platform | Release package | Notes |
+## Get connected
+
+1. Download and open Povad. Connect your serial device.
+2. In **Bridge**, choose the device, baud rate, and parity. Select **Start bridge**.
+3. Connect your TCP client to the displayed address. For another computer or
+   phone, enable **Allow LAN clients** and use a listed LAN address.
+
+Use **+** beside the bridge selector to add another connection. Each needs
+its own serial device and TCP port. Enable **Wait for next client** to keep
+that bridge listening after a client disconnects.
+
+Povad forwards bytes unchanged and accepts one TCP client per bridge.
+LAN access is off at each launch; enable it only on a trusted network and
+optionally restrict client IPs. Opening Povad at login does not start bridges.
+
+## Download
+
+| Platform | Package | Installation |
 | --- | --- | --- |
-| Windows | x64 ZIP | Extract the entire folder before launching. |
-| Linux | x64 tar.xz | Extract the bundle before launching. |
-| Android | arm64 APK | The phone hosts a USB–Serial adapter through USB-OTG. |
-| macOS | unsigned QA ZIP | Developer testing only; public distribution needs signing and notarization. |
+| Windows | x64 ZIP | Extract the entire folder, then open `povad.exe`. |
+| Linux | x64 tar.xz | Extract the bundle, then run `povad`. |
+| Android | arm64 APK | Install the APK; connect a USB–Serial adapter through USB-OTG. |
+| macOS | Unsigned QA ZIP | Manual testing build; signing and notarization are pending. |
 
-The current [release candidate](https://github.com/ialexpovad/povad/releases)
-includes SHA-256 checksums. Povad can check GitHub Releases for updates and
-download matching Windows, Linux, and Android packages. It verifies downloaded
-packages before offering installation; installing on Android also requires
-system confirmation. Every active bridge must stop before an update is installed.
+**[Get the latest release →](https://github.com/ialexpovad/povad/releases/latest)**
 
-## Multiple bridges
+Keep desktop bundles in a permanent folder before enabling startup. macOS
+autostart requires version 13 or later. Android needs compatible USB host
+hardware; multiple adapters require a USB hub. Release assets include
+`SHA256SUMS.txt`. Stop all bridges before installing an update.
 
-Use **+** beside the bridge selector to add a connection. Give each bridge its
-own serial device and TCP port, for example:
+## Help & contribute
 
-| Bridge | Serial device | TCP endpoint |
-| --- | --- | --- |
-| Bench A | `COM3` | `192.168.1.20:9268` |
-| Bench B | `COM7` | `192.168.1.20:9269` |
-
-Switching the selected bridge keeps the others running. Settings and names
-are saved independently; your previous configuration becomes **Bridge 1**.
-The collection can grow beyond two bridges. Povad prevents two active bridges
-from using the same serial port or overlapping TCP listener addresses.
-
-Enable **Allow LAN clients** separately for each bridge. Each has its own QR
-endpoint and Bonjour announcement. The tray and Android notification show
-how many bridges are active; quitting or installing an update accounts for
-all of them. **Stop bridge** only stops the selected connection.
-
-Android requires a USB host hub to connect multiple adapters. USB permissions
-and device selections must be renewed after restarting Povad. Multi-device
-hardware qualification is pending; automated parallel-stream tests use virtual
-serial ports and do not establish adapter compatibility.
-
-## What the bridge does
-
-- Relays serial and TCP bytes without changing their contents or order.
-- Shows whether the serial port is open, a client is waiting or connected, and
-  whether bytes have actually arrived in each direction.
-- Remembers local bridge settings; LAN access resets to off on every launch.
-- Lets a running desktop bridge remain active when its window is closed.
-- Advertises an active LAN bridge as `_povad-bridge._tcp` with its port, serial
-  name, and busy state. The Bridge page shows a QR code for each LAN address.
-
-Povad does **not** interpret Modbus, choose a device address, recalculate a
-CRC, or swap CRC bytes. A frame such as `01 07 41 E2` passes through exactly as
-received. Protocol-aware tools may come later as a separate, explicit mode.
-Povad is currently a bridge host, not a TCP client for another Povad host.
-
-Automated checks cover UI behavior, native bridge contracts, simulated binary
-traffic, desktop builds, and an Android emulator. Physical USB–Serial adapters
-and instruments still require validation. The macOS package is an unsigned QA
-build.
-
-## Contribute
-
-See [CONTRIBUTING.md](CONTRIBUTING.md) for development and testing. Use
-[GitHub Issues](https://github.com/ialexpovad/povad/issues/new/choose) for
-feedback, and [SECURITY.md](SECURITY.md) for security reports. Povad does not
-attach device data or local logs when opening the feedback page.
-
-Povad is released under the [MIT License](LICENSE).
+[Report an issue](https://github.com/ialexpovad/povad/issues/new/choose) ·
+[Development guide](CONTRIBUTING.md) · [Privacy](PRIVACY.md) ·
+[Security](SECURITY.md) · [MIT License](LICENSE)

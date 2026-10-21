@@ -27,6 +27,7 @@ import '../features/secondary_pages.dart';
 import '../l10n/generated/app_localizations.dart';
 import '../l10n/shadcn_localizations_be.dart';
 import 'ui_preferences.dart';
+import 'login_startup.dart';
 import 'bridge_presence.dart';
 import 'desktop_presence.dart';
 import 'lan_discovery.dart';
@@ -41,6 +42,7 @@ class PovadApp extends StatefulWidget {
   const PovadApp({
     super.key,
     this.preferences,
+    this.loginStartup,
     this.session,
     this.fleet,
     this.bridgeProfiles,
@@ -54,6 +56,7 @@ class PovadApp extends StatefulWidget {
   });
 
   final UiPreferences? preferences;
+  final LoginStartup? loginStartup;
 
   /// When absent, this widget displays the UI preview for design tests.
   final BridgeSession? session;
@@ -79,7 +82,7 @@ class PovadApp extends StatefulWidget {
   State<PovadApp> createState() => _PovadAppState();
 }
 
-class _PovadAppState extends State<PovadApp> {
+class _PovadAppState extends State<PovadApp> with WidgetsBindingObserver {
   final GlobalKey<NavigatorState> _navigatorKey = GlobalKey<NavigatorState>();
   late final BridgeFleet fleet;
   final Map<String, _ConnectionUi> _connectionUi = {};
@@ -175,6 +178,9 @@ class _PovadAppState extends State<PovadApp> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    widget.loginStartup?.addListener(onLoginStartupChanged);
+    unawaited(widget.loginStartup?.initialize());
     fleet = widget.fleet ?? BridgeFleet(firstSession: widget.session);
     profilesReady = widget.bridgeProfiles == null;
     preferences = widget.preferences ?? DeviceUiPreferences();
@@ -403,8 +409,22 @@ class _PovadAppState extends State<PovadApp> {
     }
   }
 
+  void onLoginStartupChanged() {
+    if (mounted) setState(() {});
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      unawaited(widget.loginStartup?.refresh());
+    }
+  }
+
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    widget.loginStartup?.removeListener(onLoginStartupChanged);
+    widget.loginStartup?.dispose();
     updateTimer?.cancel();
     for (final discovery in _discoveries.values) {
       discovery.retry?.cancel();
@@ -1210,6 +1230,7 @@ class _PovadAppState extends State<PovadApp> {
         onPreviewState: live ? null : (value) => setState(() => state = value),
       ),
       _ => SettingsPage(
+        loginStartup: widget.loginStartup,
         locale: locale,
         onLocaleChanged: changeLocale,
         appearance: appearance,

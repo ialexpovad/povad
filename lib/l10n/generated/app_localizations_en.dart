@@ -732,4 +732,26 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get bridgesStopAll => 'Stop all bridges';
+
+  @override
+  String get startupSection => 'Startup';
+
+  @override
+  String get startAtLogin => 'Open at login';
+
+  @override
+  String get startAtLoginDescription =>
+      'Open Povad when you sign in. Start bridges when you need them.';
+
+  @override
+  String get startAtLoginFailed =>
+      'Could not change startup. Try again or check your system settings.';
+
+  @override
+  String get startAtLoginApproval =>
+      'Allow Povad in your system’s login or startup settings.';
+
+  @override
+  String get startAtLoginUnavailable =>
+      'Automatic startup requires macOS 13 or later and an installed app.';
 }

@@ -2,6 +2,7 @@ import 'package:flutter/widgets.dart';
 import 'package:shadcn_flutter/shadcn_flutter.dart' as shad;
 
 import '../app/release_updates.dart';
+import '../app/login_startup.dart';
 import '../app/update_installer.dart';
 import '../design/povad_components.dart';
 import '../design/povad_mark.dart';
@@ -11,6 +12,7 @@ import '../l10n/generated/app_localizations.dart';
 class SettingsPage extends StatelessWidget {
   const SettingsPage({
     super.key,
+    this.loginStartup,
     required this.locale,
     required this.onLocaleChanged,
     required this.appearance,
@@ -42,6 +44,7 @@ class SettingsPage extends StatelessWidget {
     this.updateNotice,
     this.updateNoticeError = false,
   });
+  final LoginStartup? loginStartup;
   final Locale locale;
   final ValueChanged<Locale> onLocaleChanged;
   final PovadAppearance appearance;
@@ -200,6 +203,40 @@ class SettingsPage extends StatelessWidget {
             ),
           ],
         ),
+        if (loginStartup case final startup?)
+          Section(
+            title: l.startupSection,
+            icon: shad.LucideIcons.power,
+            children: [
+              SectionRow(
+                label: l.startAtLogin,
+                description: startup.failed
+                    ? l.startAtLoginFailed
+                    : switch (startup.status) {
+                        LoginStartupStatus.approvalRequired =>
+                          l.startAtLoginApproval,
+                        LoginStartupStatus.unavailable =>
+                          l.startAtLoginUnavailable,
+                        _ => l.startAtLoginDescription,
+                      },
+                stackBelow: 0,
+                trailing: Semantics(
+                  label: l.startAtLogin,
+                  child: shad.Switch(
+                    key: const ValueKey('start-at-login'),
+                    value:
+                        startup.status == LoginStartupStatus.enabled ||
+                        startup.status == LoginStartupStatus.approvalRequired,
+                    onChanged:
+                        startup.busy ||
+                            startup.status == LoginStartupStatus.unavailable
+                        ? null
+                        : (value) => startup.change(value),
+                  ),
+                ),
+              ),
+            ],
+          ),
         if (updateNotice != null)
           Padding(
             padding: const EdgeInsets.only(bottom: 14),
