@@ -128,7 +128,7 @@ void main() {
       expect(linux.entry.parent.path, '${directory.path}/autostart');
       expect(
         await linux.entry.readAsString(),
-        contains('Exec="/opt/Povad app/povad"'),
+        contains('Exec=/usr/bin/env -- "/opt/Povad app/povad"'),
       );
       expect(await linux.read(), LoginStartupStatus.enabled);
       await linux.setEnabled(false);
@@ -202,7 +202,9 @@ void main() {
       );
       expect(
         entry,
-        contains(r'Exec="/opt/a \\"b\\"/\\$cash\\`100%%\\\\/povad"'),
+        contains(
+          r'Exec=/usr/bin/env -- "/opt/a \\"b\\"/\\$cash\\`100%%\\\\/povad"',
+        ),
       );
       expect(
         () => LinuxLoginStartup.desktopEntry('/opt/a\nHidden=false'),

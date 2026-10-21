@@ -176,10 +176,13 @@ class LinuxLoginStartup implements LoginStartupBackend {
         .replaceAll(r'$', r'\\$')
         .replaceAll('`', r'\\`')
         .replaceAll('%', '%%');
+    // GLib checks argv[0] before expanding %% into a literal percent.
+    // env gives it a stable executable and forwards the fully decoded path
+    // without a shell, including installation directories containing %.
     return '[Desktop Entry]\n'
         'Type=Application\n'
         'Name=Povad\n'
-        'Exec="$quoted"\n'
+        'Exec=/usr/bin/env -- "$quoted"\n'
         'Terminal=false\n'
         'StartupNotify=false\n';
   }
