@@ -5,6 +5,10 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:povad/app/release_updates.dart';
 import 'package:povad/app/update_installer.dart';
 import 'package:povad/main.dart';
+import 'package:povad/domain/bridge_fleet.dart';
+import 'package:povad_core/povad_core.dart';
+
+import 'bridge_fleet_test.dart' show FakeBridgeSession;
 
 import 'widget_test.dart' show MemoryUiPreferences;
 
@@ -189,9 +193,47 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.text('Restart to update'));
     await tester.pumpAndSettle();
-    expect(find.text('Stop the bridge to install the update.'), findsOneWidget);
+    expect(
+      find.text('Stop all bridges to install the update.'),
+      findsOneWidget,
+    );
     expect(started, isEmpty);
   });
+
+  testWidgets(
+    'an unselected active bridge blocks installation until every worker stops',
+    (tester) async {
+      final started = <List<String>>[];
+      final fleet = BridgeFleet(sessionFactory: FakeBridgeSession.new);
+      final first = fleet.selected.id;
+      fleet.add();
+      await fleet.start(
+        first,
+        const BridgeConfig(serialPort: 'COM3', tcpPort: 9268),
+      );
+      await tester.pumpWidget(
+        PovadApp(
+          fleet: fleet,
+          preferences: MemoryUiPreferences()..connectionAnimation = false,
+          updates: updates(),
+          installer: installer(started),
+          updatePreferences: MemoryUpdatePreferences(),
+        ),
+      );
+      await settle(tester);
+      await tester.tap(find.byKey(const ValueKey('nav-3')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Restart to update'));
+      await tester.pumpAndSettle();
+      expect(started, isEmpty);
+      expect(fleet.connection(first).active, true);
+      await fleet.stopAll();
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Restart to update'));
+      await settle(tester);
+      expect(started, hasLength(1));
+    },
+  );
 
   testWidgets('automatic download can be turned off', (tester) async {
     final started = <List<String>>[];

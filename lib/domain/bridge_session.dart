@@ -5,12 +5,13 @@ import 'package:povad_core/povad_core.dart';
 
 /// Coordinates UI snapshots with the single native worker. It never handles
 /// serial data or socket traffic; the native core owns those resources.
-final class BridgeSession extends ChangeNotifier {
+class BridgeSession extends ChangeNotifier {
   NativeBridge? _bridge;
   Timer? _poller;
   BridgeSnapshot? _snapshot;
   String? _controlError;
   bool _disposed = false;
+  bool _stateUnknown = false;
 
   BridgeSnapshot? get snapshot => _snapshot;
   String? get errorMessage => _controlError?.isNotEmpty == true
@@ -18,6 +19,13 @@ final class BridgeSession extends ChangeNotifier {
       : _snapshot?.errorMessage.isNotEmpty == true
       ? _snapshot!.errorMessage
       : null;
+
+  bool get active =>
+      _stateUnknown ||
+      (_snapshot != null &&
+          (!_snapshot!.finished ||
+              _snapshot!.serialOpen ||
+              _snapshot!.clientConnected));
 
   BridgeState get state => _snapshot?.state ?? BridgeState.stopped;
 
@@ -31,6 +39,7 @@ final class BridgeSession extends ChangeNotifier {
     try {
       _bridge ??= NativeBridge();
       _controlError = null;
+      _stateUnknown = true;
       _bridge!.start(config);
       _refresh();
       _poller ??= Timer.periodic(
@@ -39,6 +48,7 @@ final class BridgeSession extends ChangeNotifier {
       );
     } on NativeBridgeError catch (error) {
       _controlError = error.message;
+      _refresh();
       notifyListeners();
     }
   }
@@ -62,6 +72,7 @@ final class BridgeSession extends ChangeNotifier {
     if (_disposed || _bridge == null) return;
     try {
       final next = _bridge!.snapshot();
+      _stateUnknown = false;
       final previous = _snapshot;
       _snapshot = next;
       if (next.finished) {
@@ -69,6 +80,9 @@ final class BridgeSession extends ChangeNotifier {
         _poller = null;
       }
       if (previous?.state != next.state ||
+          previous?.finished != next.finished ||
+          previous?.serialOpen != next.serialOpen ||
+          previous?.clientConnected != next.clientConnected ||
           previous?.errorCode != next.errorCode ||
           previous?.tcpReceived != next.tcpReceived ||
           previous?.serialReceived != next.serialReceived ||
@@ -77,6 +91,7 @@ final class BridgeSession extends ChangeNotifier {
         notifyListeners();
       }
     } on NativeBridgeError catch (error) {
+      _stateUnknown = true;
       _controlError = error.message;
       _poller?.cancel();
       _poller = null;

@@ -626,7 +626,7 @@ class ToolbarIconButton extends StatelessWidget {
 
   final IconData icon;
   final String label;
-  final VoidCallback onPressed;
+  final VoidCallback? onPressed;
 
   /// Shows a small accent dot, for example when an update is available.
   final bool badge;
@@ -638,6 +638,7 @@ class ToolbarIconButton extends StatelessWidget {
     final button = Semantics(
       label: label,
       button: true,
+      enabled: onPressed != null,
       excludeSemantics: true,
       child: shad.Clickable(
         onPressed: onPressed,

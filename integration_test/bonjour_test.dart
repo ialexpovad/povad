@@ -10,6 +10,7 @@ void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
   testWidgets('macOS advertises Povad through Bonjour', (tester) async {
     await verifyBonjour();
+    await verifyMultipleBonjour();
   });
 }
 
@@ -93,5 +94,45 @@ Future<String> _resolveRecord(String serviceName, String expectedBusy) async {
   } finally {
     resolver.kill();
     await resolver.exitCode.timeout(const Duration(seconds: 3));
+  }
+}
+
+Future<void> verifyMultipleBonjour() async {
+  if (!Platform.isMacOS) return;
+  final firstSocket = await ServerSocket.bind(InternetAddress.anyIPv4, 0);
+  final secondSocket = await ServerSocket.bind(InternetAddress.anyIPv4, 0);
+  final first = LanDiscoveryPublisher(id: 'qa-first');
+  final second = LanDiscoveryPublisher(id: 'qa-second');
+  BridgeAdvertisement advertisement(int port, String serial, bool busy) =>
+      BridgeAdvertisement(
+        port: port,
+        serial: serial,
+        busy: busy,
+        name: 'Povad-multi-$port',
+      );
+  try {
+    await first.update(advertisement(firstSocket.port, 'COM3', false));
+    await second.update(advertisement(secondSocket.port, 'COM7', false));
+    final firstName = first.serviceName!;
+    final secondName = second.serviceName!;
+    expect(firstName, isNot(secondName));
+    expect(
+      await _resolveRecord(firstName, 'busy=0'),
+      contains('port=${firstSocket.port}'),
+    );
+    expect(await _resolveRecord(secondName, 'busy=0'), contains('serial=COM7'));
+    await first.update(advertisement(firstSocket.port, 'COM3', true));
+    expect(await _resolveRecord(firstName, 'busy=1'), contains('serial=COM3'));
+    expect(
+      await _resolveRecord(secondName, 'busy=0'),
+      contains('port=${secondSocket.port}'),
+    );
+    await first.update(null);
+    expect(await _resolveRecord(secondName, 'busy=0'), contains('serial=COM7'));
+  } finally {
+    await first.update(null);
+    await second.update(null);
+    await firstSocket.close();
+    await secondSocket.close();
   }
 }

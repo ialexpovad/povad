@@ -12,6 +12,22 @@ final class BridgeSettings {
     this.allowedClients = '',
   });
 
+  BridgeSettings copyWith({
+    String? serialPort,
+    String? baud,
+    String? parity,
+    String? tcpPort,
+    bool? waitNextClient,
+    String? allowedClients,
+  }) => BridgeSettings(
+    serialPort: serialPort ?? this.serialPort,
+    baud: baud ?? this.baud,
+    parity: parity ?? this.parity,
+    tcpPort: tcpPort ?? this.tcpPort,
+    waitNextClient: waitNextClient ?? this.waitNextClient,
+    allowedClients: allowedClients ?? this.allowedClients,
+  );
+
   final String serialPort, baud, parity, tcpPort;
   final bool waitNextClient;
   final String allowedClients;

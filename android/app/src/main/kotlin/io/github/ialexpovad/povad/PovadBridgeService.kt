@@ -13,6 +13,7 @@ import android.os.IBinder
 
 /** Process visibility only; the application-scoped Dart engine owns C++ worker cleanup. */
 class PovadBridgeService : Service() {
+    private var generation: Long = 0L
     companion object {
         private const val CHANNEL_ID = "povad_bridge"
         private const val NOTIFICATION_ID = 9268
@@ -63,7 +64,9 @@ class PovadBridgeService : Service() {
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        val status = latestStatus ?: intent?.getStringExtra("status") ?: "Bridge running"
+        generation = intent?.getLongExtra("generation", generation) ?: generation
+        val status = intent?.getStringExtra("status") ?: latestStatus ?: "Bridge running"
+        latestStatus = status
         try {
             val notification = createNotification(this, status)
             if (Build.VERSION.SDK_INT >= 29) {
@@ -85,7 +88,7 @@ class PovadBridgeService : Service() {
     override fun onDestroy() {
         active = false
         latestStatus = null
-        (application as PovadApplication).notifyServiceStopped()
+        (application as PovadApplication).notifyServiceStopped(generation)
         super.onDestroy()
     }
 

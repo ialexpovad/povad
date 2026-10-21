@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:povad/design/povad_components.dart';
 import 'package:povad/app/lan_discovery.dart';
@@ -23,6 +25,22 @@ void main() {
       'busy': '1',
     });
   });
+
+  test(
+    'Bonjour instance names fit the UTF-8 byte limit without broken characters',
+    () {
+      final advertisement = BridgeAdvertisement(
+        port: 9268,
+        serial: 'COM3',
+        busy: false,
+        name: 'Povad ${'Прылада' * 10}',
+      );
+      final encoded = utf8.encode(advertisement.toService().name);
+      expect(encoded.length, lessThanOrEqualTo(63));
+      expect(utf8.decode(encoded), advertisement.serviceName);
+      expect(advertisement.serviceName, startsWith('Povad Прылада'));
+    },
+  );
 
   test('LAN allowlist accepts exact IPv4 peers only', () {
     expect(parseClientAllowlist(''), isEmpty);

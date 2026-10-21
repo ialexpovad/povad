@@ -3,6 +3,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:povad/app/ui_preferences.dart';
 import 'package:povad/design/povad_theme.dart';
 import 'package:povad/main.dart';
+import 'package:povad/domain/bridge_fleet.dart';
+import 'package:povad/domain/bridge_session.dart';
 
 void main() {
   testWidgets('overview controls are labeled and readable', (tester) async {
@@ -31,6 +33,26 @@ void main() {
     await tester.pumpAndSettle();
 
     await expectLater(tester, meetsGuideline(androidTapTargetGuideline));
+    semantics.dispose();
+  });
+
+  testWidgets('multiple bridge controls have labels and usable touch targets', (
+    tester,
+  ) async {
+    final semantics = tester.ensureSemantics();
+    tester.view.physicalSize = const Size(360, 700);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    await tester.pumpWidget(
+      PovadApp(
+        fleet: BridgeFleet(sessionFactory: BridgeSession.new)..add(),
+        preferences: _MemoryPreferences(),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await expectLater(tester, meetsGuideline(androidTapTargetGuideline));
+    await expectLater(tester, meetsGuideline(labeledTapTargetGuideline));
     semantics.dispose();
   });
 

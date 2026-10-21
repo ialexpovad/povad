@@ -4,7 +4,7 @@
 
 <h1 align="center">Povad</h1>
 
-<p align="center">A simple way to connect a serial device to a TCP client.</p>
+<p align="center">A simple way to connect serial devices to TCP clients.</p>
 
 <p align="center">
   <a href="https://github.com/ialexpovad/povad/releases"><img alt="Latest release" src="https://img.shields.io/github/v/release/ialexpovad/povad?include_prereleases&label=release"></a>
@@ -32,7 +32,7 @@ is available in English and Belarusian, with light and dark themes.
    local network, explicitly enable **Allow LAN clients** and copy a listed
    LAN address.
 
-Povad accepts one TCP client at a time and immediately rejects a second.
+Each bridge accepts one TCP client at a time and immediately rejects a second.
 By default, a disconnect ends the session. **Wait for next client** can keep
 the listener open for reconnection; a late device response could reach a later
 client, so use it only when your device protocol makes that acceptable.
@@ -51,7 +51,32 @@ The current [release candidate](https://github.com/ialexpovad/povad/releases)
 includes SHA-256 checksums. Povad can check GitHub Releases for updates and
 download matching Windows, Linux, and Android packages. It verifies downloaded
 packages before offering installation; installing on Android also requires
-system confirmation. An active bridge is stopped before an update is installed.
+system confirmation. Every active bridge must stop before an update is installed.
+
+## Multiple bridges
+
+Use **+** beside the bridge selector to add a connection. Give each bridge its
+own serial device and TCP port, for example:
+
+| Bridge | Serial device | TCP endpoint |
+| --- | --- | --- |
+| Bench A | `COM3` | `192.168.1.20:9268` |
+| Bench B | `COM7` | `192.168.1.20:9269` |
+
+Switching the selected bridge keeps the others running. Settings and names
+are saved independently; your previous configuration becomes **Bridge 1**.
+The collection can grow beyond two bridges. Povad prevents two active bridges
+from using the same serial port or overlapping TCP listener addresses.
+
+Enable **Allow LAN clients** separately for each bridge. Each has its own QR
+endpoint and Bonjour announcement. The tray and Android notification show
+how many bridges are active; quitting or installing an update accounts for
+all of them. **Stop bridge** only stops the selected connection.
+
+Android requires a USB host hub to connect multiple adapters. USB permissions
+and device selections must be renewed after restarting Povad. Multi-device
+hardware qualification is pending; automated parallel-stream tests use virtual
+serial ports and do not establish adapter compatibility.
 
 ## What the bridge does
 

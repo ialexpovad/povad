@@ -330,6 +330,61 @@ void test_transparent_bridge() {
           "Worker released handles after disconnect");
 }
 
+// Exercise two actual native handles, OS serial descriptors, sockets and
+// queues concurrently. Different binary vectors expose cross-session routing.
+void test_independent_concurrent_bridges() {
+  Rig first;
+  first.settings.wait_next_client = 1;
+  first.start();
+  Rig second; // Reserve the second TCP port after the first is listening.
+  second.start();
+  first.connect_client();
+  second.connect_client();
+  std::array<uint8_t, 4096> a{}, b{}, c{}, d{};
+  for (size_t i = 0; i < a.size(); ++i) {
+    a[i] = static_cast<uint8_t>(i * 17);
+    b[i] = static_cast<uint8_t>(i * 31 + 1);
+    c[i] = static_cast<uint8_t>(255 - i * 13);
+    d[i] = static_cast<uint8_t>(i * 7 + 2);
+  }
+  for (int round = 0; round < 8; ++round) {
+    send_all(first.client, a.data(), a.size(), true);
+    send_all(second.client, b.data(), b.size(), true);
+    send_all(first.master, c.data(), c.size(), false);
+    send_all(second.master, d.data(), d.size(), false);
+    receive_exact(second.master, b.data(), b.size());
+    receive_exact(first.master, a.data(), a.size());
+    receive_exact(second.client, d.data(), d.size());
+    receive_exact(first.client, c.data(), c.size());
+  }
+  // Reconnect only the first client while the second keeps its session.
+  ::close(first.client);
+  first.client = -1;
+  until([&] { return snapshot(first.handle).state == PV_STATE_LISTENING; },
+        "First bridge did not return to listening");
+  first.connect_client();
+  require(snapshot(second.handle).state == PV_STATE_CONNECTED,
+          "Reconnect changed the other worker");
+  // A physical-side fault on the first must not tear down the second.
+  ::close(first.master);
+  first.master = -1;
+  until([&] { return snapshot(first.handle).state == PV_STATE_FAULT; },
+        "First bridge did not report serial detach");
+  send_all(second.client, b.data(), b.size(), true);
+  receive_exact(second.master, b.data(), b.size());
+  send_all(second.master, d.data(), d.size(), false);
+  receive_exact(second.client, d.data(), d.size());
+  until([&] {
+    const auto value = snapshot(second.handle);
+    return value.tcp_received == b.size() * 9 &&
+           value.serial_received == d.size() * 9 &&
+           value.serial_accepted == b.size() * 9 &&
+           value.tcp_accepted == d.size() * 9;
+  }, "Second bridge lost independent counters or bytes after first fault");
+  require(snapshot(second.handle).state == PV_STATE_CONNECTED,
+          "Fault in one bridge stopped another");
+}
+
 void test_three_clients_without_restart() {
   Rig rig;
   rig.settings.wait_next_client = 1;
@@ -482,6 +537,7 @@ int main() {
     test_byte_queue();
 #ifndef _WIN32
     test_transparent_bridge();
+    test_independent_concurrent_bridges();
     test_three_clients_without_restart();
     test_ip_allowlist_rejects_nonmember();
     test_stop_releases_handles();

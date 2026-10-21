@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:bonsoir/bonsoir.dart';
@@ -19,10 +20,24 @@ final class BridgeAdvertisement {
   final bool busy;
   final String name;
 
-  String get signature => '$name|$port|$serial|$busy';
+  // DNS-SD instance names have a 63-byte UTF-8 limit, not 63 characters.
+  String get serviceName {
+    final result = StringBuffer();
+    var bytes = 0;
+    for (final rune in name.runes) {
+      final character = String.fromCharCode(rune);
+      final length = utf8.encode(character).length;
+      if (bytes + length > 63) break;
+      result.write(character);
+      bytes += length;
+    }
+    return result.isEmpty ? 'Povad' : result.toString();
+  }
+
+  String get signature => '$serviceName|$port|$serial|$busy';
 
   BonsoirService toService() => BonsoirService(
-    name: name,
+    name: serviceName,
     type: povadServiceType,
     port: port,
     attributes: {
@@ -38,6 +53,8 @@ final class BridgeAdvertisement {
 /// Serializes registrations so a rapid connect/disconnect cannot leave a
 /// stale TXT record behind. The owner supplies null whenever LAN is off.
 final class LanDiscoveryPublisher {
+  LanDiscoveryPublisher({this.id = 'default'});
+  final String id;
   static const _macBonjour = MethodChannel('povad/bonjour');
   BonsoirBroadcast? _broadcast;
   bool _macRegistered = false;
@@ -71,13 +88,16 @@ final class LanDiscoveryPublisher {
           desired != null &&
           _macPort == desired.port &&
           _macSerial == serial &&
-          _macName == desired.name) {
-        await _macBonjour.invokeMethod<bool>('update', {'busy': desired.busy});
+          _macName == desired.serviceName) {
+        await _macBonjour.invokeMethod<bool>('update', {
+          'id': id,
+          'busy': desired.busy,
+        });
         _signature = desired.signature;
         return;
       }
       if (_macRegistered) {
-        await _macBonjour.invokeMethod<bool>('stop');
+        await _macBonjour.invokeMethod<bool>('stop', {'id': id});
         _macRegistered = false;
         _macPort = null;
         _macSerial = null;
@@ -87,7 +107,8 @@ final class LanDiscoveryPublisher {
       }
       if (desired == null) return;
       _serviceName = await _macBonjour.invokeMethod<String>('start', {
-        'name': desired.name,
+        'id': id,
+        'name': desired.serviceName,
         'port': desired.port,
         'serial': serial,
         'busy': desired.busy,
@@ -95,7 +116,7 @@ final class LanDiscoveryPublisher {
       _macRegistered = true;
       _macPort = desired.port;
       _macSerial = serial;
-      _macName = desired.name;
+      _macName = desired.serviceName;
       _signature = desired.signature;
       return;
     }

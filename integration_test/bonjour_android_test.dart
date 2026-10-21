@@ -14,7 +14,9 @@ void main() {
   ) async {
     if (!Platform.isAndroid) return;
     final listener = await ServerSocket.bind(InternetAddress.anyIPv4, 0);
-    final publisher = LanDiscoveryPublisher();
+    final publisher = LanDiscoveryPublisher(id: 'qa-first');
+    final secondListener = await ServerSocket.bind(InternetAddress.anyIPv4, 0);
+    final secondPublisher = LanDiscoveryPublisher(id: 'qa-second');
     final discovery = BonsoirDiscovery(
       type: povadServiceType,
       printLogs: false,
@@ -23,6 +25,7 @@ void main() {
     try {
       await discovery.initialize();
       final found = Completer<BonsoirService>();
+      final secondFound = Completer<BonsoirService>();
       subscription = discovery.eventStream?.listen((event) {
         if (event is BonsoirDiscoveryServiceFoundEvent &&
             event.service.name.startsWith('Povad')) {
@@ -35,6 +38,11 @@ void main() {
             !found.isCompleted) {
           found.complete(service);
         }
+        if (service.name.startsWith('Povad') &&
+            service.port == secondListener.port &&
+            !secondFound.isCompleted) {
+          secondFound.complete(service);
+        }
       });
       await discovery.start();
       await publisher.update(
@@ -43,6 +51,23 @@ void main() {
           serial: 'usb:/dev/bus/usb/test:0',
           busy: false,
         ),
+      );
+      await secondPublisher.update(
+        BridgeAdvertisement(
+          port: secondListener.port,
+          serial: 'second:0',
+          busy: true,
+          name: 'Povad-second-${secondListener.port}',
+        ),
+      );
+      final secondService = await secondFound.future.timeout(
+        const Duration(seconds: 20),
+      );
+      expect(secondService.attributes, containsPair('busy', '1'));
+      expect(secondService.attributes, containsPair('serial', 'second:0'));
+      expect(
+        secondService.attributes,
+        containsPair('port', '${secondListener.port}'),
       );
       final service = await found.future.timeout(const Duration(seconds: 20));
       expect(service.type, contains(povadServiceType));
@@ -55,6 +80,8 @@ void main() {
       await subscription?.cancel();
       await discovery.stop();
       await publisher.update(null);
+      await secondPublisher.update(null);
+      await secondListener.close();
       await listener.close();
     }
   });

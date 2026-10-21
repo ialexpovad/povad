@@ -3,7 +3,7 @@ import FlutterMacOS
 import dnssd
 
 class MainFlutterWindow: NSWindow {
-  private var bonjour: PovadBonjour?
+  private var bonjour: PovadBonjourRegistry?
 
   override func awakeFromNib() {
     let flutterViewController = FlutterViewController()
@@ -13,7 +13,7 @@ class MainFlutterWindow: NSWindow {
 
     RegisterGeneratedPlugins(registry: flutterViewController)
 
-    let bonjour = PovadBonjour()
+    let bonjour = PovadBonjourRegistry()
     self.bonjour = bonjour
     let channel = FlutterMethodChannel(
       name: "povad/bonjour",
@@ -27,7 +27,7 @@ class MainFlutterWindow: NSWindow {
       case "start":
         bonjour.start(call.arguments, result: result)
       case "stop":
-        bonjour.stop()
+        bonjour.stop(call.arguments)
         result(true)
       case "update":
         bonjour.update(call.arguments, result: result)
@@ -37,6 +37,30 @@ class MainFlutterWindow: NSWindow {
     }
 
     super.awakeFromNib()
+  }
+}
+
+/// Each profile owns an independent service registration and TXT record.
+private final class PovadBonjourRegistry {
+  private var services: [String: PovadBonjour] = [:]
+  private func id(_ arguments: Any?) -> String {
+    (arguments as? [String: Any])?["id"] as? String ?? "default"
+  }
+  func start(_ arguments: Any?, result: @escaping FlutterResult) {
+    let key = id(arguments)
+    let service = services[key] ?? PovadBonjour()
+    services[key] = service
+    service.start(arguments, result: result)
+  }
+  func stop(_ arguments: Any?) {
+    services.removeValue(forKey: id(arguments))?.stop()
+  }
+  func update(_ arguments: Any?, result: @escaping FlutterResult) {
+    guard let service = services[id(arguments)] else {
+      result(FlutterError(code: "CONFIG", message: "Bonjour service is unavailable", details: nil))
+      return
+    }
+    service.update(arguments, result: result)
   }
 }
 

@@ -36,6 +36,7 @@ class PovadApplication : Application() {
                             activity.get()?.requestNotificationPermissionIfNeeded()
                             val intent = Intent(this, PovadBridgeService::class.java)
                                 .putExtra("status", call.argument<String>("status"))
+                                .putExtra("generation", call.argument<Number>("generation")?.toLong() ?: 0L)
                             try {
                                 if (Build.VERSION.SDK_INT >= 26) {
                                     startForegroundService(intent)
@@ -69,10 +70,10 @@ class PovadApplication : Application() {
         activity = WeakReference(value)
     }
 
-    fun notifyServiceStopped() {
+    fun notifyServiceStopped(generation: Long) {
         engine?.let {
             MethodChannel(it.dartExecutor.binaryMessenger, "povad/background")
-                .invokeMethod("serviceStopped", null)
+                .invokeMethod("serviceStopped", generation)
         }
     }
 }

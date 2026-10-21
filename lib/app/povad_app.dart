@@ -12,6 +12,9 @@ import '../design/povad_components.dart';
 import '../design/povad_mark.dart';
 import '../design/povad_theme.dart';
 import '../domain/bridge_settings.dart';
+import '../domain/bridge_fleet.dart';
+import '../domain/bridge_profiles.dart';
+import '../features/bridge_selector.dart';
 import '../domain/client_allowlist.dart';
 import '../domain/bridge_view_state.dart';
 import '../domain/bridge_session.dart';
@@ -39,6 +42,8 @@ class PovadApp extends StatefulWidget {
     super.key,
     this.preferences,
     this.session,
+    this.fleet,
+    this.bridgeProfiles,
     this.presence,
     this.updates,
     this.bridgeSettings,
@@ -52,6 +57,8 @@ class PovadApp extends StatefulWidget {
 
   /// When absent, this widget displays the UI preview for design tests.
   final BridgeSession? session;
+  final BridgeFleet? fleet;
+  final BridgeProfilesStore? bridgeProfiles;
   final BridgePresence? presence;
   final ReleaseUpdates? updates;
 
@@ -74,32 +81,61 @@ class PovadApp extends StatefulWidget {
 
 class _PovadAppState extends State<PovadApp> {
   final GlobalKey<NavigatorState> _navigatorKey = GlobalKey<NavigatorState>();
-  final LanDiscoveryPublisher _discovery = LanDiscoveryPublisher();
-  String? _discoveryTarget;
-  Timer? _discoveryRetry;
-  String? discoveryError;
+  late final BridgeFleet fleet;
+  final Map<String, _ConnectionUi> _connectionUi = {};
+  final Map<String, _DiscoveryRuntime> _discoveries = {};
+  bool profilesReady = false;
+  bool profileStorageError = false;
+  Future<void> _profileSaveTail = Future.value();
+  BridgeConnection get connection => fleet.selected;
+  BridgeSession? get session => connection.session;
+  _ConnectionUi get ui => _uiFor(connection.id);
+  _ConnectionUi _uiFor(String id) =>
+      _connectionUi.putIfAbsent(id, _ConnectionUi.new);
+  BridgeViewState get state => connection.state;
+  set state(BridgeViewState value) => connection.previewState = value;
+  BridgeSettings get form => connection.profile.settings;
+  void _setForm(BridgeSettings value) =>
+      connection.profile = connection.profile.copyWith(settings: value);
+  String get serialPort => form.serialPort;
+  set serialPort(String value) => _setForm(form.copyWith(serialPort: value));
+  String get baud => form.baud;
+  set baud(String value) => _setForm(form.copyWith(baud: value));
+  String get serialParity => form.parity;
+  set serialParity(String value) => _setForm(form.copyWith(parity: value));
+  String get tcpPort => form.tcpPort;
+  set tcpPort(String value) => _setForm(form.copyWith(tcpPort: value));
+  bool get allowLan => connection.allowLan;
+  set allowLan(bool value) => connection.allowLan = value;
+  bool get waitNextClient => form.waitNextClient;
+  set waitNextClient(bool value) =>
+      _setForm(form.copyWith(waitNextClient: value));
+  String get allowedClients => form.allowedClients;
+  set allowedClients(String value) =>
+      _setForm(form.copyWith(allowedClients: value));
+  String? get discoveryError => _discoveries[connection.id]?.error;
+  String? get backgroundError => ui.backgroundError ?? connection.startupError;
+  set backgroundError(String? value) => ui.backgroundError = value;
+  String? get selectedUsbLabel => ui.selectedUsbLabel;
+  set selectedUsbLabel(String? value) => ui.selectedUsbLabel = value;
+  String? get copiedEndpoint => ui.copiedEndpoint;
+  set copiedEndpoint(String? value) => ui.copiedEndpoint = value;
+  bool get showFieldErrors => ui.showFieldErrors;
+  set showFieldErrors(bool value) => ui.showFieldErrors = value;
+  int get rejectionNotice => ui.rejectionNotice;
+  bool get startPending => connection.preparing;
+  DateTime? get sessionStartedAt => connection.startedAt;
+  bool get anyBridgeActive => fleet.active || (!fleet.live && running);
+
   Locale locale = const Locale('en');
   PovadAppearance appearance = PovadAppearance.system;
   bool animateConnection = true;
-  BridgeViewState state = BridgeViewState.stopped;
   int page = 0;
   late final UiPreferences preferences;
   bool settingsChanged = false;
   bool bridgeFormChanged = false;
-  String serialPort = '';
-  String baud = '115200';
-  String serialParity = 'N';
-  String tcpPort = '9268';
-  bool allowLan = false;
-  bool waitNextClient = false;
-  String allowedClients = '';
-  int rejectedBusySeen = 0;
-  int rejectedIpSeen = 0;
-  int rejectionNotice = 0;
   List<({String name, String address})> lanAddresses = const [];
   List<String> discoveredPorts = const [];
-  String? copiedEndpoint;
-  bool showFieldErrors = false;
   bool feedbackUnavailable = false;
   AppBuild? installedBuild;
   AvailableRelease? availableRelease;
@@ -116,18 +152,13 @@ class _PovadAppState extends State<PovadApp> {
   bool updateNoticeError = false;
   bool updateNoticeDismissed = false;
   Timer? updateTimer;
-  String? backgroundError;
   bool presenceFailed = false;
-  bool startPending = false;
-  DateTime? sessionStartedAt;
   final AndroidUsbHost usbHost = const AndroidUsbHost();
   List<AndroidUsbPort> usbPorts = const [];
   String? usbError;
-  String? selectedUsbLabel;
   bool usbLoading = false;
 
-  bool get androidHost =>
-      !kIsWeb && Platform.isAndroid && widget.session != null;
+  bool get androidHost => !kIsWeb && Platform.isAndroid && session != null;
 
   bool get configurationReady =>
       !BridgeFieldErrors.of(serialPort, baud, tcpPort).any &&
@@ -139,17 +170,15 @@ class _PovadAppState extends State<PovadApp> {
       state == BridgeViewState.connected ||
       state == BridgeViewState.stopping;
 
-  bool get workerActive {
-    final snapshot = widget.session?.snapshot;
-    return snapshot != null &&
-        (!snapshot.finished || snapshot.serialOpen || snapshot.clientConnected);
-  }
+  bool get workerActive => connection.active;
 
   @override
   void initState() {
     super.initState();
+    fleet = widget.fleet ?? BridgeFleet(firstSession: widget.session);
+    profilesReady = widget.bridgeProfiles == null;
     preferences = widget.preferences ?? DeviceUiPreferences();
-    widget.session?.addListener(onNativeState);
+    fleet.addListener(onNativeState);
     unawaited(loadPreferences());
     unawaited(loadBridgeSettings());
     if (androidHost) unawaited(refreshUsbPorts());
@@ -170,22 +199,48 @@ class _PovadAppState extends State<PovadApp> {
   }
 
   Future<void> loadBridgeSettings() async {
-    final store = widget.bridgeSettings;
-    if (store == null) return;
     try {
-      final saved = await store.read();
-      if (saved == null || !mounted || bridgeFormChanged) return;
-      setState(() {
-        serialPort = saved.serialPort;
-        baud = saved.baud;
-        serialParity = saved.parity;
-        tcpPort = saved.tcpPort;
-        waitNextClient = saved.waitNextClient;
-        allowedClients = saved.allowedClients;
-      });
+      final profilesStore = widget.bridgeProfiles;
+      if (profilesStore != null) {
+        final saved = await profilesStore.read();
+        if (!mounted || bridgeFormChanged) return;
+        fleet.restore(saved);
+      } else {
+        final saved = await widget.bridgeSettings?.read();
+        if (!mounted || bridgeFormChanged) return;
+        if (saved != null) _setForm(saved);
+      }
+      if (mounted) {
+        setState(() {
+          profilesReady = true;
+          profileStorageError = false;
+        });
+      }
     } catch (error) {
-      debugPrint('Unable to load bridge settings: $error');
+      debugPrint('Unable to load bridge profiles: $error');
+      if (mounted) setState(() => profileStorageError = true);
     }
+  }
+
+  void persistProfiles() {
+    if (!profilesReady) return;
+    final document = fleet.document;
+    final legacy = form;
+    _profileSaveTail = _profileSaveTail.then((_) async {
+      try {
+        if (widget.bridgeProfiles != null) {
+          await widget.bridgeProfiles!.save(document);
+        } else {
+          await widget.bridgeSettings?.save(legacy);
+        }
+        if (mounted && profileStorageError) {
+          setState(() => profileStorageError = false);
+        }
+      } catch (error) {
+        debugPrint('Unable to save bridge profiles: $error');
+        if (mounted) setState(() => profileStorageError = true);
+      }
+    });
   }
 
   void updateBridgeForm({
@@ -196,34 +251,53 @@ class _PovadAppState extends State<PovadApp> {
     bool? waitNext,
     String? allowedIps,
   }) {
+    if (!profilesReady || connection.active || fleet.shuttingDown) return;
     bridgeFormChanged = true;
-    setState(() {
-      serialPort = serial ?? serialPort;
-      baud = speed ?? baud;
-      serialParity = parity ?? serialParity;
-      tcpPort = port ?? tcpPort;
-      waitNextClient = waitNext ?? waitNextClient;
-      allowedClients = allowedIps ?? allowedClients;
-    });
-    final store = widget.bridgeSettings;
-    if (store == null) return;
-    unawaited(
-      store
-          .save(
-            BridgeSettings(
-              serialPort: serialPort,
-              baud: baud,
-              parity: serialParity,
-              tcpPort: tcpPort,
-              waitNextClient: waitNextClient,
-              allowedClients: allowedClients,
-            ),
-          )
-          .catchError(
-            (Object error) =>
-                debugPrint('Unable to save bridge settings: $error'),
-          ),
+    fleet.updateProfile(
+      connection.id,
+      settings: form.copyWith(
+        serialPort: serial,
+        baud: speed,
+        parity: parity,
+        tcpPort: port,
+        waitNextClient: waitNext,
+        allowedClients: allowedIps,
+      ),
     );
+    persistProfiles();
+  }
+
+  void selectBridge(String id) {
+    fleet.select(id);
+    persistProfiles();
+  }
+
+  void addBridge() {
+    if (!profilesReady || fleet.shuttingDown) return;
+    fleet.add();
+    page = 1;
+    persistProfiles();
+  }
+
+  Future<void> editBridge(BuildContext context) async {
+    final entry = connection;
+    final edit = await showBridgeEditor(
+      context,
+      profile: entry.profile,
+      canRemove: fleet.connections.length > 1,
+      enabled: !entry.active,
+    );
+    if (!mounted || edit == null || entry.active || fleet.shuttingDown) return;
+    if (edit.remove) {
+      await fleet.remove(entry.id);
+      final discovery = _discoveries.remove(entry.id);
+      discovery?.retry?.cancel();
+      await discovery?.publisher.update(null);
+      _connectionUi.remove(entry.id);
+    } else {
+      fleet.updateProfile(entry.id, name: edit.name);
+    }
+    persistProfiles();
   }
 
   Future<void> refreshSerialPorts() async {
@@ -252,8 +326,9 @@ class _PovadAppState extends State<PovadApp> {
   }
 
   Future<void> copyEndpoint(String endpoint) async {
+    final target = ui;
     await Clipboard.setData(ClipboardData(text: endpoint));
-    if (mounted) setState(() => copiedEndpoint = endpoint);
+    if (mounted) setState(() => target.copiedEndpoint = endpoint);
   }
 
   Future<void> refreshUsbPorts() async {
@@ -271,10 +346,16 @@ class _PovadAppState extends State<PovadApp> {
       if (!mounted) return;
       setState(() {
         usbPorts = discovered;
-        if (serialPort.isNotEmpty &&
-            !discovered.any((port) => port.nativeSelection == serialPort)) {
-          serialPort = '';
-          selectedUsbLabel = null;
+        for (final entry in fleet.connections) {
+          final serial = entry.profile.settings.serialPort;
+          if (!entry.active &&
+              serial.isNotEmpty &&
+              !discovered.any((port) => port.nativeSelection == serial)) {
+            entry.profile = entry.profile.copyWith(
+              settings: entry.profile.settings.copyWith(serialPort: ''),
+            );
+            _uiFor(entry.id).selectedUsbLabel = null;
+          }
         }
       });
     } catch (_) {
@@ -285,7 +366,8 @@ class _PovadAppState extends State<PovadApp> {
   }
 
   Future<void> selectUsbPort(AndroidUsbPort port) async {
-    if (!mounted) return;
+    if (!mounted || usbLoading || !profilesReady) return;
+    final target = connection;
     setState(() {
       usbLoading = true;
       usbError = null;
@@ -293,9 +375,18 @@ class _PovadAppState extends State<PovadApp> {
     try {
       final allowed = await usbHost.requestPermission(port);
       if (!mounted) return;
-      if (allowed) {
-        selectedUsbLabel = port.label;
-        updateBridgeForm(serial: port.nativeSelection);
+      if (allowed &&
+          fleet.connections.contains(target) &&
+          !target.active &&
+          !fleet.shuttingDown) {
+        _uiFor(target.id).selectedUsbLabel = port.label;
+        fleet.updateProfile(
+          target.id,
+          settings: target.profile.settings.copyWith(
+            serialPort: port.nativeSelection,
+          ),
+        );
+        persistProfiles();
       } else {
         setState(() => usbError = 'denied');
       }
@@ -309,102 +400,92 @@ class _PovadAppState extends State<PovadApp> {
   @override
   void dispose() {
     updateTimer?.cancel();
-    _discoveryRetry?.cancel();
-    unawaited(_discovery.update(null));
+    for (final discovery in _discoveries.values) {
+      discovery.retry?.cancel();
+      unawaited(discovery.publisher.update(null));
+    }
     final presence = widget.presence;
     if (presence is DesktopPresence) {
       presence.beforeExit = null;
       presence.chooseCloseAction = null;
     }
-    widget.session?.removeListener(onNativeState);
-    if (widget.session != null) unawaited(widget.session!.close());
+    fleet.removeListener(onNativeState);
+    unawaited(fleet.close());
     super.dispose();
-  }
-
-  BridgeViewState nativeViewState() {
-    final session = widget.session!;
-    final snapshot = session.snapshot;
-    // A rejected control call leaves no native session behind it.
-    if (session.controlError != null && (snapshot?.finished ?? true)) {
-      return BridgeViewState.error;
-    }
-    return switch (session.state) {
-      core.BridgeState.stopped => BridgeViewState.stopped,
-      core.BridgeState.starting => BridgeViewState.starting,
-      core.BridgeState.listening => BridgeViewState.listening,
-      core.BridgeState.connected => BridgeViewState.connected,
-      core.BridgeState.stopping => BridgeViewState.stopping,
-      core.BridgeState.interrupted => BridgeViewState.interrupted,
-      core.BridgeState.fault => BridgeViewState.error,
-    };
   }
 
   void onNativeState() {
     if (!mounted) return;
-    final snapshot = widget.session?.snapshot;
-    setState(() {
-      state = nativeViewState();
+    for (final entry in fleet.connections) {
+      final snapshot = entry.session?.snapshot;
+      final ui = _uiFor(entry.id);
       if (snapshot != null) {
-        if (snapshot.rejectedBusy > rejectedBusySeen) {
-          rejectionNotice = 1;
-          rejectedBusySeen = snapshot.rejectedBusy;
+        if (snapshot.rejectedBusy > ui.rejectedBusySeen) {
+          ui.rejectionNotice = 1;
+          ui.rejectedBusySeen = snapshot.rejectedBusy;
         }
-        if (snapshot.rejectedIp > rejectedIpSeen) {
-          rejectionNotice = 2;
-          rejectedIpSeen = snapshot.rejectedIp;
+        if (snapshot.rejectedIp > ui.rejectedIpSeen) {
+          ui.rejectionNotice = 2;
+          ui.rejectedIpSeen = snapshot.rejectedIp;
         }
       }
-      if (state == BridgeViewState.listening ||
-          state == BridgeViewState.connected) {
-        sessionStartedAt ??= DateTime.now();
-      } else if (state != BridgeViewState.stopping) {
-        sessionStartedAt = null;
-      }
-    });
+    }
+    setState(() {});
     unawaited(reflectPresence());
     unawaited(syncDiscovery());
   }
 
   Future<void> syncDiscovery() async {
-    final port = int.tryParse(tcpPort);
-    final active =
-        widget.session != null &&
-        allowLan &&
-        port != null &&
-        (state == BridgeViewState.listening ||
-            state == BridgeViewState.connected);
-    final desired = active
+    await Future.wait([
+      for (final entry in fleet.connections) _syncBridgeDiscovery(entry),
+    ]);
+  }
+
+  Future<void> _syncBridgeDiscovery(BridgeConnection entry) async {
+    final runtime = _discoveries.putIfAbsent(
+      entry.id,
+      () => _DiscoveryRuntime(LanDiscoveryPublisher(id: entry.id)),
+    );
+    final config = entry.reservedConfig;
+    final advertised =
+        config != null &&
+        config.allowLan &&
+        (entry.state == BridgeViewState.listening ||
+            entry.state == BridgeViewState.connected);
+    final desired = advertised
         ? BridgeAdvertisement(
-            port: port,
-            serial: selectedUsbLabel ?? serialPort,
-            busy: state == BridgeViewState.connected,
+            port: config.tcpPort,
+            serial: _uiFor(entry.id).selectedUsbLabel ?? config.serialPort,
+            busy: entry.state == BridgeViewState.connected,
+            name: entry.profile.name.isEmpty
+                ? 'Povad ${entry.profile.number}'
+                : 'Povad ${entry.profile.name}',
           )
         : null;
     final signature = desired?.signature;
     if (desired == null) {
-      _discoveryRetry?.cancel();
-      _discoveryRetry = null;
+      runtime.retry?.cancel();
+      runtime.retry = null;
     }
-    if (signature == _discoveryTarget) return;
-    _discoveryTarget = signature;
+    if (signature == runtime.target) return;
+    runtime.target = signature;
     try {
-      await _discovery.update(desired);
-      _discoveryRetry?.cancel();
-      _discoveryRetry = null;
-      if (mounted && discoveryError != null) {
-        setState(() => discoveryError = null);
-      }
+      await runtime.publisher.update(desired);
+      if (runtime.target != signature) return;
+      runtime.retry?.cancel();
+      runtime.retry = null;
+      if (mounted) setState(() => runtime.error = null);
     } catch (error) {
-      // A failed registration must be retryable on the next state update.
-      if (_discoveryTarget == signature) _discoveryTarget = null;
-      debugPrint('Cannot advertise Povad on LAN: $error');
-      if (mounted) setState(() => discoveryError = error.toString());
+      if (runtime.target != signature) return;
+      runtime.target = null;
+      if (mounted) setState(() => runtime.error = error.toString());
       if (mounted && desired != null) {
-        _discoveryRetry?.cancel();
-        _discoveryRetry = Timer(
-          const Duration(seconds: 5),
-          () => unawaited(syncDiscovery()),
-        );
+        runtime.retry?.cancel();
+        runtime.retry = Timer(const Duration(seconds: 5), () {
+          if (mounted && fleet.connections.contains(entry)) {
+            unawaited(_syncBridgeDiscovery(entry));
+          }
+        });
       }
     }
   }
@@ -412,10 +493,14 @@ class _PovadAppState extends State<PovadApp> {
   Future<void> reflectPresence() async {
     if (presenceFailed || widget.presence == null) return;
     try {
-      await widget.presence!.reflect(state, locale, workerActive: workerActive);
+      await widget.presence!.reflect(
+        fleet.aggregateState,
+        locale,
+        workerActive: fleet.active,
+      );
     } catch (error) {
       presenceFailed = true;
-      if (workerActive) unawaited(widget.session!.stop());
+      if (fleet.active) unawaited(fleet.stopAll());
       if (mounted) {
         setState(() {
           backgroundError = error.toString();
@@ -702,7 +787,7 @@ class _PovadAppState extends State<PovadApp> {
   Future<void> installStagedUpdate() async {
     final staged = stagedUpdate, installer = widget.installer;
     if (staged == null || installer == null) return;
-    if (running || workerActive) {
+    if (anyBridgeActive || !fleet.lockForShutdown()) {
       setState(() => updateBlocked = true);
       return;
     }
@@ -711,6 +796,10 @@ class _PovadAppState extends State<PovadApp> {
       updateStage = UpdateStage.installing;
     });
     try {
+      await _profileSaveTail;
+      if (profileStorageError) {
+        throw StateError('Bridge settings have not been saved');
+      }
       final from = installedBuild?.version;
       if (from != null) {
         try {
@@ -738,6 +827,8 @@ class _PovadAppState extends State<PovadApp> {
       debugPrint('Update install failed: $error');
       await _clearPendingUpdate();
       if (mounted) setState(() => updateStage = UpdateStage.failed);
+    } finally {
+      fleet.unlockShutdown();
     }
   }
 
@@ -752,18 +843,30 @@ class _PovadAppState extends State<PovadApp> {
   /// A staged desktop update installs when Povad quits, so updates do not
   /// depend on the operator remembering to restart.
   Future<void> installOnQuit() async {
+    await _profileSaveTail;
     final staged = stagedUpdate, installer = widget.installer;
     if (staged == null || installer == null) return;
+    if (profileStorageError) {
+      throw StateError('Bridge settings have not been saved');
+    }
     if (installer.method != InstallMethod.windowsZip &&
         installer.method != InstallMethod.linuxTarXz) {
       return;
     }
+    if (fleet.active) throw StateError('Bridge shutdown is incomplete');
     final from = installedBuild?.version;
     if (from != null) {
       await widget.updatePreferences?.savePending(from, staged.version);
     }
-    stagedUpdate = null;
-    await installer.launch(staged, relaunch: false);
+    try {
+      if (!await installer.launch(staged, relaunch: false)) {
+        throw StateError('Update installer did not start');
+      }
+      stagedUpdate = null;
+    } catch (_) {
+      await _clearPendingUpdate();
+      rethrow;
+    }
   }
 
   void changeAutoDownload(bool value) {
@@ -821,8 +924,12 @@ class _PovadAppState extends State<PovadApp> {
         state == BridgeViewState.stopped ||
         state == BridgeViewState.interrupted ||
         state == BridgeViewState.error;
-    if (widget.session != null) {
-      if (startPending) return;
+    if (session != null) {
+      if (startPending || !profilesReady || fleet.shuttingDown) return;
+      if (workerActive && restartable) {
+        unawaited(fleet.stop(connection.id));
+        return;
+      }
       if (restartable) {
         if (!configurationReady) {
           setState(() {
@@ -834,7 +941,7 @@ class _PovadAppState extends State<PovadApp> {
         unawaited(startLiveBridge());
       } else if (state == BridgeViewState.listening ||
           state == BridgeViewState.connected) {
-        unawaited(widget.session!.stop());
+        unawaited(fleet.stop(connection.id));
       }
       return;
     }
@@ -850,60 +957,46 @@ class _PovadAppState extends State<PovadApp> {
   }
 
   Future<void> startLiveBridge() async {
-    if (presenceFailed) {
+    if (presenceFailed || !profilesReady) {
       setState(() => page = 2);
       return;
     }
-    setState(() {
-      startPending = true;
-      backgroundError = null;
-      showFieldErrors = false;
-      rejectedBusySeen = 0;
-      rejectedIpSeen = 0;
-      rejectionNotice = 0;
-    });
+    final entry = connection;
+    final target = ui;
+    final settings = entry.profile.settings;
+    target.backgroundError = null;
+    target.showFieldErrors = false;
+    target.rejectedBusySeen = 0;
+    target.rejectedIpSeen = 0;
+    target.rejectionNotice = 0;
     try {
-      await widget.presence?.prepareStart(serialPort, locale);
-      if (!mounted) {
-        await widget.presence?.reflect(
-          BridgeViewState.stopped,
-          locale,
-          workerActive: false,
-        );
-        return;
-      }
-      widget.session!.start(
+      await fleet.start(
+        entry.id,
         core.BridgeConfig(
-          serialPort: serialPort.trim(),
-          baud: int.parse(baud),
-          parity: serialParity,
-          tcpPort: int.parse(tcpPort),
-          bindAddress: allowLan ? '0.0.0.0' : '127.0.0.1',
-          allowLan: allowLan,
-          waitNextClient: waitNextClient,
-          allowedClients: allowLan
-              ? parseClientAllowlist(allowedClients) ?? const []
+          serialPort: settings.serialPort.trim(),
+          baud: int.parse(settings.baud),
+          parity: settings.parity,
+          tcpPort: int.parse(settings.tcpPort),
+          bindAddress: entry.allowLan ? '0.0.0.0' : '127.0.0.1',
+          allowLan: entry.allowLan,
+          waitNextClient: settings.waitNextClient,
+          allowedClients: entry.allowLan
+              ? parseClientAllowlist(settings.allowedClients) ?? const []
               : const [],
         ),
+        prepare: () async {
+          await widget.presence?.prepareStart(settings.serialPort, locale);
+        },
       );
+    } on BridgeConflict {
+      // The overview identifies the other profile using localized copy.
     } catch (error) {
-      try {
-        await widget.presence?.reflect(
-          BridgeViewState.stopped,
-          locale,
-          workerActive: false,
-        );
-      } catch (_) {
-        // Preserve the original startup failure for the details screen.
-      }
-      if (mounted) {
-        setState(() {
-          backgroundError = error.toString();
-          state = BridgeViewState.error;
-        });
-      }
+      target.backgroundError = error.toString();
     } finally {
-      if (mounted) setState(() => startPending = false);
+      if (mounted) {
+        setState(() {});
+        await reflectPresence();
+      }
     }
   }
 
@@ -933,7 +1026,7 @@ class _PovadAppState extends State<PovadApp> {
         icon: shad.LucideIcons.circleAlert,
         text: rejectionNotice == 1 ? l.clientRejectedBusy : l.clientRejectedIp,
         actionLabel: l.dismiss,
-        onAction: () => setState(() => rejectionNotice = 0),
+        onAction: () => setState(() => ui.rejectionNotice = 0),
       );
     }
     final release = availableRelease;
@@ -996,12 +1089,19 @@ class _PovadAppState extends State<PovadApp> {
       shad.LucideIcons.activity,
       shad.LucideIcons.settings,
     ];
-    final live = widget.session != null;
-    final snapshot = widget.session?.snapshot;
+    final live = session != null;
+    final snapshot = session?.snapshot;
     final serialDisplay = serialPort.isEmpty
         ? null
         : selectedUsbLabel ?? serialPort;
-    final detail = backgroundError ?? widget.session?.errorMessage;
+    final conflict = connection.conflict;
+    final owner = conflict == null ? null : fleet.connection(conflict.ownerId);
+    final ownerName = owner == null ? '' : bridgeLabel(owner.profile, l);
+    final detail = conflict == null
+        ? backgroundError ?? session?.errorMessage
+        : conflict.kind == BridgeConflictKind.serial
+        ? l.bridgeSerialConflict(ownerName)
+        : l.bridgeTcpConflict(ownerName);
     final ended =
         state == BridgeViewState.error || state == BridgeViewState.interrupted;
     final hint = ended ? troubleHintFor(detail) : null;
@@ -1066,7 +1166,11 @@ class _PovadAppState extends State<PovadApp> {
                 onRefreshLan: () => unawaited(refreshLanAddresses()),
                 onCopyEndpoint: (value) => unawaited(copyEndpoint(value)),
                 showErrors: showFieldErrors,
-                running: running,
+                running:
+                    workerActive ||
+                    running ||
+                    !profilesReady ||
+                    fleet.shuttingDown,
                 discoveredPorts: discoveredPorts,
                 discoverySupported:
                     widget.portDiscovery?.supported == true && !androidHost,
@@ -1128,7 +1232,7 @@ class _PovadAppState extends State<PovadApp> {
         onSendFeedback: () => unawaited(sendFeedback()),
         updateStage: updateStage,
         updateProgress: updateProgress,
-        updateBlocked: updateBlocked && (running || workerActive),
+        updateBlocked: updateBlocked && anyBridgeActive,
         autoDownload: widget.installer == null ? null : autoDownload,
         onAutoDownloadChanged: changeAutoDownload,
         onDownloadUpdate: availableRelease == null
@@ -1163,7 +1267,43 @@ class _PovadAppState extends State<PovadApp> {
           child: child,
         ),
       ),
-      child: KeyedSubtree(key: ValueKey(page), child: content),
+      child: KeyedSubtree(
+        key: ValueKey('${connection.id}:$page'),
+        child: content,
+      ),
+    );
+    final bridgeContent = Column(
+      children: [
+        if (live && page != 3)
+          BridgeSelector(
+            connections: fleet.connections,
+            selectedId: connection.id,
+            enabled: profilesReady && !fleet.shuttingDown,
+            onSelected: selectBridge,
+            onAdd: addBridge,
+            onEdit: () => unawaited(editBridge(context)),
+          ),
+        if (live && profileStorageError)
+          Padding(
+            padding: const EdgeInsets.all(12),
+            child: Column(
+              children: [
+                Text(l.bridgeStorageError),
+                shad.GhostButton(
+                  onPressed: () {
+                    if (profilesReady) {
+                      persistProfiles();
+                    } else {
+                      unawaited(loadBridgeSettings());
+                    }
+                  },
+                  child: Text(l.bridgeRetry),
+                ),
+              ],
+            ),
+          ),
+        Expanded(child: animated),
+      ],
     );
     final statusLabel = StateCopy.of(state, l).badge;
     final updateReady = availableRelease != null;
@@ -1275,7 +1415,7 @@ class _PovadAppState extends State<PovadApp> {
                           ],
                         ),
                       ),
-                      Expanded(child: animated),
+                      Expanded(child: bridgeContent),
                     ],
                   );
                 }
@@ -1349,7 +1489,7 @@ class _PovadAppState extends State<PovadApp> {
                         ],
                       ),
                     ),
-                    Expanded(child: animated),
+                    Expanded(child: bridgeContent),
                   ],
                 );
               },
@@ -1501,4 +1641,17 @@ class _NavItem extends StatelessWidget {
       ),
     );
   }
+}
+
+class _ConnectionUi {
+  String? selectedUsbLabel, copiedEndpoint, backgroundError;
+  bool showFieldErrors = false;
+  int rejectedBusySeen = 0, rejectedIpSeen = 0, rejectionNotice = 0;
+}
+
+class _DiscoveryRuntime {
+  _DiscoveryRuntime(this.publisher);
+  final LanDiscoveryPublisher publisher;
+  String? target, error;
+  Timer? retry;
 }
