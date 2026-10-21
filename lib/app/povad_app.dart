@@ -1257,6 +1257,9 @@ class _PovadAppState extends State<PovadApp> {
     };
 
     final animated = AnimatedSwitcher(
+      // Switching devices must replace controls immediately. A fading previous
+      // bridge could otherwise display Stop while the new bridge offers Start.
+      key: ValueKey(connection.id),
       duration: reduce ? Duration.zero : const Duration(milliseconds: 200),
       switchInCurve: Curves.easeOutCubic,
       switchOutCurve: Curves.easeInCubic,

@@ -67,6 +67,9 @@ void main() {
       await tester.tap(find.byKey(const ValueKey('bridge-selector')));
       await tester.pump(const Duration(milliseconds: 300));
       await tester.tap(find.text('Bench B').last);
+      await tester.pump();
+      expect(find.text('Stop bridge'), findsNothing);
+      expect(find.text('Start bridge'), findsOneWidget);
       await tester.pumpAndSettle();
       expect(fleet.activeCount, 1);
       await tester.tap(find.text('Start bridge'));
