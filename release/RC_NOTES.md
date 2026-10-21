@@ -1,55 +1,61 @@
-# Povad 0.1.0-rc.3
+# Povad 0.1.0-rc.4
 
-This candidate repairs update delivery and refines the compact interface.
+This candidate adds independent Serial ↔ TCP bridges in one application.
 
-- Android release builds use the last working `shared_preferences_android`
-  implementation. The newer 2.5.0 version fails after R8 optimization, which
-  prevented settings from loading and left the in-app update action stuck.
-- The Android updater continues to the system installer if saving the pending
-  update state fails, and reports an installer error instead of waiting forever.
-- Android release builds preserve the JNI entry points used by the USB worker.
-  This restores USB–Serial discovery and opening, including the STM32 Virtual
-  ComPort tested on a physical phone.
-- Windows waits for its PowerShell update helper to start before closing Povad.
-  If the helper cannot start, the application stays open and shows the failure.
-- macOS QA builds now detect new releases and provide the release-page link.
-  The unsigned QA ZIP still requires manual installation.
-- The compact header places a single Menu button at the right edge. Help is
-  available from that menu, and the Povad brand returns to Overview.
-- Windows tray icons now include size-specific 16–256 px frames and clearer
-  status shapes at small taskbar sizes.
-- Settings offers a persistent **Connection animation** switch. When off, the
-  active bridge and observed byte counts remain visible without moving
-  signals in the Overview mark. System reduced-motion settings still apply.
+- Use **+** beside the bridge selector to add a connection. Each bridge has its
+  own serial port, baud rate, parity, TCP port, client policy, and saved name.
+  The previous configuration migrates to **Bridge 1**. The collection can grow
+  beyond two connections.
+- Switch bridges without stopping them. Each native worker owns its serial
+  device, TCP listener, queues, and counters; a fault or stop in one bridge
+  does not stop another.
+- Serial devices and overlapping TCP listener addresses are reserved before
+  startup. Conflicts identify the bridge already using the endpoint.
+- Each LAN bridge has its own QR endpoint and `_povad-bridge._tcp` service,
+  including an independent busy state. LAN access still starts off after an
+  application restart.
+- The desktop tray and Android foreground notification aggregate all workers.
+  Quitting and updates require confirmed shutdown of every bridge, including
+  a bridge still starting. Stopping the selected bridge leaves others running.
+- Identical Android USB adapter models show distinct local bus addresses in
+  the device picker.
+- Saved profiles and the last selection survive an application restart.
+  Android USB selections and permissions must be renewed; reconnecting a
+  different physical device never silently starts a saved session.
 
-## Download
+## Try two connections
 
-- Android: signed arm64 APK. USB Host permission and a supported USB–Serial
-  adapter are required for a bridge session.
-- Windows: x64 ZIP. Extract the full directory before starting Povad.
-- Linux: x64 tar.xz bundle. Extract it before starting Povad.
-- macOS: unsigned QA ZIP for developer testing only. Public macOS distribution
-  requires Developer ID signing and notarization.
+1. Configure **Bridge 1**, for example `COM3` with TCP port `9268`.
+2. Add another bridge, for example `COM7` with TCP port `9269`.
+3. Start each bridge. To connect over the local network, enable **Allow LAN
+   clients** separately and use each bridge's displayed address.
+4. Connect one TCP client to each endpoint. Each bridge accepts one client;
+   **Wait for next client** applies independently to each bridge.
 
-**Upgrading from rc.1 or rc.2:** The Android and Windows in-app updaters in
-those candidates may fail. Install rc.3 from this release page once; the
-release is signed with the same Android certificate, so it can replace an
-existing Android installation without clearing its data. On macOS, install
-the new QA ZIP manually.
+## Downloads and updates
 
-Povad checks GitHub for newer releases. On Windows, Linux, and Android it can
-download a matching package and verify it against `SHA256SUMS.txt` before
-installation. Android installation needs system confirmation. An active bridge
-must stop before installation.
+- Android: signed arm64 APK. Multiple adapters require a USB host hub and
+  compatible USB–Serial devices.
+- Windows: x64 ZIP. Extract the entire directory before launching.
+- Linux: x64 tar.xz bundle. Extract the bundle before launching.
+- macOS: unsigned QA ZIP; manual installation for developer testing only.
+  Public macOS distribution still requires signing and notarization.
 
-## Validation status
+RC3 can check for this candidate and download the matching Windows, Linux,
+or Android package once it is published. Android installation needs system
+confirmation. Users of RC1 or RC2 should install the new package manually
+because those updaters may fail. Android signing identity is unchanged.
+Use `SHA256SUMS.txt` to verify the downloaded assets.
 
-Automated checks cover Flutter UI and accessibility, native C ABI, simulated
-binary traffic, desktop builds, Android packaging, an emulator smoke test,
-and Android release-mode preference/JNI access. A physical Android phone was
-used to verify that the signed APK replaces rc.1 without clearing app data,
-discovers an STM32 USB Virtual ComPort, opens it, and reaches TCP listening.
-Instrument byte exchange has not yet been validated. Raw bridge mode does not
-interpret Modbus, choose a bus address, or change CRC byte order.
+## Qualification
 
-Use the attached `SHA256SUMS.txt` to verify downloaded assets.
+Two-device physical acceptance is pending. The owner will test the candidate
+with their own equipment. Automated tests cover separate profiles, migration,
+endpoint reservations, lifecycle races, update blocking, notifications, and
+parallel binary streams through two native workers using virtual serial ports.
+These tests do not qualify a physical USB hub, adapter, or instrument. macOS
+Bonjour and Android NSD have separate integration checks.
+
+This release stays a draft while automated candidate gates and physical
+acceptance are outstanding. Raw mode remains byte-transparent: Povad does
+not choose Modbus unit addresses, reinterpret frames, or modify CRC bytes.

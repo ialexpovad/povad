@@ -43,7 +43,7 @@ void main() {
       expect(find.text('Start bridge'), findsOneWidget);
 
       await tester.tap(find.text('Start bridge'));
-      await tester.pump(const Duration(seconds: 1));
+      await waitForNativeFault(tester);
       expect(find.text('Connection needs attention'), findsOneWidget);
       await tester.tap(find.text('Review details'));
       await tester.pumpAndSettle();
@@ -585,7 +585,7 @@ void main() {
     await tester.tap(find.byKey(const ValueKey('nav-0')));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Start bridge'));
-    await tester.pump(const Duration(seconds: 1));
+    await waitForNativeFault(tester);
     expect(find.text('Connection needs attention'), findsOneWidget);
     // The overview turns the worker message into advice instead of a dead end.
     expect(
@@ -599,7 +599,7 @@ void main() {
     expect(find.text('How to fix'), findsOneWidget);
 
     await tester.tap(find.text('Start again'));
-    await tester.pump(const Duration(seconds: 1));
+    await waitForNativeFault(tester);
     expect(find.text('Connection needs attention'), findsOneWidget);
     expect(find.text('Start again'), findsOneWidget);
 
@@ -909,4 +909,26 @@ class MemoryUiPreferences implements UiPreferences {
   @override
   Future<void> saveConnectionAnimation(bool enabled) async =>
       connectionAnimation = enabled;
+}
+
+// Fake widget time does not schedule the native OS worker. Give it bounded
+// real time, then advance the snapshot poller before asserting the UI result.
+Future<void> waitForNativeFault(WidgetTester tester) async {
+  await tester.pump();
+  for (var attempt = 0; attempt < 100; attempt++) {
+    final bridge = tester.widget<PovadApp>(find.byType(PovadApp)).session!;
+    if (bridge.snapshot?.finished == true &&
+        bridge.errorMessage != null &&
+        !bridge.active) {
+      await tester.pump(const Duration(milliseconds: 300));
+      return;
+    }
+    await tester.runAsync(
+      () => Future<void>.delayed(const Duration(milliseconds: 20)),
+    );
+    await tester.pump(const Duration(milliseconds: 100));
+  }
+  fail(
+    'Native worker did not report its missing-port fault within two seconds',
+  );
 }

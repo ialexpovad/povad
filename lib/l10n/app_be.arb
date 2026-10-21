@@ -14,7 +14,7 @@
   "quitPovad": "Выйсці з Povad",
   "stopAndQuit": "Спыніць мост і выйсці",
   "closeActiveTitle": "Мост працуе",
-  "closeActiveDescription": "Пакінуць злучэнне актыўным пасля закрыцця акна?",
+  "closeActiveDescription": "Пакінуць усе масты працаваць у фоне або спыніць іх і выйсці.",
   "keepRunning": "Пакінуць працаваць",
   "cancel": "Скасаваць",
   "previewNotice": "ПРАГЛЯД · Няма сапраўднага злучэння",
@@ -184,7 +184,7 @@
   "installUpdate": "Усталяваць абнаўленне",
   "downloadUpdate": "Спампаваць абнаўленне",
   "updateInstalling": "Усталёўваем абнаўленне…",
-  "updateWaitsForBridge": "Каб усталяваць абнаўленне, спыніце мост.",
+  "updateWaitsForBridge": "Спыніце ўсе масты, каб усталяваць абнаўленне.",
   "updateDownloadFailed": "Не ўдалося спампаваць або праверыць абнаўленне. Povad паспрабуе пазней.",
   "updateManualOnly": "Гэтая зборка абнаўляецца праз старонку выпуску.",
   "updateNotWritable": "Povad не можа запісваць у сваю папку. Спампуйце абнаўленне са старонкі выпуску.",
@@ -203,5 +203,54 @@
   "clientRejectedIp": "Кліент адхілены: IP не дазволены",
   "discoveryUnavailable": "Пошук у лакальнай сетцы недаступны. Падключыцеся праз адрас ніжэй.",
   "scanBridgeAddress": "Скануйце адрас моста",
-  "close": "Закрыць"
+  "close": "Закрыць",
+  "bridgeDefaultName": "Мост {number}",
+  "@bridgeDefaultName": {
+    "placeholders": {
+      "number": {
+        "type": "int"
+      }
+    }
+  },
+  "bridgeChoose": "Выбраць мост",
+  "bridgeAdd": "Дадаць мост",
+  "bridgeEdit": "Налады моста",
+  "bridgeRemove": "Выдаліць",
+  "bridgeRemoveTitle": "Выдаліць мост?",
+  "bridgeRemoveDescription": "Выдаліць налады для {name}?",
+  "@bridgeRemoveDescription": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "bridgeSave": "Захаваць",
+  "bridgeRetry": "Паўтарыць",
+  "bridgeStorageError": "Не ўдалося загрузіць ці захаваць налады мастоў. Паўтарыце спробу.",
+  "bridgeSerialConflict": "Гэты паслядоўны порт ужо выкарыстоўвае {name}.",
+  "@bridgeSerialConflict": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "bridgeTcpConflict": "Гэты TCP-адрас і порт ужо выкарыстоўвае {name}.",
+  "@bridgeTcpConflict": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "bridgesActive": "{count, plural, =0{Няма актыўных мастоў} one{{count} актыўны мост} few{{count} актыўныя масты} many{{count} актыўных мастоў} other{{count} актыўнага моста}}",
+  "@bridgesActive": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "bridgesStopAll": "Спыніць усе масты"
 }

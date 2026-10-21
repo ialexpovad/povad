@@ -25,7 +25,8 @@ successful build does not prove hardware behavior.
 
 To verify Bonjour on a Mac with an active local network, run
 `flutter test integration_test/bonjour_test.dart -d macos`. This exercises
-system `dns-sd` discovery and both `busy` TXT values. Hosted CI runners do
+system `dns-sd` discovery, both `busy` TXT values, and independent
+registration, update, and withdrawal of two bridges. Hosted CI runners do
 not provide a reliable multicast environment, so this check is run locally.
 
 For changes under `packages/povad_core`, run the standalone native contract

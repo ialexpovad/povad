@@ -8,7 +8,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:tray_manager/tray_manager.dart';
 import 'package:window_manager/window_manager.dart';
 
-import '../domain/bridge_session.dart';
+import '../domain/bridge_fleet.dart';
 import '../domain/bridge_view_state.dart';
 import '../l10n/generated/app_localizations.dart';
 import '../features/overview_page.dart';
@@ -21,9 +21,11 @@ enum ActiveCloseAction { keepRunning, stopAndQuit, cancel }
 final class DesktopPresence
     with WindowListener, TrayListener
     implements BridgePresence {
-  DesktopPresence._(this.session);
+  DesktopPresence._(this.fleet);
 
-  final BridgeSession session;
+  final BridgeFleet fleet;
+  String _signature = '';
+  Future<void> _menuTail = Future.value();
   BridgeViewState _state = BridgeViewState.stopped;
   Locale _locale = const Locale('en');
   bool _workerActive = false;
@@ -39,9 +41,9 @@ final class DesktopPresence
   /// exits, for example to start a staged update.
   Future<void> Function()? beforeExit;
 
-  static Future<DesktopPresence> initialize(BridgeSession session) async {
+  static Future<DesktopPresence> initialize(BridgeFleet fleet) async {
     await windowManager.ensureInitialized();
-    final presence = DesktopPresence._(session);
+    final presence = DesktopPresence._(fleet);
     await windowManager.setPreventClose(true);
     // Below this size the setup form and the mark start to crowd each other.
     await windowManager.setMinimumSize(const Size(400, 560));
@@ -63,8 +65,8 @@ final class DesktopPresence
   @override
   Future<void> prepareStart(String serialSelection, Locale locale) async {
     // Keep a close racing with native startup from terminating the session.
-    _workerActive = true;
-    _state = BridgeViewState.starting;
+    _workerActive = fleet.active;
+    _state = fleet.aggregateState;
     _locale = locale;
     await _updateMenuSafely();
   }
@@ -75,16 +77,26 @@ final class DesktopPresence
     Locale locale, {
     required bool workerActive,
   }) async {
-    if (_state == state && _locale == locale && _workerActive == workerActive) {
+    final signature = fleet.connections
+        .map((c) => '${c.id}|${c.profile.name}|${c.state}|${c.active}')
+        .join(';');
+    if (_state == state &&
+        _locale == locale &&
+        _workerActive == workerActive &&
+        _signature == signature) {
       return;
     }
+    _signature = signature;
     _state = state;
     _locale = locale;
     _workerActive = workerActive;
     await _updateMenuSafely();
   }
 
-  Future<void> _updateMenuSafely() async {
+  Future<void> _updateMenuSafely() =>
+      _menuTail = _menuTail.then((_) => _applyMenuSafely());
+
+  Future<void> _applyMenuSafely() async {
     try {
       await _updateMenu();
     } catch (error) {
@@ -100,7 +112,9 @@ final class DesktopPresence
     if (!_trayReady) return;
     await _updateIcon();
     final l = lookupAppLocalizations(_locale);
-    final status = StateCopy.of(_state, l).title;
+    final status = fleet.connections.length == 1
+        ? StateCopy.of(_state, l).title
+        : l.bridgesActive(fleet.activeCount);
     await trayManager.setToolTip('Povad · $status');
     await trayManager.setContextMenu(
       Menu(
@@ -108,7 +122,17 @@ final class DesktopPresence
           MenuItem(key: 'status', label: status, disabled: true),
           MenuItem.separator(),
           MenuItem(key: 'open', label: l.openPovad),
-          if (_workerActive) MenuItem(key: 'stop', label: l.stopBridge),
+          if (fleet.connections.length > 1) ...[
+            for (final entry in fleet.connections)
+              MenuItem(
+                key: 'bridge:${entry.id}',
+                label:
+                    '${entry.profile.name.isEmpty ? l.bridgeDefaultName(entry.profile.number) : entry.profile.name} · ${StateCopy.of(entry.state, l).badge}',
+                disabled: true,
+              ),
+            MenuItem.separator(),
+          ],
+          if (_workerActive) MenuItem(key: 'stop', label: l.bridgesStopAll),
           MenuItem(
             key: 'quit',
             label: _workerActive ? l.stopAndQuit : l.quitPovad,
@@ -250,7 +274,7 @@ final class DesktopPresence
     try {
       _boundsSaveTimer?.cancel();
       await _saveWindowBounds();
-      if (_workerActive) {
+      if (fleet.active) {
         final choice =
             await chooseCloseAction?.call() ?? ActiveCloseAction.keepRunning;
         if (choice == ActiveCloseAction.cancel) return;
@@ -280,7 +304,7 @@ final class DesktopPresence
       case 'open':
         unawaited(_showWindow());
       case 'stop':
-        unawaited(session.stop());
+        unawaited(fleet.stopAll());
       case 'quit':
         unawaited(_quit());
     }
@@ -295,27 +319,25 @@ final class DesktopPresence
     try {
       _boundsSaveTimer?.cancel();
       await _saveWindowBounds();
-      if (_workerActive) {
-        await session.stop();
-        final snapshot = session.snapshot;
-        if (snapshot != null &&
-            (!snapshot.finished ||
-                snapshot.serialOpen ||
-                snapshot.clientConnected)) {
-          await _showWindow();
-          return;
-        }
+      fleet.lockForShutdown();
+      await fleet.stopAll();
+      if (fleet.active) {
+        await _showWindow();
+        return;
       }
-      await session.close();
       try {
         await beforeExit?.call();
       } catch (error) {
         debugPrint('Cannot start the staged update: $error');
+        await _showWindow();
+        return;
       }
+      await fleet.close();
       if (_trayReady) await trayManager.destroy();
       exit(0);
     } finally {
       _quitting = false;
+      fleet.unlockShutdown();
     }
   }
 }

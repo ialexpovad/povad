@@ -185,7 +185,7 @@ abstract class AppLocalizations {
   /// No description provided for @closeActiveDescription.
   ///
   /// In en, this message translates to:
-  /// **'Keep the connection active after closing this window?'**
+  /// **'Keep all bridges running in the background, or stop them and quit.'**
   String get closeActiveDescription;
 
   /// No description provided for @keepRunning.
@@ -1205,7 +1205,7 @@ abstract class AppLocalizations {
   /// No description provided for @updateWaitsForBridge.
   ///
   /// In en, this message translates to:
-  /// **'Stop the bridge to install the update.'**
+  /// **'Stop all bridges to install the update.'**
   String get updateWaitsForBridge;
 
   /// No description provided for @updateDownloadFailed.
@@ -1321,6 +1321,90 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Close'**
   String get close;
+
+  /// No description provided for @bridgeDefaultName.
+  ///
+  /// In en, this message translates to:
+  /// **'Bridge {number}'**
+  String bridgeDefaultName(int number);
+
+  /// No description provided for @bridgeChoose.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose bridge'**
+  String get bridgeChoose;
+
+  /// No description provided for @bridgeAdd.
+  ///
+  /// In en, this message translates to:
+  /// **'Add bridge'**
+  String get bridgeAdd;
+
+  /// No description provided for @bridgeEdit.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit bridge'**
+  String get bridgeEdit;
+
+  /// No description provided for @bridgeRemove.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove'**
+  String get bridgeRemove;
+
+  /// No description provided for @bridgeRemoveTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove bridge?'**
+  String get bridgeRemoveTitle;
+
+  /// No description provided for @bridgeRemoveDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove settings for {name}?'**
+  String bridgeRemoveDescription(String name);
+
+  /// No description provided for @bridgeSave.
+  ///
+  /// In en, this message translates to:
+  /// **'Save'**
+  String get bridgeSave;
+
+  /// No description provided for @bridgeRetry.
+  ///
+  /// In en, this message translates to:
+  /// **'Retry'**
+  String get bridgeRetry;
+
+  /// No description provided for @bridgeStorageError.
+  ///
+  /// In en, this message translates to:
+  /// **'Bridge settings could not be loaded or saved. Retry to keep your configuration.'**
+  String get bridgeStorageError;
+
+  /// No description provided for @bridgeSerialConflict.
+  ///
+  /// In en, this message translates to:
+  /// **'This serial port is already used by {name}.'**
+  String bridgeSerialConflict(String name);
+
+  /// No description provided for @bridgeTcpConflict.
+  ///
+  /// In en, this message translates to:
+  /// **'This TCP address and port are already used by {name}.'**
+  String bridgeTcpConflict(String name);
+
+  /// No description provided for @bridgesActive.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =0{No active bridges} =1{1 active bridge} other{{count} active bridges}}'**
+  String bridgesActive(int count);
+
+  /// No description provided for @bridgesStopAll.
+  ///
+  /// In en, this message translates to:
+  /// **'Stop all bridges'**
+  String get bridgesStopAll;
 }
 
 class _AppLocalizationsDelegate

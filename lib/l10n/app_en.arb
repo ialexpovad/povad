@@ -14,7 +14,7 @@
   "quitPovad": "Quit Povad",
   "stopAndQuit": "Stop bridge and quit",
   "closeActiveTitle": "Bridge is running",
-  "closeActiveDescription": "Keep the connection active after closing this window?",
+  "closeActiveDescription": "Keep all bridges running in the background, or stop them and quit.",
   "keepRunning": "Keep running",
   "cancel": "Cancel",
   "previewNotice": "PREVIEW · No live connection",
@@ -191,7 +191,7 @@
   "installUpdate": "Install update",
   "downloadUpdate": "Download update",
   "updateInstalling": "Installing the update…",
-  "updateWaitsForBridge": "Stop the bridge to install the update.",
+  "updateWaitsForBridge": "Stop all bridges to install the update.",
   "updateDownloadFailed": "The update could not be downloaded or verified. Povad will try again later.",
   "updateManualOnly": "This build is updated from the release page.",
   "updateNotWritable": "Povad cannot write to its folder. Download the update from the release page.",
@@ -241,5 +241,54 @@
         "type": "String"
       }
     }
-  }
+  },
+  "bridgeDefaultName": "Bridge {number}",
+  "@bridgeDefaultName": {
+    "placeholders": {
+      "number": {
+        "type": "int"
+      }
+    }
+  },
+  "bridgeChoose": "Choose bridge",
+  "bridgeAdd": "Add bridge",
+  "bridgeEdit": "Edit bridge",
+  "bridgeRemove": "Remove",
+  "bridgeRemoveTitle": "Remove bridge?",
+  "bridgeRemoveDescription": "Remove settings for {name}?",
+  "@bridgeRemoveDescription": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "bridgeSave": "Save",
+  "bridgeRetry": "Retry",
+  "bridgeStorageError": "Bridge settings could not be loaded or saved. Retry to keep your configuration.",
+  "bridgeSerialConflict": "This serial port is already used by {name}.",
+  "@bridgeSerialConflict": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "bridgeTcpConflict": "This TCP address and port are already used by {name}.",
+  "@bridgeTcpConflict": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "bridgesActive": "{count, plural, =0{No active bridges} =1{1 active bridge} other{{count} active bridges}}",
+  "@bridgesActive": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "bridgesStopAll": "Stop all bridges"
 }

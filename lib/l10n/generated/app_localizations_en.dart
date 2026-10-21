@@ -54,7 +54,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get closeActiveDescription =>
-      'Keep the connection active after closing this window?';
+      'Keep all bridges running in the background, or stop them and quit.';
 
   @override
   String get keepRunning => 'Keep running';
@@ -603,7 +603,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get updateInstalling => 'Installing the update…';
 
   @override
-  String get updateWaitsForBridge => 'Stop the bridge to install the update.';
+  String get updateWaitsForBridge => 'Stop all bridges to install the update.';
 
   @override
   String get updateDownloadFailed =>
@@ -672,4 +672,64 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get close => 'Close';
+
+  @override
+  String bridgeDefaultName(int number) {
+    return 'Bridge $number';
+  }
+
+  @override
+  String get bridgeChoose => 'Choose bridge';
+
+  @override
+  String get bridgeAdd => 'Add bridge';
+
+  @override
+  String get bridgeEdit => 'Edit bridge';
+
+  @override
+  String get bridgeRemove => 'Remove';
+
+  @override
+  String get bridgeRemoveTitle => 'Remove bridge?';
+
+  @override
+  String bridgeRemoveDescription(String name) {
+    return 'Remove settings for $name?';
+  }
+
+  @override
+  String get bridgeSave => 'Save';
+
+  @override
+  String get bridgeRetry => 'Retry';
+
+  @override
+  String get bridgeStorageError =>
+      'Bridge settings could not be loaded or saved. Retry to keep your configuration.';
+
+  @override
+  String bridgeSerialConflict(String name) {
+    return 'This serial port is already used by $name.';
+  }
+
+  @override
+  String bridgeTcpConflict(String name) {
+    return 'This TCP address and port are already used by $name.';
+  }
+
+  @override
+  String bridgesActive(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count active bridges',
+      one: '1 active bridge',
+      zero: 'No active bridges',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get bridgesStopAll => 'Stop all bridges';
 }

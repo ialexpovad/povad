@@ -54,7 +54,7 @@ class AppLocalizationsBe extends AppLocalizations {
 
   @override
   String get closeActiveDescription =>
-      'Пакінуць злучэнне актыўным пасля закрыцця акна?';
+      'Пакінуць усе масты працаваць у фоне або спыніць іх і выйсці.';
 
   @override
   String get keepRunning => 'Пакінуць працаваць';
@@ -606,7 +606,8 @@ class AppLocalizationsBe extends AppLocalizations {
   String get updateInstalling => 'Усталёўваем абнаўленне…';
 
   @override
-  String get updateWaitsForBridge => 'Каб усталяваць абнаўленне, спыніце мост.';
+  String get updateWaitsForBridge =>
+      'Спыніце ўсе масты, каб усталяваць абнаўленне.';
 
   @override
   String get updateDownloadFailed =>
@@ -677,4 +678,66 @@ class AppLocalizationsBe extends AppLocalizations {
 
   @override
   String get close => 'Закрыць';
+
+  @override
+  String bridgeDefaultName(int number) {
+    return 'Мост $number';
+  }
+
+  @override
+  String get bridgeChoose => 'Выбраць мост';
+
+  @override
+  String get bridgeAdd => 'Дадаць мост';
+
+  @override
+  String get bridgeEdit => 'Налады моста';
+
+  @override
+  String get bridgeRemove => 'Выдаліць';
+
+  @override
+  String get bridgeRemoveTitle => 'Выдаліць мост?';
+
+  @override
+  String bridgeRemoveDescription(String name) {
+    return 'Выдаліць налады для $name?';
+  }
+
+  @override
+  String get bridgeSave => 'Захаваць';
+
+  @override
+  String get bridgeRetry => 'Паўтарыць';
+
+  @override
+  String get bridgeStorageError =>
+      'Не ўдалося загрузіць ці захаваць налады мастоў. Паўтарыце спробу.';
+
+  @override
+  String bridgeSerialConflict(String name) {
+    return 'Гэты паслядоўны порт ужо выкарыстоўвае $name.';
+  }
+
+  @override
+  String bridgeTcpConflict(String name) {
+    return 'Гэты TCP-адрас і порт ужо выкарыстоўвае $name.';
+  }
+
+  @override
+  String bridgesActive(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count актыўнага моста',
+      many: '$count актыўных мастоў',
+      few: '$count актыўныя масты',
+      one: '$count актыўны мост',
+      zero: 'Няма актыўных мастоў',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get bridgesStopAll => 'Спыніць усе масты';
 }

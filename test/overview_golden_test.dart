@@ -5,6 +5,8 @@ import 'package:flutter/widgets.dart';
 import 'package:povad/app/ui_preferences.dart';
 import 'package:povad/design/povad_theme.dart';
 import 'package:povad/domain/bridge_session.dart';
+import 'package:povad/domain/bridge_fleet.dart';
+import 'package:povad/domain/bridge_settings.dart';
 import 'package:povad/domain/bridge_view_state.dart';
 import 'package:povad/features/connection_diagram.dart';
 import 'package:povad/l10n/generated/app_localizations.dart';
@@ -67,6 +69,29 @@ void _registerGoldens() {
       preferences: _GoldenPreferences('en', PovadAppearance.light),
     ),
   );
+
+  for (final language in ['en', 'be']) {
+    goldenTest(
+      'multiple bridges compact $language',
+      fileName: 'multiple_bridges_mobile_$language',
+      constraints: const BoxConstraints.tightFor(width: 360, height: 700),
+      builder: () {
+        final fleet = BridgeFleet(sessionFactory: BridgeSession.new)..add();
+        fleet.updateProfile(
+          fleet.selected.id,
+          name: language == 'en' ? 'Bench B' : 'Прылада Б',
+          settings: const BridgeSettings(serialPort: 'COM7', tcpPort: '9269'),
+        );
+        return PovadApp(
+          fleet: fleet,
+          preferences: _GoldenPreferences(
+            language,
+            language == 'en' ? PovadAppearance.light : PovadAppearance.dark,
+          ),
+        );
+      },
+    );
+  }
 
   goldenTest(
     'desktop overview in dark mode',
