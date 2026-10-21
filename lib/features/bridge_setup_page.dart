@@ -450,7 +450,7 @@ class _UsbPicker extends StatelessWidget {
           Padding(
             padding: const EdgeInsets.only(top: 6),
             child: _UsbRow(
-              label: port.label,
+              label: port.labelIn(ports),
               selected: port.nativeSelection == selected,
               onTap: !enabled || loading ? null : () => onSelected?.call(port),
             ),

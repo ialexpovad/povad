@@ -17,6 +17,8 @@ This candidate adds independent Serial ↔ TCP bridges in one application.
 - The desktop tray and Android foreground notification aggregate all workers.
   Quitting and updates require confirmed shutdown of every bridge, including
   a bridge still starting. Stopping the selected bridge leaves others running.
+- Identical Android USB adapter models show distinct local bus addresses in
+  the device picker.
 - Saved profiles and the last selection survive an application restart.
   Android USB selections and permissions must be renewed; reconnecting a
   different physical device never silently starts a saved session.

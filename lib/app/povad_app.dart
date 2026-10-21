@@ -348,6 +348,12 @@ class _PovadAppState extends State<PovadApp> {
         usbPorts = discovered;
         for (final entry in fleet.connections) {
           final serial = entry.profile.settings.serialPort;
+          for (final port in discovered) {
+            if (port.nativeSelection == serial) {
+              _uiFor(entry.id).selectedUsbLabel = port.labelIn(discovered);
+              break;
+            }
+          }
           if (!entry.active &&
               serial.isNotEmpty &&
               !discovered.any((port) => port.nativeSelection == serial)) {
@@ -379,7 +385,7 @@ class _PovadAppState extends State<PovadApp> {
           fleet.connections.contains(target) &&
           !target.active &&
           !fleet.shuttingDown) {
-        _uiFor(target.id).selectedUsbLabel = port.label;
+        _uiFor(target.id).selectedUsbLabel = port.labelIn(usbPorts);
         fleet.updateProfile(
           target.id,
           settings: target.profile.settings.copyWith(
@@ -455,7 +461,7 @@ class _PovadAppState extends State<PovadApp> {
     final desired = advertised
         ? BridgeAdvertisement(
             port: config.tcpPort,
-            serial: _uiFor(entry.id).selectedUsbLabel ?? config.serialPort,
+            serial: config.serialPort,
             busy: entry.state == BridgeViewState.connected,
             name: entry.profile.name.isEmpty
                 ? 'Povad ${entry.profile.number}'

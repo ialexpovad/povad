@@ -33,6 +33,29 @@ void main() {
   tearDown(() => messenger.setMockMethodCallHandler(channel, null));
 
   test(
+    'identical adapter models remain distinguishable after list reordering',
+    () {
+      const first = AndroidUsbPort(
+        deviceName: '/dev/bus/usb/001/002',
+        vendorId: 0x0483,
+        productId: 0x5740,
+        portIndex: 0,
+      );
+      const second = AndroidUsbPort(
+        deviceName: '/dev/bus/usb/001/003',
+        vendorId: 0x0483,
+        productId: 0x5740,
+        portIndex: 0,
+      );
+      expect(first.labelIn([first]), first.label);
+      expect(first.labelIn([first, second]), endsWith('001/002'));
+      expect(second.labelIn([first, second]), endsWith('001/003'));
+      expect(first.labelIn([second, first]), first.labelIn([first, second]));
+      expect(first.nativeSelection, isNot(second.nativeSelection));
+    },
+  );
+
+  test(
     'USB discovery and permission agree on the native device selection',
     () async {
       const host = AndroidUsbHost();

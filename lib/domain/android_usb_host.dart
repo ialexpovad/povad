@@ -45,6 +45,17 @@ final class AndroidUsbPort {
 
   String get nativeSelection => 'usb:$deviceName:$portIndex';
 
+  /// Identical adapter models need a local bus address in the picker.
+  /// This is a label only, not a durable identity or a permission grant.
+  String labelIn(List<AndroidUsbPort> ports) {
+    if (ports.where((port) => port.label == label).length < 2) return label;
+    const prefix = '/dev/bus/usb/';
+    final address = deviceName.startsWith(prefix)
+        ? deviceName.substring(prefix.length)
+        : deviceName;
+    return '$label · $address';
+  }
+
   String get label =>
       'USB ${vendorId.toRadixString(16).padLeft(4, '0').toUpperCase()}'
       ':${productId.toRadixString(16).padLeft(4, '0').toUpperCase()}'
