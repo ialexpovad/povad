@@ -56,7 +56,8 @@ start bridges.
 
 BLE has been tested with serial hardware on macOS and Android. Linux BLE has
 passed a container build and native tests but has no hardware verification.
-Windows BLE has not yet been built or tested. Neither is qualified for release.
+Windows BLE builds and passes native tests in CI but has no hardware
+verification. Neither is qualified as live-supported BLE hardware yet.
 On Windows, BLE advertising uses the computer’s Bluetooth name; the app
 cannot set a separate name.
 

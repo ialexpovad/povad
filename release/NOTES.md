@@ -25,11 +25,11 @@ the existing transparent Serial ↔ TCP bridge.
   API 26 and current Android emulator checks are part of CI.
 - **Linux:** the BlueZ backend builds and passes native tests in Ubuntu 24.04,
   but has not been tested with a Bluetooth adapter and serial device.
-- **Windows:** the C++/WinRT GATT backend has not yet been compiled or tested
-  with Bluetooth hardware. This candidate is for finding and fixing those
-  issues. Windows advertises under the computer's Bluetooth name, not the
-  editable name used on other platforms; clients can search for service UUID
-  `FFE0`.
+- **Windows:** the C++/WinRT GATT backend builds and passes native tests in CI,
+  and the Windows application builds. Bluetooth hardware and serial operation
+  still need testing. Windows advertises under the computer's Bluetooth name,
+  not the editable name used on other platforms; clients can search for service
+  UUID `FFE0`.
 
 Windows and Linux BLE are experimental in this candidate. Their hardware
 results are required before claiming working platform support. The release
