@@ -10,6 +10,10 @@
 
 namespace povad {
 
+#if defined(__ANDROID__)
+void set_android_ble_host(void* vm, void* type, void* open_method);
+#endif
+
 inline bool peer_allowed(std::string_view list, std::string_view peer) {
   if (list.empty()) return true;
   while (!list.empty()) {
@@ -62,6 +66,32 @@ class TcpServer final {
   int64_t receive(uint8_t* data, size_t capacity);
   size_t send(const uint8_t* data, size_t length);
   // False means socket shutdown could not be confirmed.
+  bool close();
+
+ private:
+  struct Impl;
+  std::unique_ptr<Impl> impl_;
+};
+
+// A platform GATT peripheral. Its methods are called by the bridge worker;
+// platform callbacks only deliver bounded events to this worker-owned object.
+class BleServer final {
+ public:
+  BleServer();
+  ~BleServer();
+  BleServer(const BleServer&) = delete;
+  BleServer& operator=(const BleServer&) = delete;
+  void listen(const pv_config& config);
+  // 0: no event, 1: paired client subscribed, 2: additional client rejected,
+  // 3: unpaired client rejected.
+  int accept();
+  bool connected() const;
+  bool write_pending() const;
+  bool close_client();
+  // -1: no data, 0: client disconnected, positive: byte count.
+  int64_t receive(uint8_t* data, size_t capacity);
+  // Returns bytes accepted by the platform notification queue, or zero.
+  size_t send(const uint8_t* data, size_t length);
   bool close();
 
  private:

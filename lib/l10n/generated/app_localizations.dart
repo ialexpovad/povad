@@ -266,6 +266,12 @@ abstract class AppLocalizations {
   /// **'Opening serial and TCP…'**
   String get startingDescription;
 
+  /// No description provided for @bleStartingDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Opening serial and starting BLE advertising…'**
+  String get bleStartingDescription;
+
   /// No description provided for @listeningTitle.
   ///
   /// In en, this message translates to:
@@ -545,7 +551,7 @@ abstract class AppLocalizations {
   /// No description provided for @bridgeSetupBody.
   ///
   /// In en, this message translates to:
-  /// **'Serial and TCP configuration will appear here when the transport worker is integrated. This preview does not open a port.'**
+  /// **'Configure a Serial ↔ TCP or Serial ↔ BLE bridge in this section. This preview does not open a port.'**
   String get bridgeSetupBody;
 
   /// No description provided for @diagnosticsTitle.
@@ -623,7 +629,7 @@ abstract class AppLocalizations {
   /// No description provided for @aboutDescription.
   ///
   /// In en, this message translates to:
-  /// **'Povad brings device connections together. Serial ↔ TCP Bridge is its first module.'**
+  /// **'Povad forwards bytes between serial devices and TCP or Bluetooth LE clients.'**
   String get aboutDescription;
 
   /// No description provided for @updates.
@@ -721,6 +727,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Serial device, Povad bridge, and TCP client connection diagram'**
   String get connectionDiagram;
+
+  /// No description provided for @bleConnectionDiagram.
+  ///
+  /// In en, this message translates to:
+  /// **'Serial device, Povad bridge, and Bluetooth LE client connection diagram'**
+  String get bleConnectionDiagram;
 
   /// No description provided for @interrupted.
   ///
@@ -974,6 +986,12 @@ abstract class AppLocalizations {
   /// **'Povad opens the port and waits for one TCP client.'**
   String get step2Body;
 
+  /// No description provided for @step2BleBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Povad opens the serial port and advertises a Bluetooth LE service for one client.'**
+  String get step2BleBody;
+
   /// No description provided for @step3Title.
   ///
   /// In en, this message translates to:
@@ -985,6 +1003,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Point your TCP software at the address shown on Overview. Bytes pass through unchanged.'**
   String get step3Body;
+
+  /// No description provided for @step3BleBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Scan for the advertising name in your BLE client. Use the service and characteristic UUIDs from Bridge setup. Subscribe to notifications and send writes. Bytes pass through unchanged.'**
+  String get step3BleBody;
+
+  /// No description provided for @step3BleWindowsBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Scan for this computer’s Bluetooth name, or search for the service UUID from Bridge setup. Subscribe to notifications and send writes. Bytes pass through unchanged.'**
+  String get step3BleWindowsBody;
 
   /// No description provided for @faqTitle.
   ///
@@ -1003,6 +1033,24 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Check that the status reads “Waiting for a client” and use the address from Overview. From another computer, turn on Allow LAN clients and use a LAN address. A firewall can also block the port.'**
   String get faqClientA;
+
+  /// No description provided for @faqBleClientQ.
+  ///
+  /// In en, this message translates to:
+  /// **'My BLE client cannot connect'**
+  String get faqBleClientQ;
+
+  /// No description provided for @faqBleClientA.
+  ///
+  /// In en, this message translates to:
+  /// **'Check that Povad is waiting for a client, Bluetooth is on, and your client scans for Bluetooth LE devices. Use the advertising name and UUIDs from Bridge setup. If Require pairing is on, pair when your system asks. BT24 clients that never pair need Require pairing off.'**
+  String get faqBleClientA;
+
+  /// No description provided for @faqBleWindowsClientA.
+  ///
+  /// In en, this message translates to:
+  /// **'Check that Povad is waiting for a client and Bluetooth is on. Windows advertises under this computer’s Bluetooth name; you can also search for the service UUID from Bridge setup. If Require pairing is on, pair when asked. BT24 clients that never pair need Require pairing off.'**
+  String get faqBleWindowsClientA;
 
   /// No description provided for @faqPortQ.
   ///
@@ -1028,6 +1076,12 @@ abstract class AppLocalizations {
   /// **'Each session serves one TCP client. When it disconnects, the session ends so no bytes reach the wrong client. Select Start again to wait for the next one.'**
   String get faqEndedA;
 
+  /// No description provided for @faqEndedBleA.
+  ///
+  /// In en, this message translates to:
+  /// **'Each session serves one BLE client. When it disconnects, the session ends. Select Start again to advertise for the next client.'**
+  String get faqEndedBleA;
+
   /// No description provided for @faqBytesQ.
   ///
   /// In en, this message translates to:
@@ -1051,6 +1105,24 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'LAN clients are not authenticated and can send bytes to your device. Allow them only on a network you trust, and turn LAN access off when you finish.'**
   String get faqLanA;
+
+  /// No description provided for @faqBlePairingQ.
+  ///
+  /// In en, this message translates to:
+  /// **'Should my BLE client pair?'**
+  String get faqBlePairingQ;
+
+  /// No description provided for @faqBlePairingA.
+  ///
+  /// In en, this message translates to:
+  /// **'Require pairing is on by default. Pair with Povad when your system asks. The connection is encrypted; another client cannot take over the active bridge.'**
+  String get faqBlePairingA;
+
+  /// No description provided for @faqBleOpenA.
+  ///
+  /// In en, this message translates to:
+  /// **'Require pairing is off. This allows BT24-style clients that do not pair, but any nearby Bluetooth device can connect and send bytes to your serial device. Use this mode only where you trust devices in range.'**
+  String get faqBleOpenA;
 
   /// No description provided for @faqPrivacyQ.
   ///
@@ -1441,6 +1513,180 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Automatic startup requires macOS 13 or later and an installed app.'**
   String get startAtLoginUnavailable;
+
+  /// No description provided for @stopBitsLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Stop bits'**
+  String get stopBitsLabel;
+
+  /// No description provided for @transportLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Transport'**
+  String get transportLabel;
+
+  /// No description provided for @blePeripheral.
+  ///
+  /// In en, this message translates to:
+  /// **'BLE peripheral'**
+  String get blePeripheral;
+
+  /// No description provided for @bleNameLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Advertising name'**
+  String get bleNameLabel;
+
+  /// No description provided for @bleWindowsNameLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Bluetooth name'**
+  String get bleWindowsNameLabel;
+
+  /// No description provided for @bleWindowsComputerName.
+  ///
+  /// In en, this message translates to:
+  /// **'Computer’s Bluetooth name'**
+  String get bleWindowsComputerName;
+
+  /// No description provided for @bleWindowsNameNote.
+  ///
+  /// In en, this message translates to:
+  /// **'Windows advertises under this computer’s Bluetooth name. Povad cannot change it. If your client supports it, search for the service UUID instead.'**
+  String get bleWindowsNameNote;
+
+  /// No description provided for @bleNameInvalid.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter a name up to 29 UTF-8 bytes.'**
+  String get bleNameInvalid;
+
+  /// No description provided for @bleServiceUuidLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Service UUID'**
+  String get bleServiceUuidLabel;
+
+  /// No description provided for @bleWriteUuidLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Write characteristic UUID'**
+  String get bleWriteUuidLabel;
+
+  /// No description provided for @bleNotifyUuidLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Notify characteristic UUID'**
+  String get bleNotifyUuidLabel;
+
+  /// No description provided for @bleUuidInvalid.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter a 16-bit or 128-bit UUID.'**
+  String get bleUuidInvalid;
+
+  /// No description provided for @blePairingNote.
+  ///
+  /// In en, this message translates to:
+  /// **'The client must pair for an encrypted connection. One client can exchange data at a time.'**
+  String get blePairingNote;
+
+  /// No description provided for @fromBle.
+  ///
+  /// In en, this message translates to:
+  /// **'From BLE'**
+  String get fromBle;
+
+  /// No description provided for @bleListeningDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Advertising and waiting for a paired BLE client.'**
+  String get bleListeningDescription;
+
+  /// No description provided for @bleConnectedDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'A paired BLE client is connected to the serial device.'**
+  String get bleConnectedDescription;
+
+  /// No description provided for @bridgeBleConflict.
+  ///
+  /// In en, this message translates to:
+  /// **'Bluetooth adapter is already used by {owner}.'**
+  String bridgeBleConflict(String owner);
+
+  /// No description provided for @clientRejectedUnpaired.
+  ///
+  /// In en, this message translates to:
+  /// **'Client rejected: pair with this device first'**
+  String get clientRejectedUnpaired;
+
+  /// No description provided for @bleBridgeSetupIntro.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose a serial device and BLE settings.'**
+  String get bleBridgeSetupIntro;
+
+  /// No description provided for @androidBleBridgeSetupIntro.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose a USB serial device and BLE settings.'**
+  String get androidBleBridgeSetupIntro;
+
+  /// No description provided for @bleClientLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'BLE client'**
+  String get bleClientLabel;
+
+  /// BLE setup switch: clients must pair for an encrypted link.
+  ///
+  /// In en, this message translates to:
+  /// **'Require pairing'**
+  String get blePairingTitle;
+
+  /// Explains the Require pairing switch.
+  ///
+  /// In en, this message translates to:
+  /// **'Clients pair for an encrypted link. Turn off for BLE UART clients that never pair, such as apps made for BT24 or HM-10 modules.'**
+  String get blePairingDescription;
+
+  /// Warning shown while pairing is off.
+  ///
+  /// In en, this message translates to:
+  /// **'Without pairing, any nearby Bluetooth device can connect to this serial device. Use it only where you trust everyone in range.'**
+  String get bleOpenRisk;
+
+  /// Note under the BLE fields while pairing is off.
+  ///
+  /// In en, this message translates to:
+  /// **'One client can exchange data at a time.'**
+  String get bleOpenNote;
+
+  /// Overview: a stopped BLE bridge.
+  ///
+  /// In en, this message translates to:
+  /// **'Serial and BLE are closed.'**
+  String get bleStoppedDescription;
+
+  /// Overview: an open (no pairing) BLE bridge waits for a client.
+  ///
+  /// In en, this message translates to:
+  /// **'Advertising and waiting for a BLE client.'**
+  String get bleOpenListeningDescription;
+
+  /// Overview: a client is connected to an open BLE bridge.
+  ///
+  /// In en, this message translates to:
+  /// **'A BLE client is connected to the serial device.'**
+  String get bleOpenConnectedDescription;
+
+  /// Hint after a BLE client left a session.
+  ///
+  /// In en, this message translates to:
+  /// **'The BLE client disconnected. Start again to wait for the next client.'**
+  String get hintBleClientLeft;
 }
 
 class _AppLocalizationsDelegate

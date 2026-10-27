@@ -49,10 +49,10 @@ pv_config config() {
 }
 
 void test_abi_and_validation() {
-  require(sizeof(pv_config) == 888 && sizeof(pv_error) == 200 &&
-          sizeof(pv_snapshot) == 256, "Fixed ABI layout");
-  require(pv_abi_version() == 2 && pv_config_size() == 888 &&
-          pv_error_size() == 200 && pv_snapshot_size() == 256,
+  require(sizeof(pv_config) == 1072 && sizeof(pv_error) == 200 &&
+          sizeof(pv_snapshot) == 280, "Fixed ABI layout");
+  require(pv_abi_version() == 3 && pv_config_size() == 1072 &&
+          pv_error_size() == 200 && pv_snapshot_size() == 280,
           "ABI version and sizes");
   auto value = config();
   pv_error error{};
@@ -66,6 +66,11 @@ void test_abi_and_validation() {
   require(pv_config_validate(&value, &error) == PV_OK, "Wait-next consent");
   value.wait_next_client = 2;
   require(pv_config_validate(&value, &error) == PV_INVALID_CONFIG, "Invalid wait-next flag");
+  value = config();
+  value.ble_require_pairing = 1;
+  require(pv_config_validate(&value, &error) == PV_OK, "Pairing required is valid");
+  value.ble_require_pairing = 2;
+  require(pv_config_validate(&value, &error) == PV_INVALID_CONFIG, "Invalid pairing flag");
   value = config();
   std::strcpy(value.allowed_clients, "192.168.1.20");
   require(pv_config_validate(&value, &error) == PV_INVALID_CONFIG, "Allowlist requires LAN");
@@ -102,6 +107,22 @@ void test_abi_and_validation() {
   value = config();
   value.parity = 'M';
   require(pv_config_validate(&value, &error) == PV_INVALID_CONFIG, "Unsupported parity");
+  value = config();
+  value.peer_kind = PV_PEER_BLE;
+  value.stop_bits_x10 = 20;
+  value.tcp_port = 0;
+  std::strcpy(value.ble_name, "Povad BLE");
+  std::strcpy(value.ble_service_uuid, "FFE0");
+  std::strcpy(value.ble_write_uuid, "FFE2");
+  std::strcpy(value.ble_notify_uuid, "FFE1");
+  require(pv_config_validate(&value, &error) == PV_OK,
+          "BLE accepts BDKG-11M 115200 8N2 and ignores TCP port");
+  std::strcpy(value.ble_notify_uuid, "0000ffe2-0000-1000-8000-00805f9b34fb");
+  require(pv_config_validate(&value, &error) == PV_INVALID_CONFIG,
+          "Equivalent BLE characteristic UUIDs are distinct");
+  std::strcpy(value.ble_notify_uuid, "bad-uuid");
+  require(pv_config_validate(&value, &error) == PV_INVALID_CONFIG,
+          "Malformed BLE UUID is rejected");
   error.size = 0;
   require(pv_config_validate(&value, &error) == PV_ABI_MISMATCH, "Error ABI mismatch");
 }

@@ -39,3 +39,6 @@ macos/Flutter/GeneratedPluginRegistrant.swift
 /linux/flutter/ephemeral/
 /widget_preview/
 .widget_preview/
+
+# Local macOS signing identity (see Signing.local.xcconfig.example).
+macos/Runner/Configs/Signing.local.xcconfig

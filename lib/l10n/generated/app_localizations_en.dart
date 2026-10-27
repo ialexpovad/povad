@@ -96,6 +96,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get startingDescription => 'Opening serial and TCP…';
 
   @override
+  String get bleStartingDescription =>
+      'Opening serial and starting BLE advertising…';
+
+  @override
   String get listeningTitle => 'Waiting for a client';
 
   @override
@@ -241,7 +245,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get bridgeSetupBody =>
-      'Serial and TCP configuration will appear here when the transport worker is integrated. This preview does not open a port.';
+      'Configure a Serial ↔ TCP or Serial ↔ BLE bridge in this section. This preview does not open a port.';
 
   @override
   String get diagnosticsTitle => 'No active session';
@@ -283,7 +287,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get aboutDescription =>
-      'Povad brings device connections together. Serial ↔ TCP Bridge is its first module.';
+      'Povad forwards bytes between serial devices and TCP or Bluetooth LE clients.';
 
   @override
   String get updates => 'Updates';
@@ -335,6 +339,10 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get connectionDiagram =>
       'Serial device, Povad bridge, and TCP client connection diagram';
+
+  @override
+  String get bleConnectionDiagram =>
+      'Serial device, Povad bridge, and Bluetooth LE client connection diagram';
 
   @override
   String get interrupted => 'Ended';
@@ -470,11 +478,23 @@ class AppLocalizationsEn extends AppLocalizations {
   String get step2Body => 'Povad opens the port and waits for one TCP client.';
 
   @override
+  String get step2BleBody =>
+      'Povad opens the serial port and advertises a Bluetooth LE service for one client.';
+
+  @override
   String get step3Title => 'Connect your client';
 
   @override
   String get step3Body =>
       'Point your TCP software at the address shown on Overview. Bytes pass through unchanged.';
+
+  @override
+  String get step3BleBody =>
+      'Scan for the advertising name in your BLE client. Use the service and characteristic UUIDs from Bridge setup. Subscribe to notifications and send writes. Bytes pass through unchanged.';
+
+  @override
+  String get step3BleWindowsBody =>
+      'Scan for this computer’s Bluetooth name, or search for the service UUID from Bridge setup. Subscribe to notifications and send writes. Bytes pass through unchanged.';
 
   @override
   String get faqTitle => 'Questions and fixes';
@@ -485,6 +505,17 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get faqClientA =>
       'Check that the status reads “Waiting for a client” and use the address from Overview. From another computer, turn on Allow LAN clients and use a LAN address. A firewall can also block the port.';
+
+  @override
+  String get faqBleClientQ => 'My BLE client cannot connect';
+
+  @override
+  String get faqBleClientA =>
+      'Check that Povad is waiting for a client, Bluetooth is on, and your client scans for Bluetooth LE devices. Use the advertising name and UUIDs from Bridge setup. If Require pairing is on, pair when your system asks. BT24 clients that never pair need Require pairing off.';
+
+  @override
+  String get faqBleWindowsClientA =>
+      'Check that Povad is waiting for a client and Bluetooth is on. Windows advertises under this computer’s Bluetooth name; you can also search for the service UUID from Bridge setup. If Require pairing is on, pair when asked. BT24 clients that never pair need Require pairing off.';
 
   @override
   String get faqPortQ => 'The serial port cannot be opened';
@@ -501,6 +532,10 @@ class AppLocalizationsEn extends AppLocalizations {
       'Each session serves one TCP client. When it disconnects, the session ends so no bytes reach the wrong client. Select Start again to wait for the next one.';
 
   @override
+  String get faqEndedBleA =>
+      'Each session serves one BLE client. When it disconnects, the session ends. Select Start again to advertise for the next client.';
+
+  @override
   String get faqBytesQ => 'Does Povad change my data?';
 
   @override
@@ -513,6 +548,17 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get faqLanA =>
       'LAN clients are not authenticated and can send bytes to your device. Allow them only on a network you trust, and turn LAN access off when you finish.';
+
+  @override
+  String get faqBlePairingQ => 'Should my BLE client pair?';
+
+  @override
+  String get faqBlePairingA =>
+      'Require pairing is on by default. Pair with Povad when your system asks. The connection is encrypted; another client cannot take over the active bridge.';
+
+  @override
+  String get faqBleOpenA =>
+      'Require pairing is off. This allows BT24-style clients that do not pair, but any nearby Bluetooth device can connect and send bytes to your serial device. Use this mode only where you trust devices in range.';
 
   @override
   String get faqPrivacyQ => 'Does Povad send my data anywhere?';
@@ -754,4 +800,104 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get startAtLoginUnavailable =>
       'Automatic startup requires macOS 13 or later and an installed app.';
+
+  @override
+  String get stopBitsLabel => 'Stop bits';
+
+  @override
+  String get transportLabel => 'Transport';
+
+  @override
+  String get blePeripheral => 'BLE peripheral';
+
+  @override
+  String get bleNameLabel => 'Advertising name';
+
+  @override
+  String get bleWindowsNameLabel => 'Bluetooth name';
+
+  @override
+  String get bleWindowsComputerName => 'Computer’s Bluetooth name';
+
+  @override
+  String get bleWindowsNameNote =>
+      'Windows advertises under this computer’s Bluetooth name. Povad cannot change it. If your client supports it, search for the service UUID instead.';
+
+  @override
+  String get bleNameInvalid => 'Enter a name up to 29 UTF-8 bytes.';
+
+  @override
+  String get bleServiceUuidLabel => 'Service UUID';
+
+  @override
+  String get bleWriteUuidLabel => 'Write characteristic UUID';
+
+  @override
+  String get bleNotifyUuidLabel => 'Notify characteristic UUID';
+
+  @override
+  String get bleUuidInvalid => 'Enter a 16-bit or 128-bit UUID.';
+
+  @override
+  String get blePairingNote =>
+      'The client must pair for an encrypted connection. One client can exchange data at a time.';
+
+  @override
+  String get fromBle => 'From BLE';
+
+  @override
+  String get bleListeningDescription =>
+      'Advertising and waiting for a paired BLE client.';
+
+  @override
+  String get bleConnectedDescription =>
+      'A paired BLE client is connected to the serial device.';
+
+  @override
+  String bridgeBleConflict(String owner) {
+    return 'Bluetooth adapter is already used by $owner.';
+  }
+
+  @override
+  String get clientRejectedUnpaired =>
+      'Client rejected: pair with this device first';
+
+  @override
+  String get bleBridgeSetupIntro => 'Choose a serial device and BLE settings.';
+
+  @override
+  String get androidBleBridgeSetupIntro =>
+      'Choose a USB serial device and BLE settings.';
+
+  @override
+  String get bleClientLabel => 'BLE client';
+
+  @override
+  String get blePairingTitle => 'Require pairing';
+
+  @override
+  String get blePairingDescription =>
+      'Clients pair for an encrypted link. Turn off for BLE UART clients that never pair, such as apps made for BT24 or HM-10 modules.';
+
+  @override
+  String get bleOpenRisk =>
+      'Without pairing, any nearby Bluetooth device can connect to this serial device. Use it only where you trust everyone in range.';
+
+  @override
+  String get bleOpenNote => 'One client can exchange data at a time.';
+
+  @override
+  String get bleStoppedDescription => 'Serial and BLE are closed.';
+
+  @override
+  String get bleOpenListeningDescription =>
+      'Advertising and waiting for a BLE client.';
+
+  @override
+  String get bleOpenConnectedDescription =>
+      'A BLE client is connected to the serial device.';
+
+  @override
+  String get hintBleClientLeft =>
+      'The BLE client disconnected. Start again to wait for the next client.';
 }

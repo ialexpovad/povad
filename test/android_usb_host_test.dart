@@ -20,6 +20,7 @@ void main() {
               'vendorId': 0x10c4,
               'productId': 0xea60,
               'portIndex': 1,
+              'portCount': 2,
             },
           ];
         case 'permission':
@@ -54,6 +55,24 @@ void main() {
       expect(first.nativeSelection, isNot(second.nativeSelection));
     },
   );
+
+  test('an adapter is named by its USB product name when it has one', () {
+    const named = AndroidUsbPort(
+      deviceName: '/dev/bus/usb/001/004',
+      vendorId: 0x0403,
+      productId: 0x6001,
+      portIndex: 0,
+      productName: ' Example Serial Adapter ',
+    );
+    const unnamed = AndroidUsbPort(
+      deviceName: '/dev/bus/usb/001/005',
+      vendorId: 0x0403,
+      productId: 0x6001,
+      portIndex: 0,
+    );
+    expect(named.label, 'Example Serial Adapter');
+    expect(unnamed.label, 'USB 0403:6001');
+  });
 
   test(
     'USB discovery and permission agree on the native device selection',

@@ -12,3 +12,9 @@ PRODUCT_BUNDLE_IDENTIFIER = io.github.ialexpovad.povad
 
 // The copyright displayed in application information
 PRODUCT_COPYRIGHT = Copyright © 2026 Aliaksandr Povad
+
+// Local builds sign with the developer's own certificate when this git-ignored
+// file exists (see Signing.local.xcconfig.example). A stable identity keeps the
+// Bluetooth and other privacy grants across rebuilds; without it the build is
+// ad-hoc signed and macOS asks again for every build.
+#include? "Signing.local.xcconfig"

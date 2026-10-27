@@ -859,6 +859,64 @@ void main() {
     expect(find.text('Get started'), findsOneWidget);
   });
 
+  testWidgets('BLE help follows transport and pairing settings', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      PovadApp(session: BridgeSession(), preferences: MemoryUiPreferences()),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Configure bridge'));
+    await tester.pumpAndSettle();
+    await tester.ensureVisible(find.text('BLE'));
+    await tester.tap(find.text('BLE'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('sidebar-help')));
+    await tester.pumpAndSettle();
+
+    expect(find.text('My BLE client cannot connect'), findsOneWidget);
+    expect(find.text('My TCP client cannot connect'), findsNothing);
+    expect(find.text('Is it safe to allow LAN clients?'), findsNothing);
+    expect(find.text('Should my BLE client pair?'), findsOneWidget);
+
+    await tester.tap(find.byKey(const ValueKey('help-close')));
+    await tester.pumpAndSettle();
+    final pairing = find.byKey(const ValueKey('ble-require-pairing'));
+    await tester.ensureVisible(pairing);
+    await tester.tap(pairing);
+    await tester.pumpAndSettle();
+    expect(find.textContaining('any nearby Bluetooth device'), findsOneWidget);
+
+    await tester.tap(find.byKey(const ValueKey('sidebar-help')));
+    await tester.pumpAndSettle();
+    await tester.ensureVisible(find.text('Should my BLE client pair?'));
+    await tester.tap(find.text('Should my BLE client pair?'));
+    await tester.pumpAndSettle();
+    expect(find.textContaining('Require pairing is off'), findsOneWidget);
+  });
+
+  testWidgets('Windows BLE explains the system advertising name', (
+    tester,
+  ) async {
+    debugDefaultTargetPlatformOverride = TargetPlatform.windows;
+    await tester.pumpWidget(
+      PovadApp(session: BridgeSession(), preferences: MemoryUiPreferences()),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Configure bridge'));
+    await tester.pumpAndSettle();
+    await tester.ensureVisible(find.text('BLE'));
+    await tester.tap(find.text('BLE'));
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const ValueKey('ble-name-field')), findsNothing);
+    expect(find.textContaining('Windows advertises under'), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('sidebar-help')));
+    await tester.pumpAndSettle();
+    expect(find.textContaining('computer’s Bluetooth name'), findsWidgets);
+    debugDefaultTargetPlatformOverride = null;
+  });
+
   testWidgets('modifier shortcuts switch sections', (tester) async {
     await tester.pumpWidget(PovadApp(preferences: MemoryUiPreferences()));
     await tester.pumpAndSettle();

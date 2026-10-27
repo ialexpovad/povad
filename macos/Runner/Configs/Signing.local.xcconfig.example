@@ -1,0 +1,5 @@
+// Copy to Signing.local.xcconfig (git-ignored) and set your own team.
+// `security find-identity -v -p codesigning` lists your certificates; the
+// team is the OU of the certificate.
+DEVELOPMENT_TEAM = XXXXXXXXXX
+CODE_SIGN_IDENTITY = Apple Development

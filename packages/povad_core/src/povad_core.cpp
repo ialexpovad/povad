@@ -4,6 +4,7 @@
 #include <cstdio>
 #include <cstring>
 #include <new>
+#include <cctype>
 
 struct pv_handle { povad::Bridge core; };
 
@@ -11,6 +12,37 @@ namespace {
 
 bool terminated(const char* text, size_t capacity) {
   return std::memchr(text, '\0', capacity) != nullptr;
+}
+
+bool ble_uuid_valid(const char* text) {
+  const size_t length = std::strlen(text);
+  if (length != 4 && length != 36) return false;
+  for (size_t i = 0; i < length; ++i) {
+    if (length == 36 && (i == 8 || i == 13 || i == 18 || i == 23)) {
+      if (text[i] != '-') return false;
+    } else if (!std::isxdigit(static_cast<unsigned char>(text[i]))) {
+      return false;
+    }
+  }
+  return true;
+}
+
+bool same_ble_uuid(const char* first, const char* second) {
+  char a[37]{};
+  char b[37]{};
+  const auto canonical = [](const char* source, char* target) {
+    if (std::strlen(source) == 4) {
+      std::snprintf(target, 37, "0000%s-0000-1000-8000-00805f9b34fb", source);
+    } else {
+      std::snprintf(target, 37, "%s", source);
+    }
+    for (size_t i = 0; target[i] != '\0'; ++i) {
+      target[i] = static_cast<char>(std::tolower(static_cast<unsigned char>(target[i])));
+    }
+  };
+  canonical(first, a);
+  canonical(second, b);
+  return std::strcmp(a, b) == 0;
 }
 
 bool ipv4(const char* text, uint8_t octets[4]) {
@@ -74,7 +106,11 @@ int32_t pv_config_validate(const pv_config* config, pv_error* error) {
   }
   if (!terminated(config->serial_port, sizeof(config->serial_port)) ||
       !terminated(config->bind_address, sizeof(config->bind_address)) ||
-      !terminated(config->allowed_clients, sizeof(config->allowed_clients))) {
+      !terminated(config->allowed_clients, sizeof(config->allowed_clients)) ||
+      !terminated(config->ble_name, sizeof(config->ble_name)) ||
+      !terminated(config->ble_service_uuid, sizeof(config->ble_service_uuid)) ||
+      !terminated(config->ble_write_uuid, sizeof(config->ble_write_uuid)) ||
+      !terminated(config->ble_notify_uuid, sizeof(config->ble_notify_uuid))) {
     return fail(error, PV_INVALID_CONFIG, "Unterminated configuration field");
   }
   if (config->serial_port[0] == '\0' ||
@@ -88,12 +124,31 @@ int32_t pv_config_validate(const pv_config* config, pv_error* error) {
       config->hardware_flow > 1 || config->dtr > 1 || config->rts > 1) {
     return fail(error, PV_INVALID_CONFIG, "Invalid serial format");
   }
-  if (config->tcp_port == 0 || config->tcp_port > 65535 ||
-      config->allow_lan > 1 || config->wait_next_client > 1 ||
+  if (config->peer_kind > PV_PEER_BLE || config->wait_next_client > 1 ||
+      config->ble_require_pairing > 1 ||
       config->queue_limit < 4096 ||
       config->queue_limit > 1048576 || config->queue_age_ms < 100 ||
       config->queue_age_ms > 30000) {
     return fail(error, PV_INVALID_CONFIG, "Invalid listener or queue setting");
+  }
+  if (config->peer_kind == PV_PEER_BLE) {
+    if (config->ble_name[0] == '\0' || std::strlen(config->ble_name) > 29 ||
+        !ble_uuid_valid(config->ble_service_uuid) ||
+        !ble_uuid_valid(config->ble_write_uuid) ||
+        !ble_uuid_valid(config->ble_notify_uuid) ||
+        same_ble_uuid(config->ble_service_uuid, config->ble_write_uuid) ||
+        same_ble_uuid(config->ble_service_uuid, config->ble_notify_uuid) ||
+        same_ble_uuid(config->ble_write_uuid, config->ble_notify_uuid)) {
+      return fail(error, PV_INVALID_CONFIG, "Invalid BLE service or characteristics");
+    }
+    if (error != nullptr) {
+      error->code = PV_OK;
+      error->message[0] = '\0';
+    }
+    return PV_OK;
+  }
+  if (config->tcp_port == 0 || config->tcp_port > 65535 || config->allow_lan > 1) {
+    return fail(error, PV_INVALID_CONFIG, "Invalid TCP listener");
   }
   uint8_t octets[4]{};
   if (!ipv4(config->bind_address, octets) ||

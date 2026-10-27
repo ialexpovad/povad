@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
 import 'package:shadcn_flutter/shadcn_flutter.dart' as shad;
 
@@ -21,6 +22,9 @@ class DetailsPage extends StatefulWidget {
     this.serialValue,
     this.baud,
     this.parity,
+    this.stopBits,
+    this.bleMode = false,
+    this.blePaired = true,
     this.endpoint,
     this.serialReceived = 0,
     this.tcpReceived = 0,
@@ -33,6 +37,9 @@ class DetailsPage extends StatefulWidget {
   final BridgeViewState state;
   final bool previewMode;
   final String? detail, hint, serialValue, baud, parity, endpoint;
+  final int? stopBits;
+  final bool bleMode;
+  final bool blePaired;
   final int serialReceived, tcpReceived;
   final DateTime? sessionStartedAt;
   final VoidCallback? onStartAgain, onEditSetup;
@@ -84,7 +91,12 @@ class _DetailsPageState extends State<DetailsPage> {
   Widget build(BuildContext context) {
     final l = AppLocalizations.of(context)!;
     final colors = paletteOf(context);
-    final copy = StateCopy.of(widget.state, l);
+    final copy = StateCopy.of(
+      widget.state,
+      l,
+      bleMode: widget.bleMode,
+      blePaired: widget.blePaired,
+    );
     final language = Localizations.localeOf(context).languageCode;
     final ended =
         widget.state == BridgeViewState.error ||
@@ -195,15 +207,26 @@ class _DetailsPageState extends State<DetailsPage> {
           children: [
             _Fact(l.serialPortPath, widget.serialValue ?? dash),
             _Fact(l.baudRate, widget.baud ?? dash),
-            _Fact(l.parity, switch (widget.parity) {
-              'E' => l.parityEven,
-              'O' => l.parityOdd,
-              'N' => l.parityNone,
-              _ => dash,
-            }),
-            _Fact(l.endpointLabel, widget.endpoint ?? dash),
             _Fact(
-              l.clientLabel,
+              l.parity,
+              (switch (widget.parity) {
+                'E' => l.parityEven,
+                'O' => l.parityOdd,
+                'N' => l.parityNone,
+                _ => dash,
+              }).replaceFirst(RegExp(r'1$'), '${widget.stopBits ?? 1}'),
+            ),
+            _Fact(l.stopBitsLabel, widget.stopBits?.toString() ?? dash),
+            _Fact(
+              widget.bleMode
+                  ? defaultTargetPlatform == TargetPlatform.windows
+                        ? l.bleWindowsNameLabel
+                        : l.bleNameLabel
+                  : l.endpointLabel,
+              widget.endpoint ?? dash,
+            ),
+            _Fact(
+              widget.bleMode ? l.bleClientLabel : l.clientLabel,
               widget.state == BridgeViewState.connected
                   ? l.connected
                   : widget.state == BridgeViewState.listening
@@ -229,7 +252,7 @@ class _DetailsPageState extends State<DetailsPage> {
               icon: shad.LucideIcons.arrowRight,
             ),
             _Fact(
-              l.fromTcp,
+              widget.bleMode ? l.fromBle : l.fromTcp,
               formatBytes(widget.tcpReceived, language),
               icon: shad.LucideIcons.arrowLeft,
             ),

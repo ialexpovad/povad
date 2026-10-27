@@ -26,6 +26,7 @@ class MainActivity : FlutterActivity() {
     private var permissionDeviceName: String? = null
     private var receiverRegistered = false
     private var nativeLibraryAvailable = false
+    private var blePermissionResult: MethodChannel.Result? = null
 
     override fun provideFlutterEngine(context: Context): FlutterEngine =
         (application as PovadApplication).engine()
@@ -47,6 +48,14 @@ class MainActivity : FlutterActivity() {
             checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) !=
                 PackageManager.PERMISSION_GRANTED) {
             requestPermissions(arrayOf(Manifest.permission.POST_NOTIFICATIONS), 9268)
+        }
+    }
+
+    override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        if (requestCode == 9269) {
+            blePermissionResult?.success(PovadBleHost.permitted() && PovadBleHost.available())
+            blePermissionResult = null
         }
     }
 
@@ -74,6 +83,7 @@ class MainActivity : FlutterActivity() {
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
         PovadUsbHost.initialize(applicationContext)
+        PovadBleHost.initialize(applicationContext)
         nativeLibraryAvailable = try {
             System.loadLibrary("povad_core")
             true
@@ -135,6 +145,27 @@ class MainActivity : FlutterActivity() {
                     else -> result.notImplemented()
                 }
             }
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "povad/ble_host")
+            .setMethodCallHandler { call, result ->
+                when (call.method) {
+                    "prepare" -> {
+                        if (PovadBleHost.permitted()) {
+                            result.success(PovadBleHost.available())
+                        } else if (blePermissionResult != null) {
+                            result.error("BLE_BUSY", "Bluetooth permission request is pending", null)
+                        } else if (Build.VERSION.SDK_INT >= 31) {
+                            blePermissionResult = result
+                            requestPermissions(arrayOf(
+                                Manifest.permission.BLUETOOTH_CONNECT,
+                                Manifest.permission.BLUETOOTH_ADVERTISE,
+                            ), 9269)
+                        } else {
+                            result.success(PovadBleHost.available())
+                        }
+                    }
+                    else -> result.notImplemented()
+                }
+            }
         if (!flutterEngine.dartExecutor.isExecutingDart) {
             flutterEngine.dartExecutor.executeDartEntrypoint(
                 DartExecutor.DartEntrypoint.createDefault()
@@ -168,6 +199,8 @@ class MainActivity : FlutterActivity() {
     }
 
     override fun onDestroy() {
+        blePermissionResult?.error("BLE_CLOSED", "Bluetooth permission request was interrupted", null)
+        blePermissionResult = null
         permissionResult?.error("USB_CLOSED", "USB permission request was interrupted", null)
         permissionResult = null
         permissionDeviceName = null
@@ -176,6 +209,7 @@ class MainActivity : FlutterActivity() {
         flutterEngine?.dartExecutor?.binaryMessenger?.let {
             MethodChannel(it, "povad/usb_host").setMethodCallHandler(null)
             MethodChannel(it, "povad/update").setMethodCallHandler(null)
+            MethodChannel(it, "povad/ble_host").setMethodCallHandler(null)
         }
         (application as PovadApplication).setActivity(null)
         super.onDestroy()

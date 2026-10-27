@@ -3,11 +3,18 @@ project(povad_core LANGUAGES CXX)
 
 find_package(Threads REQUIRED)
 if(WIN32)
-  set(POVAD_TRANSPORT_SOURCES src/transport_windows.cpp)
+  set(POVAD_TRANSPORT_SOURCES src/transport_windows.cpp src/transport_ble_windows.cpp)
 elseif(ANDROID)
-  set(POVAD_TRANSPORT_SOURCES src/transport_android.cpp src/transport_tcp_posix.cpp)
+  set(POVAD_TRANSPORT_SOURCES src/transport_android.cpp src/transport_ble_android.cpp src/transport_tcp_posix.cpp)
+elseif(APPLE)
+  enable_language(OBJCXX)
+  set(POVAD_TRANSPORT_SOURCES src/transport_posix.cpp src/transport_tcp_posix.cpp src/transport_ble_macos.mm)
+  set_source_files_properties(src/transport_ble_macos.mm PROPERTIES COMPILE_FLAGS "-fobjc-arc")
 else()
-  set(POVAD_TRANSPORT_SOURCES src/transport_posix.cpp src/transport_tcp_posix.cpp)
+  # Linux: BlueZ over D-Bus with GLib's GDBus (Flutter's Linux embedder links GLib).
+  find_package(PkgConfig REQUIRED)
+  pkg_check_modules(GIO REQUIRED IMPORTED_TARGET gio-2.0)
+  set(POVAD_TRANSPORT_SOURCES src/transport_posix.cpp src/transport_tcp_posix.cpp src/transport_ble_linux.cpp)
 endif()
 
 add_library(povad_core SHARED src/povad_core.cpp src/bridge.cpp ${POVAD_TRANSPORT_SOURCES})
@@ -16,7 +23,12 @@ target_compile_definitions(povad_core PRIVATE POVAD_CORE_BUILD)
 target_include_directories(povad_core PUBLIC include)
 target_link_libraries(povad_core PRIVATE Threads::Threads)
 if(WIN32)
-  target_link_libraries(povad_core PRIVATE ws2_32)
+  target_link_libraries(povad_core PRIVATE ws2_32 windowsapp)
+  target_compile_options(povad_core PRIVATE /bigobj /permissive-)
+elseif(APPLE)
+  target_link_libraries(povad_core PRIVATE "-framework Foundation" "-framework CoreBluetooth")
+elseif(NOT ANDROID)
+  target_link_libraries(povad_core PRIVATE PkgConfig::GIO)
 endif()
 set_target_properties(povad_core PROPERTIES
   CXX_VISIBILITY_PRESET hidden
@@ -54,7 +66,7 @@ if(BUILD_TESTING)
 
   # Exercise the worker's failed-shutdown state with a deterministic fake
   # transport; no physical serial adapter is required for this contract.
-  add_executable(povad_shutdown_tests tests/shutdown_tests.cpp src/bridge.cpp)
+  add_executable(povad_shutdown_tests tests/shutdown_tests.cpp tests/ble_fake.cpp src/bridge.cpp)
   target_compile_features(povad_shutdown_tests PRIVATE cxx_std_17)
   target_include_directories(povad_shutdown_tests PRIVATE include src)
   target_link_libraries(povad_shutdown_tests PRIVATE Threads::Threads)
@@ -66,7 +78,7 @@ if(BUILD_TESTING)
 
   # Exercise real worker scheduling, bounded queues, and short writes on every
   # desktop CI platform without requiring an OS serial adapter.
-  add_executable(povad_worker_relay_tests tests/worker_relay_tests.cpp src/bridge.cpp)
+  add_executable(povad_worker_relay_tests tests/worker_relay_tests.cpp tests/ble_fake.cpp src/bridge.cpp)
   target_compile_features(povad_worker_relay_tests PRIVATE cxx_std_17)
   target_include_directories(povad_worker_relay_tests PRIVATE include src)
   target_link_libraries(povad_worker_relay_tests PRIVATE Threads::Threads)

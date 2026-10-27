@@ -30,11 +30,13 @@ class ConnectionDiagram extends StatefulWidget {
     this.animateConnection = true,
     this.tcpReceived = 0,
     this.serialReceived = 0,
+    this.bleMode = false,
   });
 
   final BridgeViewState state;
   final bool animateConnection;
   final int tcpReceived, serialReceived;
+  final bool bleMode;
 
   @override
   State<ConnectionDiagram> createState() => _ConnectionDiagramState();
@@ -231,7 +233,9 @@ class _ConnectionDiagramState extends State<ConnectionDiagram>
         : const Duration(milliseconds: 380);
 
     return Semantics(
-      label: AppLocalizations.of(context)!.connectionDiagram,
+      label: widget.bleMode
+          ? AppLocalizations.of(context)!.bleConnectionDiagram
+          : AppLocalizations.of(context)!.connectionDiagram,
       child: ExcludeSemantics(
         child: Center(
           child: SizedBox.square(
@@ -320,7 +324,9 @@ class _ConnectionDiagramState extends State<ConnectionDiagram>
                         _positioned(
                           povadTcpTerminal,
                           _TerminalBadge(
-                            icon: shad.LucideIcons.network,
+                            icon: widget.bleMode
+                                ? shad.LucideIcons.radio
+                                : shad.LucideIcons.network,
                             duration: badgeDuration,
                             tone: fault
                                 ? _Tone.fault

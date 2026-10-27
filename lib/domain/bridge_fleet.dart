@@ -48,7 +48,7 @@ final class BridgeConnection {
   }
 }
 
-enum BridgeConflictKind { serial, tcp }
+enum BridgeConflictKind { serial, tcp, ble }
 
 final class BridgeConflict implements Exception {
   const BridgeConflict(this.kind, this.ownerId);
@@ -227,7 +227,11 @@ final class BridgeFleet extends ChangeNotifier {
       BridgeConflictKind? kind;
       if (other.serialIdentity == identity) {
         kind = BridgeConflictKind.serial;
-      } else if (held.tcpPort == config.tcpPort &&
+      } else if (held.peer == BridgePeer.ble && config.peer == BridgePeer.ble) {
+        kind = BridgeConflictKind.ble;
+      } else if (held.peer == BridgePeer.tcp &&
+          config.peer == BridgePeer.tcp &&
+          held.tcpPort == config.tcpPort &&
           (held.bindAddress == config.bindAddress ||
               held.bindAddress == '0.0.0.0' ||
               config.bindAddress == '0.0.0.0')) {

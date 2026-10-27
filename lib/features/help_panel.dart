@@ -10,7 +10,7 @@ import '../domain/trouble_hint.dart';
 import '../l10n/generated/app_localizations.dart';
 
 /// Topics in the order they appear in the FAQ.
-enum HelpTopic { client, port, ended, bytes, lan, privacy }
+enum HelpTopic { client, port, ended, bytes, lan, pairing, privacy }
 
 HelpTopic? helpTopicFor(TroubleHint? hint) => switch (hint) {
   TroubleHint.serialAccess ||
@@ -34,6 +34,8 @@ Future<void> showHelpPanel(
   BuildContext context, {
   required VoidCallback onReportProblem,
   HelpTopic? topic,
+  bool bleMode = false,
+  bool blePaired = true,
 }) {
   final l = AppLocalizations.of(context)!;
   final reduce = MediaQuery.maybeOf(context)?.disableAnimations ?? false;
@@ -45,8 +47,12 @@ Future<void> showHelpPanel(
     transitionDuration: reduce
         ? Duration.zero
         : const Duration(milliseconds: 280),
-    pageBuilder: (context, _, _) =>
-        HelpPanel(onReportProblem: onReportProblem, topic: topic),
+    pageBuilder: (context, _, _) => HelpPanel(
+      onReportProblem: onReportProblem,
+      topic: topic,
+      bleMode: bleMode,
+      blePaired: blePaired,
+    ),
     transitionBuilder: (context, animation, _, child) {
       final curved = CurvedAnimation(
         parent: animation,
@@ -65,10 +71,17 @@ Future<void> showHelpPanel(
 }
 
 class HelpPanel extends StatelessWidget {
-  const HelpPanel({super.key, required this.onReportProblem, this.topic});
+  const HelpPanel({
+    super.key,
+    required this.onReportProblem,
+    this.topic,
+    this.bleMode = false,
+    this.blePaired = true,
+  });
 
   final VoidCallback onReportProblem;
   final HelpTopic? topic;
+  final bool bleMode, blePaired;
 
   @override
   Widget build(BuildContext context) {
@@ -82,11 +95,26 @@ class HelpPanel extends StatelessWidget {
         ? '⌘'
         : 'Ctrl';
     final faq = [
-      (HelpTopic.client, l.faqClientQ, l.faqClientA),
+      (
+        HelpTopic.client,
+        bleMode ? l.faqBleClientQ : l.faqClientQ,
+        bleMode
+            ? defaultTargetPlatform == TargetPlatform.windows
+                  ? l.faqBleWindowsClientA
+                  : l.faqBleClientA
+            : l.faqClientA,
+      ),
       (HelpTopic.port, l.faqPortQ, l.faqPortA),
-      (HelpTopic.ended, l.faqEndedQ, l.faqEndedA),
+      (HelpTopic.ended, l.faqEndedQ, bleMode ? l.faqEndedBleA : l.faqEndedA),
       (HelpTopic.bytes, l.faqBytesQ, l.faqBytesA),
-      (HelpTopic.lan, l.faqLanQ, l.faqLanA),
+      if (bleMode)
+        (
+          HelpTopic.pairing,
+          l.faqBlePairingQ,
+          blePaired ? l.faqBlePairingA : l.faqBleOpenA,
+        )
+      else
+        (HelpTopic.lan, l.faqLanQ, l.faqLanA),
       (HelpTopic.privacy, l.faqPrivacyQ, l.faqPrivacyA),
     ];
 
@@ -172,8 +200,21 @@ class HelpPanel extends StatelessWidget {
                         icon: shad.LucideIcons.rocket,
                         children: [
                           _Step(1, l.step1Title, l.step1Body),
-                          _Step(2, l.step2Title, l.step2Body),
-                          _Step(3, l.step3Title, l.step3Body),
+                          _Step(
+                            2,
+                            l.step2Title,
+                            bleMode ? l.step2BleBody : l.step2Body,
+                          ),
+                          _Step(
+                            3,
+                            l.step3Title,
+                            bleMode
+                                ? defaultTargetPlatform ==
+                                          TargetPlatform.windows
+                                      ? l.step3BleWindowsBody
+                                      : l.step3BleBody
+                                : l.step3Body,
+                          ),
                         ],
                       ),
                       Section(
@@ -445,13 +486,16 @@ class _Shortcut extends StatelessWidget {
   }
 }
 
-String? troubleHintText(TroubleHint? hint, AppLocalizations l) =>
-    switch (hint) {
-      TroubleHint.serialAccess => l.hintSerialAccess,
-      TroubleHint.tcpPort => l.hintTcpPort,
-      TroubleHint.disconnected => l.hintDisconnected,
-      TroubleHint.settings => l.hintSettings,
-      TroubleHint.delivery => l.hintDelivery,
-      TroubleHint.clientLeft => l.hintClientLeft,
-      null => null,
-    };
+String? troubleHintText(
+  TroubleHint? hint,
+  AppLocalizations l, {
+  bool bleMode = false,
+}) => switch (hint) {
+  TroubleHint.serialAccess => l.hintSerialAccess,
+  TroubleHint.tcpPort => l.hintTcpPort,
+  TroubleHint.disconnected => l.hintDisconnected,
+  TroubleHint.settings => l.hintSettings,
+  TroubleHint.delivery => l.hintDelivery,
+  TroubleHint.clientLeft => bleMode ? l.hintBleClientLeft : l.hintClientLeft,
+  null => null,
+};

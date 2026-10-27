@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
@@ -9,7 +10,35 @@ import '../design/povad_components.dart';
 import '../design/povad_theme.dart';
 import '../domain/android_usb_host.dart';
 import '../domain/client_allowlist.dart';
+import '../domain/bridge_settings.dart';
 import '../l10n/generated/app_localizations.dart';
+
+String? canonicalBleUuid(String value) {
+  final uuid = value.trim().toLowerCase();
+  if (RegExp(r'^[0-9a-f]{4}$').hasMatch(uuid)) {
+    return '0000$uuid-0000-1000-8000-00805f9b34fb';
+  }
+  return RegExp(
+        r'^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$',
+      ).hasMatch(uuid)
+      ? uuid
+      : null;
+}
+
+bool bleSettingsValid(BridgeSettings settings, {bool requireName = true}) {
+  final service = canonicalBleUuid(settings.bleServiceUuid);
+  final write = canonicalBleUuid(settings.bleWriteUuid);
+  final notify = canonicalBleUuid(settings.bleNotifyUuid);
+  return (!requireName ||
+          (settings.bleName.trim().isNotEmpty &&
+              utf8.encode(settings.bleName).length <= 29)) &&
+      service != null &&
+      write != null &&
+      notify != null &&
+      service != write &&
+      service != notify &&
+      write != notify;
+}
 
 /// Field-level validation shared by the form and the start action.
 final class BridgeFieldErrors {
@@ -39,10 +68,24 @@ class BridgeSetupPage extends StatelessWidget {
     required this.serialPort,
     required this.baud,
     required this.parity,
+    this.transport = BridgeTransport.tcp,
+    this.stopBits = 1,
+    this.bleName = 'Povad BLE',
+    this.bleServiceUuid = 'FFE0',
+    this.bleWriteUuid = 'FFE2',
+    this.bleNotifyUuid = 'FFE1',
+    this.bleRequirePairing = true,
+    this.onBleRequirePairingChanged,
     required this.tcpPort,
     required this.onSerialPortChanged,
     required this.onBaudChanged,
     required this.onParityChanged,
+    this.onTransportChanged,
+    this.onStopBitsChanged,
+    this.onBleNameChanged,
+    this.onBleServiceChanged,
+    this.onBleWriteChanged,
+    this.onBleNotifyChanged,
     required this.onTcpPortChanged,
     required this.allowLan,
     required this.waitNextClient,
@@ -69,9 +112,20 @@ class BridgeSetupPage extends StatelessWidget {
   });
 
   final String serialPort, baud, parity, tcpPort;
+  final BridgeTransport transport;
+  final int stopBits;
+  final String bleName, bleServiceUuid, bleWriteUuid, bleNotifyUuid;
+  final bool bleRequirePairing;
+  final ValueChanged<bool>? onBleRequirePairingChanged;
   final ValueChanged<String> onSerialPortChanged;
   final ValueChanged<String> onBaudChanged;
   final ValueChanged<String> onParityChanged;
+  final ValueChanged<BridgeTransport>? onTransportChanged;
+  final ValueChanged<int>? onStopBitsChanged;
+  final ValueChanged<String>? onBleNameChanged;
+  final ValueChanged<String>? onBleServiceChanged;
+  final ValueChanged<String>? onBleWriteChanged;
+  final ValueChanged<String>? onBleNotifyChanged;
   final ValueChanged<String> onTcpPortChanged;
   final bool allowLan;
   final bool waitNextClient;
@@ -110,7 +164,9 @@ class BridgeSetupPage extends StatelessWidget {
 
     return PageFrame(
       title: l.bridgeSetupTitle,
-      subtitle: usbMode ? l.androidBridgeSetupIntro : l.bridgeSetupIntro,
+      subtitle: transport == BridgeTransport.ble
+          ? (usbMode ? l.androidBleBridgeSetupIntro : l.bleBridgeSetupIntro)
+          : (usbMode ? l.androidBridgeSetupIntro : l.bridgeSetupIntro),
       children: [
         if (running) ...[
           Callout(icon: shad.LucideIcons.lock, text: l.settingsLocked),
@@ -197,130 +253,255 @@ class BridgeSetupPage extends StatelessWidget {
             const SizedBox(height: 16),
             _ParitySelector(
               value: parity,
+              stopBits: stopBits,
               onChanged: onParityChanged,
               enabled: !running,
             ),
+            const SizedBox(height: 16),
+            _FieldLabel(l.stopBitsLabel),
+            Wrap(
+              spacing: 8,
+              children: [
+                _Chip(
+                  label: '1',
+                  selected: stopBits == 1,
+                  onTap: running ? null : () => onStopBitsChanged?.call(1),
+                ),
+                _Chip(
+                  label: '2',
+                  selected: stopBits == 2,
+                  onTap: running ? null : () => onStopBitsChanged?.call(2),
+                ),
+              ],
+            ),
           ],
         ),
+        const SizedBox(height: 16),
         Section(
-          title: l.tcpListener,
-          icon: shad.LucideIcons.network,
+          title: l.transportLabel,
+          icon: shad.LucideIcons.radio,
+          padded: true,
           children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(18, 18, 18, 16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  _FieldLabel(l.tcpPortNumber),
-                  _SettingField(
-                    key: const ValueKey('tcp-field'),
-                    value: tcpPort,
-                    onChanged: onTcpPortChanged,
-                    enabled: !running,
-                    numeric: true,
-                    error: tcpError ? l.tcpPortInvalid : null,
-                    hint: l.tcpPortHint,
-                  ),
-                ],
-              ),
-            ),
-            SectionRow(
-              label: l.waitNextClient,
-              description: l.waitNextDescription,
-              stackBelow: 0,
-              trailing: shad.Switch(
-                key: const ValueKey('wait-next-client'),
-                value: waitNextClient,
-                onChanged: running ? null : onWaitNextChanged,
-              ),
-            ),
-            SectionRow(
-              label: l.lanAccessTitle,
-              description: allowLan ? null : l.loopbackNote,
-              stackBelow: 0,
-              trailing: shad.Switch(
-                key: const ValueKey('allow-lan'),
-                value: allowLan,
-                onChanged: running ? null : onAllowLanChanged,
-              ),
-              below: allowLan
-                  ? Callout(
-                      icon: shad.LucideIcons.triangleAlert,
-                      tone: CalloutTone.warning,
-                      text: l.lanAccessRisk,
-                    )
-                  : null,
-            ),
-            if (allowLan) ...[
-              if (discoveryUnavailable)
-                Padding(
-                  padding: const EdgeInsets.all(18),
-                  child: Callout(
-                    icon: shad.LucideIcons.triangleAlert,
-                    tone: CalloutTone.warning,
-                    text: l.discoveryUnavailable,
-                  ),
+            Wrap(
+              spacing: 8,
+              children: [
+                _Chip(
+                  label: 'TCP',
+                  selected: transport == BridgeTransport.tcp,
+                  onTap: running
+                      ? null
+                      : () => onTransportChanged?.call(BridgeTransport.tcp),
                 ),
+                _Chip(
+                  label: 'BLE',
+                  selected: transport == BridgeTransport.ble,
+                  onTap: running
+                      ? null
+                      : () => onTransportChanged?.call(BridgeTransport.ble),
+                ),
+              ],
+            ),
+          ],
+        ),
+        if (transport == BridgeTransport.tcp)
+          Section(
+            title: l.tcpListener,
+            icon: shad.LucideIcons.network,
+            children: [
               Padding(
-                padding: const EdgeInsets.fromLTRB(18, 16, 18, 18),
+                padding: const EdgeInsets.fromLTRB(18, 18, 18, 16),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    _FieldLabel(l.allowedClients),
+                    _FieldLabel(l.tcpPortNumber),
                     _SettingField(
-                      key: const ValueKey('allowed-clients-field'),
-                      value: allowedClients,
-                      onChanged: onAllowedClientsChanged,
+                      key: const ValueKey('tcp-field'),
+                      value: tcpPort,
+                      onChanged: onTcpPortChanged,
                       enabled: !running,
-                      placeholder: '192.168.1.20, 192.168.1.21',
-                      error: parseClientAllowlist(allowedClients) == null
-                          ? l.allowedClientsInvalid
-                          : null,
-                      hint: l.allowedClientsHint,
+                      numeric: true,
+                      error: tcpError ? l.tcpPortInvalid : null,
+                      hint: l.tcpPortHint,
                     ),
                   ],
                 ),
               ),
               SectionRow(
-                label: l.lanAddressesTitle,
+                label: l.waitNextClient,
+                description: l.waitNextDescription,
                 stackBelow: 0,
-                trailing: Semantics(
-                  label: l.refreshAddresses,
-                  button: true,
-                  child: shad.GhostButton(
-                    onPressed: onRefreshLan,
-                    density: shad.ButtonDensity.icon,
-                    child: Icon(
-                      shad.LucideIcons.refreshCw,
-                      size: 15,
-                      color: colors.muted,
+                trailing: shad.Switch(
+                  key: const ValueKey('wait-next-client'),
+                  value: waitNextClient,
+                  onChanged: running ? null : onWaitNextChanged,
+                ),
+              ),
+              SectionRow(
+                label: l.lanAccessTitle,
+                description: allowLan ? null : l.loopbackNote,
+                stackBelow: 0,
+                trailing: shad.Switch(
+                  key: const ValueKey('allow-lan'),
+                  value: allowLan,
+                  onChanged: running ? null : onAllowLanChanged,
+                ),
+                below: allowLan
+                    ? Callout(
+                        icon: shad.LucideIcons.triangleAlert,
+                        tone: CalloutTone.warning,
+                        text: l.lanAccessRisk,
+                      )
+                    : null,
+              ),
+              if (allowLan) ...[
+                if (discoveryUnavailable)
+                  Padding(
+                    padding: const EdgeInsets.all(18),
+                    child: Callout(
+                      icon: shad.LucideIcons.triangleAlert,
+                      tone: CalloutTone.warning,
+                      text: l.discoveryUnavailable,
                     ),
                   ),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(18, 16, 18, 18),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      _FieldLabel(l.allowedClients),
+                      _SettingField(
+                        key: const ValueKey('allowed-clients-field'),
+                        value: allowedClients,
+                        onChanged: onAllowedClientsChanged,
+                        enabled: !running,
+                        placeholder: '192.168.1.20, 192.168.1.21',
+                        error: parseClientAllowlist(allowedClients) == null
+                            ? l.allowedClientsInvalid
+                            : null,
+                        hint: l.allowedClientsHint,
+                      ),
+                    ],
+                  ),
                 ),
-                below: lanAddresses.isEmpty
-                    ? Text(
-                        l.lanAddressUnavailable,
-                        style: TextStyle(color: colors.muted, fontSize: 13),
-                      )
-                    : Column(
-                        children: [
-                          for (final address in lanAddresses)
-                            _AddressRow(
-                              name: address.name,
-                              endpoint: '${address.address}:$tcpPort',
-                              copied:
-                                  copiedEndpoint ==
-                                  '${address.address}:$tcpPort',
-                              copyLabel: l.copyEndpoint,
-                              copiedLabel: l.copiedEndpoint,
-                              onCopy: onCopyEndpoint,
-                            ),
-                        ],
+                SectionRow(
+                  label: l.lanAddressesTitle,
+                  stackBelow: 0,
+                  trailing: Semantics(
+                    label: l.refreshAddresses,
+                    button: true,
+                    child: shad.GhostButton(
+                      onPressed: onRefreshLan,
+                      density: shad.ButtonDensity.icon,
+                      child: Icon(
+                        shad.LucideIcons.refreshCw,
+                        size: 15,
+                        color: colors.muted,
+                      ),
+                    ),
+                  ),
+                  below: lanAddresses.isEmpty
+                      ? Text(
+                          l.lanAddressUnavailable,
+                          style: TextStyle(color: colors.muted, fontSize: 13),
+                        )
+                      : Column(
+                          children: [
+                            for (final address in lanAddresses)
+                              _AddressRow(
+                                name: address.name,
+                                endpoint: '${address.address}:$tcpPort',
+                                copied:
+                                    copiedEndpoint ==
+                                    '${address.address}:$tcpPort',
+                                copyLabel: l.copyEndpoint,
+                                copiedLabel: l.copiedEndpoint,
+                                onCopy: onCopyEndpoint,
+                              ),
+                          ],
+                        ),
+                ),
+              ],
+            ],
+          ),
+        if (transport == BridgeTransport.ble)
+          Section(
+            title: l.blePeripheral,
+            icon: shad.LucideIcons.radio,
+            padded: true,
+            children: [
+              if (defaultTargetPlatform == TargetPlatform.windows)
+                Callout(icon: shad.LucideIcons.info, text: l.bleWindowsNameNote)
+              else ...[
+                _FieldLabel(l.bleNameLabel),
+                _SettingField(
+                  key: const ValueKey('ble-name-field'),
+                  value: bleName,
+                  onChanged: onBleNameChanged ?? (_) {},
+                  enabled: !running,
+                  error:
+                      bleName.trim().isEmpty || utf8.encode(bleName).length > 29
+                      ? l.bleNameInvalid
+                      : null,
+                ),
+              ],
+              const SizedBox(height: 16),
+              _FieldLabel(l.bleServiceUuidLabel),
+              _SettingField(
+                key: const ValueKey('ble-service-field'),
+                value: bleServiceUuid,
+                onChanged: onBleServiceChanged ?? (_) {},
+                enabled: !running,
+                error: canonicalBleUuid(bleServiceUuid) == null
+                    ? l.bleUuidInvalid
+                    : null,
+              ),
+              const SizedBox(height: 16),
+              _FieldLabel(l.bleWriteUuidLabel),
+              _SettingField(
+                key: const ValueKey('ble-write-field'),
+                value: bleWriteUuid,
+                onChanged: onBleWriteChanged ?? (_) {},
+                enabled: !running,
+                error: canonicalBleUuid(bleWriteUuid) == null
+                    ? l.bleUuidInvalid
+                    : null,
+              ),
+              const SizedBox(height: 16),
+              _FieldLabel(l.bleNotifyUuidLabel),
+              _SettingField(
+                key: const ValueKey('ble-notify-field'),
+                value: bleNotifyUuid,
+                onChanged: onBleNotifyChanged ?? (_) {},
+                enabled: !running,
+                error: canonicalBleUuid(bleNotifyUuid) == null
+                    ? l.bleUuidInvalid
+                    : null,
+              ),
+              const SizedBox(height: 12),
+              SectionRow(
+                label: l.blePairingTitle,
+                description: l.blePairingDescription,
+                stackBelow: 0,
+                trailing: shad.Switch(
+                  key: const ValueKey('ble-require-pairing'),
+                  value: bleRequirePairing,
+                  onChanged: running ? null : onBleRequirePairingChanged,
+                ),
+                below: bleRequirePairing
+                    ? null
+                    : Callout(
+                        icon: shad.LucideIcons.triangleAlert,
+                        tone: CalloutTone.warning,
+                        text: l.bleOpenRisk,
                       ),
               ),
+              const SizedBox(height: 12),
+              Text(
+                bleRequirePairing ? l.blePairingNote : l.bleOpenNote,
+                style: TextStyle(color: colors.muted, fontSize: 12.5),
+              ),
             ],
-          ],
-        ),
+          ),
       ],
     );
   }
@@ -616,22 +797,24 @@ class _AddressRow extends StatelessWidget {
 class _ParitySelector extends StatelessWidget {
   const _ParitySelector({
     required this.value,
+    required this.stopBits,
     required this.onChanged,
     required this.enabled,
   });
 
   final String value;
+  final int stopBits;
   final ValueChanged<String> onChanged;
   final bool enabled;
 
   @override
   Widget build(BuildContext context) {
     final l = AppLocalizations.of(context)!;
-    String label(String parity) => switch (parity) {
+    String label(String parity) => (switch (parity) {
       'E' => l.parityEven,
       'O' => l.parityOdd,
       _ => l.parityNone,
-    };
+    }).replaceFirst(RegExp(r'1$'), '$stopBits');
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [

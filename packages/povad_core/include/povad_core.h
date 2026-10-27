@@ -17,7 +17,9 @@
 extern "C" {
 #endif
 
-#define PV_ABI_VERSION 2u
+#define PV_ABI_VERSION 3u
+
+enum pv_peer_kind { PV_PEER_TCP = 0, PV_PEER_BLE = 1 };
 
 enum pv_result {
   PV_OK = 0,
@@ -42,7 +44,7 @@ enum pv_state {
 };
 
 // All fields are fixed width. Strings are UTF-8 and must be NUL terminated.
-// This v2 contract defines local serial selections and IPv4 listeners.
+// This v3 contract defines local serial selections and TCP or BLE peers.
 // Android selections use the usb:<device-name>:<port-index> form.
 typedef struct pv_config {
   uint32_t size;
@@ -62,6 +64,15 @@ typedef struct pv_config {
   char bind_address[64];
   uint32_t wait_next_client; // 0 ends on disconnect; 1 keeps listening.
   char allowed_clients[512]; // Comma-separated exact IPv4 addresses, or empty.
+  uint32_t peer_kind;
+  char ble_name[64];
+  char ble_service_uuid[37];
+  char ble_write_uuid[37];
+  char ble_notify_uuid[37];
+  // 1: writes and the notification subscription need an encrypted, bonded
+  // link. 0: open, as common BLE UART modules (BT24, HM-10) are, so their
+  // clients connect without pairing; any nearby client may then connect.
+  uint32_t ble_require_pairing;
 } pv_config;
 
 typedef struct pv_error {
@@ -83,6 +94,9 @@ typedef struct pv_snapshot {
   char error_message[192];
   uint32_t rejected_busy;
   uint32_t rejected_ip;
+  uint64_t ble_received;
+  uint64_t ble_accepted;
+  uint32_t rejected_unpaired;
 } pv_snapshot;
 
 typedef struct pv_handle pv_handle;

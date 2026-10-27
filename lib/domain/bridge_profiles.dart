@@ -36,6 +36,13 @@ final class BridgeProfile {
     'tcpPort': settings.tcpPort,
     'waitNextClient': settings.waitNextClient,
     'allowedClients': settings.allowedClients,
+    'transport': settings.transport.name,
+    'stopBits': settings.stopBits,
+    'bleName': settings.bleName,
+    'bleServiceUuid': settings.bleServiceUuid,
+    'bleWriteUuid': settings.bleWriteUuid,
+    'bleNotifyUuid': settings.bleNotifyUuid,
+    'bleRequirePairing': settings.bleRequirePairing,
   };
 
   factory BridgeProfile.fromJson(Map<String, dynamic> json) {
@@ -55,6 +62,15 @@ final class BridgeProfile {
         tcpPort: json['tcpPort'] as String,
         waitNextClient: json['waitNextClient'] as bool,
         allowedClients: json['allowedClients'] as String,
+        transport: json['transport'] == 'ble'
+            ? BridgeTransport.ble
+            : BridgeTransport.tcp,
+        stopBits: json['stopBits'] == 2 ? 2 : 1,
+        bleName: json['bleName'] as String? ?? 'Povad BLE',
+        bleServiceUuid: json['bleServiceUuid'] as String? ?? 'FFE0',
+        bleWriteUuid: json['bleWriteUuid'] as String? ?? 'FFE2',
+        bleNotifyUuid: json['bleNotifyUuid'] as String? ?? 'FFE1',
+        bleRequirePairing: json['bleRequirePairing'] as bool? ?? true,
       ),
     );
   }
@@ -77,7 +93,7 @@ final class BridgeProfiles {
   final String selectedId;
 
   String encode({bool rememberSerialPort = true}) => jsonEncode({
-    'version': 1,
+    'version': 2,
     'selectedId': selectedId,
     'profiles': [
       for (final profile in profiles)
@@ -87,7 +103,7 @@ final class BridgeProfiles {
 
   factory BridgeProfiles.decode(String source) {
     final data = jsonDecode(source) as Map<String, dynamic>;
-    if (data['version'] != 1) {
+    if (data['version'] != 1 && data['version'] != 2) {
       throw const FormatException('Unsupported bridge profile version');
     }
     return BridgeProfiles(

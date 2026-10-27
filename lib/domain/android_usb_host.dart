@@ -20,6 +20,8 @@ final class AndroidUsbHost {
             vendorId: value['vendorId'] as int,
             productId: value['productId'] as int,
             portIndex: value['portIndex'] as int,
+            portCount: value['portCount'] as int? ?? 1,
+            productName: value['productName'] as String? ?? '',
           );
         })
         .toList(growable: false);
@@ -38,10 +40,15 @@ final class AndroidUsbPort {
     required this.vendorId,
     required this.productId,
     required this.portIndex,
+    this.portCount = 1,
+    this.productName = '',
   });
 
   final String deviceName;
-  final int vendorId, productId, portIndex;
+  final int vendorId, productId, portIndex, portCount;
+
+  /// The adapter's name from its USB descriptor; empty when it has none.
+  final String productName;
 
   String get nativeSelection => 'usb:$deviceName:$portIndex';
 
@@ -56,8 +63,13 @@ final class AndroidUsbPort {
     return '$label · $address';
   }
 
-  String get label =>
-      'USB ${vendorId.toRadixString(16).padLeft(4, '0').toUpperCase()}'
-      ':${productId.toRadixString(16).padLeft(4, '0').toUpperCase()}'
-      ' · ${portIndex + 1}';
+  /// The adapter's own name when its descriptor gives one, else its USB
+  /// vendor and product IDs; the port number only for multi-port adapters.
+  String get label {
+    final name = productName.trim().isNotEmpty
+        ? productName.trim()
+        : 'USB ${vendorId.toRadixString(16).padLeft(4, '0').toUpperCase()}'
+              ':${productId.toRadixString(16).padLeft(4, '0').toUpperCase()}';
+    return portCount > 1 ? '$name · ${portIndex + 1}' : name;
+  }
 }

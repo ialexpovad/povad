@@ -1,30 +1,49 @@
-# Povad 0.1.0
+# Povad 0.2.0-rc.1
 
-The first stable release: a focused Serial ↔ TCP bridge for everyday device connections.
+This is a test candidate for the Serial ↔ Bluetooth LE bridge. It also keeps
+the existing transparent Serial ↔ TCP bridge.
 
-## Highlights
+## What to test
 
-- Run multiple independent bridges, each with its own saved serial settings and TCP port.
-- Discover LAN bridges with Bonjour or share their addresses with QR codes.
-- Keep active connections in the desktop tray or Android foreground notification.
-- Choose English or Belarusian, light or dark themes, and optional traffic animation.
-- **New: Open at login.** Enabled on the first launch of this desktop release; turn it off in Settings. Changes made in system startup settings are respected. macOS requires 13 or later. Bridges still start manually.
-- Refreshed README with a light/dark screenshot and an animated interface preview.
+- Select **BLE** in Bridge setup, choose a serial device, and configure the
+  service, write, and notify UUIDs. Defaults are `FFE0`, `FFE2`, and `FFE1`.
+- The serial settings include one or two stop bits. For BDKG-11M, use
+  `115200 8N2`.
+- A client can write with or without response and receive notifications. The
+  bridge forwards bytes unchanged and serves one BLE client at a time.
+- **Require pairing** is on by default. Turn it off only when testing a
+  BT24-style client that does not pair. In that mode, a nearby device can
+  connect and send bytes to the serial device.
+- Test disconnects, serial removal, restarting, and stopping during traffic.
+  Report any error or uncertain-delivery message, with the OS and adapter
+  model. Do not include device payloads or serial numbers in public reports.
 
-## Install or update
+## Platform status
 
-Download the package for your platform. Extract the entire desktop bundle into
-a permanent folder before opening Povad. Existing bridge profiles are preserved.
-RC3 and RC4 can discover this stable release through the in-app updater; all
-bridges must stop before installation. Android uses the same release signing
-identity and a higher version code. Users of RC1 or RC2 should update manually.
+- **macOS and Android:** the BLE bridge has been exercised with real serial
+  hardware in both directions. Android targets Android 8 (API 26) and later;
+  API 26 and current Android emulator checks are part of CI.
+- **Linux:** the BlueZ backend builds and passes native tests in Ubuntu 24.04,
+  but has not been tested with a Bluetooth adapter and serial device.
+- **Windows:** the C++/WinRT GATT backend has not yet been compiled or tested
+  with Bluetooth hardware. This candidate is for finding and fixing those
+  issues. Windows advertises under the computer's Bluetooth name, not the
+  editable name used on other platforms; clients can search for service UUID
+  `FFE0`.
 
-Windows and Linux packages are x64; Android is arm64 and requires USB-OTG for
-serial devices. Multiple Android adapters need a compatible USB hub.
+Windows and Linux BLE are experimental in this candidate. Their hardware
+results are required before claiming working platform support. The release
+remains a draft while those results and the other release gates are gathered.
 
-**macOS remains an unsigned QA package for manual testing.** Developer ID signing
-and notarization are not available; the stable version number does not change
-that distribution limitation.
+## Install and report
 
-Use the attached `SHA256SUMS.txt` to verify downloads. Povad forwards bytes
-unchanged. Enable LAN access only on a trusted network; it resets on launch.
+- Windows: extract the complete x64 ZIP and run `povad.exe`.
+- Linux: extract the x64 tar.xz bundle and run `povad` on a system with BlueZ.
+- Android: install the signed arm64 APK and connect a compatible USB–Serial
+  adapter through USB-OTG. Existing profiles are preserved.
+- macOS: the unsigned QA ZIP is for manual testing. Public distribution still
+  needs Developer ID signing and notarization.
+
+This prerelease does not appear as an update to installations of stable
+`0.1.0`; install it manually. Check the attached `SHA256SUMS.txt` before use.
+Report findings at https://github.com/ialexpovad/povad/issues.

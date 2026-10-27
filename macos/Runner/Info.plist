@@ -30,6 +30,8 @@
 	<string>NSApplication</string>
 	<key>NSLocalNetworkUsageDescription</key>
 	<string>Advertise a Povad bridge to clients on your local network when LAN access is enabled.</string>
+	<key>NSBluetoothAlwaysUsageDescription</key>
+	<string>Advertise a Povad serial bridge to Bluetooth LE clients.</string>
 	<key>NSBonjourServices</key>
 	<array>
 		<string>_povad-bridge._tcp</string>

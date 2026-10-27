@@ -10,6 +10,8 @@ import 'povad_core_bindings_generated.dart' as native;
 
 int nativeAbiVersion() => native.pv_abi_version();
 
+enum BridgePeer { tcp, ble }
+
 enum BridgeState {
   stopped,
   starting,
@@ -37,6 +39,12 @@ final class BridgeConfig {
     this.allowedClients = const [],
     this.queueLimit = 65536,
     this.queueAgeMs = 2000,
+    this.peer = BridgePeer.tcp,
+    this.bleName = 'Povad BLE',
+    this.bleServiceUuid = 'FFE0',
+    this.bleWriteUuid = 'FFE2',
+    this.bleNotifyUuid = 'FFE1',
+    this.bleRequirePairing = true,
   });
 
   final String serialPort;
@@ -54,6 +62,13 @@ final class BridgeConfig {
   final List<String> allowedClients;
   final int queueLimit;
   final int queueAgeMs;
+  final BridgePeer peer;
+  final String bleName, bleServiceUuid, bleWriteUuid, bleNotifyUuid;
+
+  /// Writes and notifications need an encrypted, bonded link. Off makes the
+  /// bridge open like a BLE UART module (BT24, HM-10) for clients that never
+  /// pair; any nearby client may then connect.
+  final bool bleRequirePairing;
 }
 
 final class BridgeSnapshot {
@@ -69,6 +84,9 @@ final class BridgeSnapshot {
     required this.errorMessage,
     required this.rejectedBusy,
     required this.rejectedIp,
+    this.bleReceived = 0,
+    this.bleAccepted = 0,
+    this.rejectedUnpaired = 0,
   });
 
   final BridgeState state;
@@ -82,6 +100,7 @@ final class BridgeSnapshot {
   final String errorMessage;
   final int rejectedBusy;
   final int rejectedIp;
+  final int bleReceived, bleAccepted, rejectedUnpaired;
 
   bool get finished =>
       state == BridgeState.stopped ||
@@ -139,9 +158,15 @@ final class NativeBridge {
       value.wait_next_client = config.waitNextClient ? 1 : 0;
       value.queue_limit = _uint32(config.queueLimit, 'queueLimit');
       value.queue_age_ms = _uint32(config.queueAgeMs, 'queueAgeMs');
+      value.peer_kind = config.peer.index;
       _writeText(value.serial_port, 256, config.serialPort);
       _writeText(value.bind_address, 64, config.bindAddress);
       _writeText(value.allowed_clients, 512, config.allowedClients.join(','));
+      _writeText(value.ble_name, 64, config.bleName);
+      _writeText(value.ble_service_uuid, 37, config.bleServiceUuid);
+      _writeText(value.ble_write_uuid, 37, config.bleWriteUuid);
+      _writeText(value.ble_notify_uuid, 37, config.bleNotifyUuid);
+      value.ble_require_pairing = config.bleRequirePairing ? 1 : 0;
       error.ref.size = ffi.sizeOf<native.pv_error>();
       final result = native.pv_start(_handle, pointer, error);
       if (result != 0) {
@@ -175,6 +200,9 @@ final class NativeBridge {
         errorMessage: _readText(value.error_message, 192),
         rejectedBusy: value.rejected_busy,
         rejectedIp: value.rejected_ip,
+        bleReceived: value.ble_received,
+        bleAccepted: value.ble_accepted,
+        rejectedUnpaired: value.rejected_unpaired,
       );
     } finally {
       calloc.free(pointer);

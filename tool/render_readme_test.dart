@@ -41,18 +41,23 @@ void main() {
     final fleets = [
       for (final session in sessions) BridgeFleet(firstSession: session),
     ];
-    for (final fleet in fleets) {
+    for (var i = 0; i < fleets.length; i++) {
+      final fleet = fleets[i];
       fleet.updateProfile(
         fleet.selected.id,
         name: 'Lab device',
-        settings: const BridgeSettings(
+        settings: BridgeSettings(
           serialPort: '/dev/ttyUSB0',
           baud: '115200',
           tcpPort: '9268',
+          transport: i == 0 ? BridgeTransport.tcp : BridgeTransport.ble,
+          bleRequirePairing: false,
         ),
       );
     }
-    for (final session in sessions) {
+    for (var i = 0; i < sessions.length; i++) {
+      final session = sessions[i];
+      session.ble = i == 1;
       session.connected = true;
     }
     const key = ValueKey('readme-frame');
@@ -134,7 +139,7 @@ void main() {
 
 class _DemoSession extends BridgeSession {
   int serial = 0, tcp = 0;
-  bool connected = false;
+  bool connected = false, ble = false;
   void notify() => notifyListeners();
   @override
   bool get active => connected;
@@ -147,6 +152,7 @@ class _DemoSession extends BridgeSession {
     serialOpen: true,
     clientConnected: true,
     tcpReceived: tcp,
+    bleReceived: ble ? tcp : 0,
     serialReceived: serial,
     serialAccepted: tcp,
     tcpAccepted: serial,

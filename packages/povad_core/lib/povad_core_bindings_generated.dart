@@ -172,6 +172,24 @@ final class pv_config extends ffi.Struct {
   /// Comma-separated exact IPv4 addresses, or empty.
   @ffi.Array.multi([512])
   external ffi.Array<ffi.Char> allowed_clients;
+
+  @ffi.Uint32()
+  external int peer_kind;
+
+  @ffi.Array.multi([64])
+  external ffi.Array<ffi.Char> ble_name;
+
+  @ffi.Array.multi([37])
+  external ffi.Array<ffi.Char> ble_service_uuid;
+
+  @ffi.Array.multi([37])
+  external ffi.Array<ffi.Char> ble_write_uuid;
+
+  @ffi.Array.multi([37])
+  external ffi.Array<ffi.Char> ble_notify_uuid;
+
+  @ffi.Uint32()
+  external int ble_require_pairing;
 }
 
 final class pv_error extends ffi.Struct {
@@ -221,8 +239,17 @@ final class pv_snapshot extends ffi.Struct {
 
   @ffi.Uint32()
   external int rejected_ip;
+
+  @ffi.Uint64()
+  external int ble_received;
+
+  @ffi.Uint64()
+  external int ble_accepted;
+
+  @ffi.Uint32()
+  external int rejected_unpaired;
 }
 
 final class pv_handle extends ffi.Opaque {}
 
-const int PV_ABI_VERSION = 2;
+const int PV_ABI_VERSION = 3;

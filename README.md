@@ -17,19 +17,20 @@
   <a href="CONTRIBUTING.md">Contribute</a>
 </p>
 
-**Povad connects serial devices to TCP clients**, on your computer or across
-your local network. A small, focused interface with independent bridges,
-clear connection states, and light and dark themes.
+**Povad connects serial devices to TCP and Bluetooth LE clients.** Forward
+bytes unchanged through a local TCP listener, your trusted LAN, or a BLE
+peripheral. Each bridge has its own settings and clear connection states.
 
 <p align="center">
-  <a href="assets/screenshots/overview.png"><img src="assets/screenshots/overview.gif" width="872" alt="Povad in light and dark themes, showing an active bridge and bidirectional traffic animation"></a>
-  <br><sub>Actual interface with sample connection data. <a href="assets/screenshots/overview.png">View static screenshot</a>.</sub>
+  <a href="assets/screenshots/overview.png"><img src="assets/screenshots/overview.png" width="872" alt="Povad interface showing a TCP bridge and a Bluetooth LE bridge in light and dark themes"></a>
+  <br><sub>Actual interface with sample connection data.</sub>
 </p>
 
 ## Built for everyday connections
 
-- **Multiple bridges** — separate serial devices, settings, and TCP ports.
-- **Easy LAN setup** — copy an address, scan a QR code, or discover a bridge with Bonjour.
+- **Multiple bridges** — separate serial devices and transport settings.
+- **Bluetooth LE bridge** — GATT write and notify characteristics with editable UUIDs; compatible with BT24-style clients.
+- **Easy LAN setup for TCP** — copy an address, scan a QR code, or discover a bridge with Bonjour.
 - **Background operation** — desktop tray controls and an Android foreground notification.
 - **Open at login** — enabled by default on supported desktops; change it in Settings.
 - **Updates from GitHub** — verified downloads for Windows, Linux, and Android.
@@ -38,17 +39,26 @@ clear connection states, and light and dark themes.
 ## Get connected
 
 1. Download and open Povad. Connect your serial device.
-2. In **Bridge**, choose the device, baud rate, and parity. Select **Start bridge**.
-3. Connect your TCP client to the displayed address. For another computer or
-   phone, enable **Allow LAN clients** and use a listed LAN address.
+2. In **Bridge**, choose the device, serial settings, and TCP or BLE transport. Select **Start bridge**.
+3. For TCP, connect to the address on **Overview**. For another device, enable **Allow LAN clients** and use a listed LAN address. For BLE, find the advertising name in your BLE client, subscribe to notifications, and write to the configured characteristic.
 
 Use **+** beside the bridge selector to add another connection. Each needs
-its own serial device and TCP port. Enable **Wait for next client** to keep
-that bridge listening after a client disconnects.
+its own serial device. TCP bridges also need distinct ports. Enable **Wait for
+next client** on a TCP bridge to keep it listening after a disconnect.
 
-Povad forwards bytes unchanged and accepts one TCP client per bridge.
-LAN access is off at each launch; enable it only on a trusted network and
-optionally restrict client IPs. Opening Povad at login does not start bridges.
+Povad forwards bytes unchanged and accepts one active client per bridge.
+One BLE bridge can run per Bluetooth adapter. **Require pairing** is on by
+default. Turn it off only for clients that do not pair, such as BT24-compatible
+software; any nearby Bluetooth device may then connect and send bytes to the
+serial device. LAN access is off at each launch; enable it only on a trusted
+network and optionally restrict client IPs. Opening Povad at login does not
+start bridges.
+
+BLE has been tested with serial hardware on macOS and Android. Linux BLE has
+passed a container build and native tests but has no hardware verification.
+Windows BLE has not yet been built or tested. Neither is qualified for release.
+On Windows, BLE advertising uses the computer’s Bluetooth name; the app
+cannot set a separate name.
 
 ## Download
 

@@ -135,6 +135,27 @@ void main() {
     },
   );
 
+  test('one BLE bridge reserves the adapter until confirmed stop', () async {
+    final first = fleet.selected.id;
+    final second = fleet.add().id;
+    final firstBle = BridgeConfig(serialPort: 'COM1', peer: BridgePeer.ble);
+    final secondBle = BridgeConfig(serialPort: 'COM2', peer: BridgePeer.ble);
+    await fleet.start(first, firstBle);
+    expect(
+      () => fleet.start(second, secondBle),
+      throwsA(
+        isA<BridgeConflict>().having(
+          (error) => error.kind,
+          'kind',
+          BridgeConflictKind.ble,
+        ),
+      ),
+    );
+    await fleet.stop(first);
+    await fleet.start(second, secondBle);
+    expect(fleet.connection(second).state, BridgeViewState.listening);
+  });
+
   test('fault and restart of one bridge leave the other listening', () async {
     final first = fleet.selected.id;
     final second = fleet.add().id;

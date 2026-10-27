@@ -30,6 +30,7 @@ import 'ui_preferences.dart';
 import 'login_startup.dart';
 import 'bridge_presence.dart';
 import 'desktop_presence.dart';
+import 'android_presence.dart';
 import 'lan_discovery.dart';
 import 'release_updates.dart';
 import 'update_installer.dart';
@@ -106,6 +107,8 @@ class _PovadAppState extends State<PovadApp> with WidgetsBindingObserver {
   set baud(String value) => _setForm(form.copyWith(baud: value));
   String get serialParity => form.parity;
   set serialParity(String value) => _setForm(form.copyWith(parity: value));
+  BridgeTransport get transport => form.transport;
+  int get stopBits => form.stopBits;
   String get tcpPort => form.tcpPort;
   set tcpPort(String value) => _setForm(form.copyWith(tcpPort: value));
   bool get allowLan => connection.allowLan;
@@ -164,8 +167,17 @@ class _PovadAppState extends State<PovadApp> with WidgetsBindingObserver {
   bool get androidHost => !kIsWeb && Platform.isAndroid && session != null;
 
   bool get configurationReady =>
-      !BridgeFieldErrors.of(serialPort, baud, tcpPort).any &&
-      (!allowLan || parseClientAllowlist(allowedClients) != null);
+      !BridgeFieldErrors.of(
+        serialPort,
+        baud,
+        transport == BridgeTransport.tcp ? tcpPort : '9268',
+      ).any &&
+      (transport == BridgeTransport.ble
+          ? bleSettingsValid(
+              form,
+              requireName: defaultTargetPlatform != TargetPlatform.windows,
+            )
+          : (!allowLan || parseClientAllowlist(allowedClients) != null));
 
   bool get running =>
       state == BridgeViewState.starting ||
@@ -256,6 +268,13 @@ class _PovadAppState extends State<PovadApp> with WidgetsBindingObserver {
     String? port,
     bool? waitNext,
     String? allowedIps,
+    BridgeTransport? peerTransport,
+    int? serialStopBits,
+    String? bleName,
+    String? bleServiceUuid,
+    String? bleWriteUuid,
+    String? bleNotifyUuid,
+    bool? bleRequirePairing,
   }) {
     if (!profilesReady || connection.active || fleet.shuttingDown) return;
     bridgeFormChanged = true;
@@ -268,6 +287,13 @@ class _PovadAppState extends State<PovadApp> with WidgetsBindingObserver {
         tcpPort: port,
         waitNextClient: waitNext,
         allowedClients: allowedIps,
+        transport: peerTransport,
+        stopBits: serialStopBits,
+        bleName: bleName,
+        bleServiceUuid: bleServiceUuid,
+        bleWriteUuid: bleWriteUuid,
+        bleNotifyUuid: bleNotifyUuid,
+        bleRequirePairing: bleRequirePairing,
       ),
     );
     persistProfiles();
@@ -454,6 +480,10 @@ class _PovadAppState extends State<PovadApp> with WidgetsBindingObserver {
           ui.rejectionNotice = 2;
           ui.rejectedIpSeen = snapshot.rejectedIp;
         }
+        if (snapshot.rejectedUnpaired > ui.rejectedUnpairedSeen) {
+          ui.rejectionNotice = 3;
+          ui.rejectedUnpairedSeen = snapshot.rejectedUnpaired;
+        }
       }
     }
     setState(() {});
@@ -475,6 +505,7 @@ class _PovadAppState extends State<PovadApp> with WidgetsBindingObserver {
     final config = entry.reservedConfig;
     final advertised =
         config != null &&
+        config.peer == core.BridgePeer.tcp &&
         config.allowLan &&
         (entry.state == BridgeViewState.listening ||
             entry.state == BridgeViewState.connected);
@@ -642,6 +673,8 @@ class _PovadAppState extends State<PovadApp> with WidgetsBindingObserver {
       showHelpPanel(
         context,
         topic: topic,
+        bleMode: transport == BridgeTransport.ble,
+        blePaired: form.bleRequirePairing,
         onReportProblem: () => unawaited(sendFeedback()),
       ),
     );
@@ -994,6 +1027,7 @@ class _PovadAppState extends State<PovadApp> with WidgetsBindingObserver {
     target.showFieldErrors = false;
     target.rejectedBusySeen = 0;
     target.rejectedIpSeen = 0;
+    target.rejectedUnpairedSeen = 0;
     target.rejectionNotice = 0;
     try {
       await fleet.start(
@@ -1002,6 +1036,17 @@ class _PovadAppState extends State<PovadApp> with WidgetsBindingObserver {
           serialPort: settings.serialPort.trim(),
           baud: int.parse(settings.baud),
           parity: settings.parity,
+          stopBitsX10: settings.stopBits * 10,
+          peer: settings.transport == BridgeTransport.ble
+              ? core.BridgePeer.ble
+              : core.BridgePeer.tcp,
+          bleName: defaultTargetPlatform == TargetPlatform.windows
+              ? 'Povad BLE'
+              : settings.bleName,
+          bleServiceUuid: settings.bleServiceUuid,
+          bleWriteUuid: settings.bleWriteUuid,
+          bleNotifyUuid: settings.bleNotifyUuid,
+          bleRequirePairing: settings.bleRequirePairing,
           tcpPort: int.parse(settings.tcpPort),
           bindAddress: entry.allowLan ? '0.0.0.0' : '127.0.0.1',
           allowLan: entry.allowLan,
@@ -1011,7 +1056,13 @@ class _PovadAppState extends State<PovadApp> with WidgetsBindingObserver {
               : const [],
         ),
         prepare: () async {
-          await widget.presence?.prepareStart(settings.serialPort, locale);
+          final presence = widget.presence;
+          if (settings.transport == BridgeTransport.ble &&
+              presence is AndroidPresence) {
+            await presence.prepareBle(settings.serialPort, locale);
+          } else {
+            await presence?.prepareStart(settings.serialPort, locale);
+          }
         },
       );
     } on BridgeConflict {
@@ -1028,6 +1079,7 @@ class _PovadAppState extends State<PovadApp> with WidgetsBindingObserver {
 
   /// The address a client should use, or null if the port is invalid.
   String? primaryEndpoint() {
+    if (transport == BridgeTransport.ble) return null;
     final port = int.tryParse(tcpPort);
     if (port == null || port < 1 || port > 65535) return null;
     if (!allowLan) return '127.0.0.1:$port';
@@ -1036,6 +1088,11 @@ class _PovadAppState extends State<PovadApp> with WidgetsBindingObserver {
   }
 
   String endpointSummary(AppLocalizations l) {
+    if (transport == BridgeTransport.ble) {
+      return defaultTargetPlatform == TargetPlatform.windows
+          ? l.bleWindowsComputerName
+          : form.bleName;
+    }
     final endpoint = primaryEndpoint();
     if (endpoint == null) return l.tcpValue;
     final extra = allowLan ? lanAddresses.length - 1 : 0;
@@ -1050,7 +1107,11 @@ class _PovadAppState extends State<PovadApp> with WidgetsBindingObserver {
       return UpdateNotice(
         key: const ValueKey('client-rejection-notice'),
         icon: shad.LucideIcons.circleAlert,
-        text: rejectionNotice == 1 ? l.clientRejectedBusy : l.clientRejectedIp,
+        text: switch (rejectionNotice) {
+          1 => l.clientRejectedBusy,
+          2 => l.clientRejectedIp,
+          _ => l.clientRejectedUnpaired,
+        },
         actionLabel: l.dismiss,
         onAction: () => setState(() => ui.rejectionNotice = 0),
       );
@@ -1125,15 +1186,22 @@ class _PovadAppState extends State<PovadApp> with WidgetsBindingObserver {
     final ownerName = owner == null ? '' : bridgeLabel(owner.profile, l);
     final detail = conflict == null
         ? backgroundError ?? session?.errorMessage
-        : conflict.kind == BridgeConflictKind.serial
-        ? l.bridgeSerialConflict(ownerName)
-        : l.bridgeTcpConflict(ownerName);
+        : switch (conflict.kind) {
+            BridgeConflictKind.serial => l.bridgeSerialConflict(ownerName),
+            BridgeConflictKind.tcp => l.bridgeTcpConflict(ownerName),
+            BridgeConflictKind.ble => l.bridgeBleConflict(ownerName),
+          };
     final ended =
         state == BridgeViewState.error || state == BridgeViewState.interrupted;
     final hint = ended ? troubleHintFor(detail) : null;
-    final hintText = troubleHintText(hint, l);
+    final hintText = troubleHintText(
+      hint,
+      l,
+      bleMode: transport == BridgeTransport.ble,
+    );
     final endpoint = primaryEndpoint();
     final copyable =
+        transport == BridgeTransport.tcp &&
         endpoint != null &&
         (state == BridgeViewState.listening ||
             state == BridgeViewState.connected);
@@ -1145,12 +1213,16 @@ class _PovadAppState extends State<PovadApp> with WidgetsBindingObserver {
         state: state,
         animateConnection: animateConnection,
         onAction: act,
-        tcpReceived: snapshot?.tcpReceived ?? 0,
+        tcpReceived: transport == BridgeTransport.ble
+            ? snapshot?.bleReceived ?? 0
+            : snapshot?.tcpReceived ?? 0,
         serialReceived: snapshot?.serialReceived ?? 0,
         previewMode: !live,
         configured: !live || configurationReady,
         serialValue: live ? serialDisplay ?? l.serialValue : null,
         tcpValue: live ? endpointSummary(l) : null,
+        bleMode: transport == BridgeTransport.ble,
+        blePaired: form.bleRequirePairing,
         detail: live ? hintText ?? detail : null,
         onDetails: () => goTo(2),
         onHelp: () => openHelp(context, topic: helpTopicFor(hint)),
@@ -1171,10 +1243,30 @@ class _PovadAppState extends State<PovadApp> with WidgetsBindingObserver {
                 serialPort: serialPort,
                 baud: baud,
                 parity: serialParity,
+                transport: transport,
+                stopBits: stopBits,
+                bleName: form.bleName,
+                bleServiceUuid: form.bleServiceUuid,
+                bleWriteUuid: form.bleWriteUuid,
+                bleNotifyUuid: form.bleNotifyUuid,
+                bleRequirePairing: form.bleRequirePairing,
+                onBleRequirePairingChanged: (value) =>
+                    updateBridgeForm(bleRequirePairing: value),
                 tcpPort: tcpPort,
                 onSerialPortChanged: (value) => updateBridgeForm(serial: value),
                 onBaudChanged: (value) => updateBridgeForm(speed: value),
                 onParityChanged: (value) => updateBridgeForm(parity: value),
+                onTransportChanged: (value) =>
+                    updateBridgeForm(peerTransport: value),
+                onStopBitsChanged: (value) =>
+                    updateBridgeForm(serialStopBits: value),
+                onBleNameChanged: (value) => updateBridgeForm(bleName: value),
+                onBleServiceChanged: (value) =>
+                    updateBridgeForm(bleServiceUuid: value),
+                onBleWriteChanged: (value) =>
+                    updateBridgeForm(bleWriteUuid: value),
+                onBleNotifyChanged: (value) =>
+                    updateBridgeForm(bleNotifyUuid: value),
                 onTcpPortChanged: (value) => updateBridgeForm(port: value),
                 allowLan: allowLan,
                 waitNextClient: waitNextClient,
@@ -1221,9 +1313,18 @@ class _PovadAppState extends State<PovadApp> with WidgetsBindingObserver {
         serialValue: live ? serialDisplay : null,
         baud: live && baud.isNotEmpty ? baud : null,
         parity: live ? serialParity : null,
-        endpoint: live ? endpoint : null,
+        stopBits: live ? stopBits : null,
+        endpoint: live
+            ? transport == BridgeTransport.ble
+                  ? endpointSummary(l)
+                  : endpoint
+            : null,
+        bleMode: transport == BridgeTransport.ble,
+        blePaired: form.bleRequirePairing,
         serialReceived: snapshot?.serialReceived ?? 0,
-        tcpReceived: snapshot?.tcpReceived ?? 0,
+        tcpReceived: transport == BridgeTransport.ble
+            ? snapshot?.bleReceived ?? 0
+            : snapshot?.tcpReceived ?? 0,
         sessionStartedAt: sessionStartedAt,
         onStartAgain: live ? act : null,
         onEditSetup: live ? () => goTo(1) : null,
@@ -1676,7 +1777,8 @@ class _NavItem extends StatelessWidget {
 class _ConnectionUi {
   String? selectedUsbLabel, copiedEndpoint, backgroundError;
   bool showFieldErrors = false;
-  int rejectedBusySeen = 0, rejectedIpSeen = 0, rejectionNotice = 0;
+  int rejectedBusySeen = 0, rejectedIpSeen = 0;
+  int rejectedUnpairedSeen = 0, rejectionNotice = 0;
 }
 
 class _DiscoveryRuntime {

@@ -52,7 +52,7 @@ void main() {
     );
     expect(tester.takeException(), isNull);
 
-    expect(nativeAbiVersion(), 2);
+    expect(nativeAbiVersion(), 3);
 
     // A missing USB permission must never create a background service.
     const background = MethodChannel('povad/background');

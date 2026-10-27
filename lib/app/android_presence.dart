@@ -23,6 +23,7 @@ final class AndroidPresence implements BridgePresence {
   }
 
   static const MethodChannel _channel = MethodChannel('povad/background');
+  static const MethodChannel _bleChannel = MethodChannel('povad/ble_host');
   final BridgeFleet fleet;
   bool _active = false;
   int _generation = 0;
@@ -45,20 +46,35 @@ final class AndroidPresence implements BridgePresence {
 
   @override
   Future<void> prepareStart(String serialSelection, Locale locale) =>
-      _enqueue(() async {
-        if (!_active) _generation++;
-        final status = _status(locale);
-        final started = await _channel.invokeMethod<bool>('start', {
-          'selection': serialSelection,
-          'status': status,
-          'generation': _generation,
-        });
-        if (started != true) {
-          throw StateError('Android background service did not start');
-        }
-        _active = true;
-        _lastStatus = status;
-      });
+      _prepareStart(serialSelection, locale, 'tcp');
+
+  Future<void> prepareBle(String serialSelection, Locale locale) async {
+    final ready = await _bleChannel.invokeMethod<bool>('prepare');
+    if (ready != true) {
+      throw StateError('BLE advertising is unavailable or Bluetooth is off');
+    }
+    await _prepareStart(serialSelection, locale, 'ble');
+  }
+
+  Future<void> _prepareStart(
+    String serialSelection,
+    Locale locale,
+    String peerKind,
+  ) => _enqueue(() async {
+    if (!_active) _generation++;
+    final status = _status(locale);
+    final started = await _channel.invokeMethod<bool>('start', {
+      'selection': serialSelection,
+      'peerKind': peerKind,
+      'status': status,
+      'generation': _generation,
+    });
+    if (started != true) {
+      throw StateError('Android background service did not start');
+    }
+    _active = true;
+    _lastStatus = status;
+  });
 
   @override
   Future<void> reflect(

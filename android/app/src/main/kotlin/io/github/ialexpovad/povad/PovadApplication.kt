@@ -15,6 +15,8 @@ class PovadApplication : Application() {
     override fun onCreate() {
         super.onCreate()
         PovadUsbHost.initialize(this)
+        PovadBleHost.initialize(this)
+        PovadBleHost.restoreNameAfterCrash()
     }
 
     fun engine(): FlutterEngine {
@@ -25,6 +27,7 @@ class PovadApplication : Application() {
             .setMethodCallHandler { call, result ->
                 when (call.method) {
                     "start" -> {
+                        val peerKind = call.argument<String>("peerKind") ?: "tcp"
                         val selection = call.argument<String>("selection") ?: ""
                         val separator = selection.lastIndexOf(':')
                         val deviceName = if (selection.startsWith("usb:") && separator > 4) {
@@ -32,6 +35,9 @@ class PovadApplication : Application() {
                         } else null
                         if (deviceName == null || !PovadUsbHost.hasPermission(deviceName)) {
                             result.error("USB_PERMISSION", "Select and allow a USB serial device", null)
+                        } else if (peerKind == "ble" &&
+                            (!PovadBleHost.permitted() || !PovadBleHost.available())) {
+                            result.error("BLE_UNAVAILABLE", "Bluetooth advertising or permission is unavailable", null)
                         } else {
                             activity.get()?.requestNotificationPermissionIfNeeded()
                             val intent = Intent(this, PovadBridgeService::class.java)

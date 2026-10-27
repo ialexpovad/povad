@@ -68,6 +68,15 @@ extern "C" JNIEXPORT jint JNICALL JNI_OnLoad(JavaVM* vm, void*) {
   java_vm = vm;
   usb_host = global;
   open_usb = method;
+  jclass ble_local = env->FindClass("io/github/ialexpovad/povad/PovadBleHost");
+  if (ble_local == nullptr || java_failed(env)) return JNI_ERR;
+  jclass ble_global = static_cast<jclass>(env->NewGlobalRef(ble_local));
+  env->DeleteLocalRef(ble_local);
+  if (ble_global == nullptr || java_failed(env)) return JNI_ERR;
+  jmethodID ble_method = env->GetStaticMethodID(ble_global, "open",
+      "(Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;IIZ)Lio/github/ialexpovad/povad/BleSession;");
+  if (ble_method == nullptr || java_failed(env)) return JNI_ERR;
+  povad::set_android_ble_host(vm, ble_global, ble_method);
   return JNI_VERSION_1_6;
 }
 

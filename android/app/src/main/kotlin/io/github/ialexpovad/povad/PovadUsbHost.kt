@@ -24,6 +24,10 @@ object PovadUsbHost {
                     "vendorId" to device.vendorId,
                     "productId" to device.productId,
                     "portIndex" to index,
+                    "portCount" to driver.ports.size,
+                    // The adapter's own name from its USB descriptor, when it
+                    // has one.
+                    "productName" to (device.productName?.trim() ?: ""),
                 )
             }
         }
@@ -89,21 +93,86 @@ object PovadUsbHost {
     }
 }
 
-/** This object is created, used, and closed only by the C++ worker thread. */
+/**
+ * Created, used, and closed by the C++ worker thread. It owns one reader
+ * thread for its lifetime: reading continuously with the driver's queued
+ * request is how a USB adapter keeps up with a long reply (its own receive
+ * buffer lasts milliseconds), which polled short reads between other work
+ * cannot. close() stops and joins the reader before the port is released.
+ */
 class UsbSession(
     private val manager: UsbManager,
     private val deviceName: String,
     private val port: UsbSerialPort,
     private val connection: UsbDeviceConnection,
 ) {
-    fun read(buffer: ByteArray): Int {
+    private val lock = Object()
+    private val received = ArrayDeque<ByteArray>()
+    private var receivedOffset = 0
+    private var receivedSize = 0
+    @Volatile private var failure: String? = null
+    @Volatile private var stopping = false
+    private val reader = Thread({ readLoop() }, "povad-usb-read").apply { isDaemon = true }
+    private var attachedCheckedAt = 0L
+
+    init { reader.start() }
+
+    private fun readLoop() {
+        val buffer = ByteArray(16 * 1024)
+        while (!stopping) {
+            val count = try {
+                port.read(buffer, 0)
+            } catch (_: Exception) {
+                if (!stopping) failure = "Android USB serial read failed or device detached"
+                return
+            }
+            if (count <= 0) continue
+            synchronized(lock) {
+                if (receivedSize + count > MAX_BUFFERED) {
+                    failure = "USB input queue overflow; delivery is uncertain"
+                    return
+                }
+                received.addLast(buffer.copyOf(count))
+                receivedSize += count
+            }
+        }
+    }
+
+    // The attachment check is a binder call to the USB service; it runs at
+    // most twice a second. A detached device also fails the transfer itself.
+    private fun checkAttached() {
+        val now = android.os.SystemClock.elapsedRealtime()
+        if (now - attachedCheckedAt < 500) return
+        attachedCheckedAt = now
         if (!manager.deviceList.containsKey(deviceName)) throw IOException("USB device disconnected")
-        return port.read(buffer, buffer.size, 5)
+    }
+
+    /** Bytes the reader has received, without waiting; 0 when none. */
+    fun read(buffer: ByteArray): Int {
+        failure?.let { throw IOException(it) }
+        checkAttached()
+        synchronized(lock) {
+            var copied = 0
+            while (copied < buffer.size && received.isNotEmpty()) {
+                val front = received.first()
+                val count = minOf(buffer.size - copied, front.size - receivedOffset)
+                System.arraycopy(front, receivedOffset, buffer, copied, count)
+                copied += count
+                receivedOffset += count
+                if (receivedOffset == front.size) {
+                    received.removeFirst()
+                    receivedOffset = 0
+                }
+            }
+            receivedSize -= copied
+            return copied
+        }
     }
 
     fun write(buffer: ByteArray, length: Int): Int {
         if (length < 0 || length > buffer.size) throw IOException("Invalid USB write length")
-        if (!manager.deviceList.containsKey(deviceName)) throw IOException("USB device disconnected")
+        failure?.let { throw IOException(it) }
+        checkAttached()
         // The driver either writes the full length or throws. A partial-write
         // exception is reported by C++ as uncertain delivery, never replayed.
         port.write(buffer, length, 100)
@@ -111,10 +180,17 @@ class UsbSession(
     }
 
     fun close() {
+        stopping = true
         try {
+            // Closing the port cancels the reader's queued request.
             port.close()
         } finally {
+            reader.join(2000)
             connection.close()
         }
+    }
+
+    private companion object {
+        const val MAX_BUFFERED = 1 shl 20
     }
 }

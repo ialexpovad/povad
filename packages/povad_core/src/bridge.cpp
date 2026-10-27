@@ -74,6 +74,10 @@ void Bridge::add_tcp_received(size_t bytes) {
   std::lock_guard<std::mutex> lock(mutex_);
   status_.tcp_received += bytes;
 }
+void Bridge::add_ble_received(size_t bytes) {
+  std::lock_guard<std::mutex> lock(mutex_);
+  status_.ble_received += bytes;
+}
 void Bridge::add_serial_received(size_t bytes) {
   std::lock_guard<std::mutex> lock(mutex_);
   status_.serial_received += bytes;
@@ -86,11 +90,19 @@ void Bridge::add_tcp_accepted(size_t bytes) {
   std::lock_guard<std::mutex> lock(mutex_);
   status_.tcp_accepted += bytes;
 }
+void Bridge::add_ble_accepted(size_t bytes) {
+  std::lock_guard<std::mutex> lock(mutex_);
+  status_.ble_accepted += bytes;
+}
 
 void Bridge::reject_client(bool busy) {
   std::lock_guard<std::mutex> lock(mutex_);
   if (busy) ++status_.rejected_busy;
   else ++status_.rejected_ip;
+}
+void Bridge::reject_unpaired() {
+  std::lock_guard<std::mutex> lock(mutex_);
+  ++status_.rejected_unpaired;
 }
 
 void Bridge::finish(uint32_t state, uint32_t error_code, const char* message) {
@@ -109,31 +121,39 @@ void Bridge::run(pv_config config) noexcept {
   std::string message;
   std::unique_ptr<SerialPort> serial;
   std::unique_ptr<TcpServer> tcp;
+  std::unique_ptr<BleServer> ble;
+  const bool use_ble = config.peer_kind == PV_PEER_BLE;
   try {
     serial.reset(new SerialPort());
-    tcp.reset(new TcpServer());
+    if (use_ble) ble.reset(new BleServer());
+    else tcp.reset(new TcpServer());
     if (!stop_) {
       serial->open(config);
       set_state(PV_STATE_STARTING, true, false);
     }
     if (!stop_) {
-      tcp->listen(config.bind_address, static_cast<uint16_t>(config.tcp_port));
+      if (use_ble) ble->listen(config);
+      else tcp->listen(config.bind_address, static_cast<uint16_t>(config.tcp_port));
       set_state(PV_STATE_LISTENING, true, false);
     }
     ByteQueue to_serial(config.queue_limit);
-    ByteQueue to_tcp(config.queue_limit);
+    ByteQueue to_peer(config.queue_limit);
     uint8_t buffer[4096];
     while (!stop_) {
       bool progressed = false;
-      const int arrival = tcp->accept(config.allowed_clients);
+      const int arrival = use_ble ? ble->accept() : tcp->accept(config.allowed_clients);
       if (arrival == 1) {
         set_state(PV_STATE_CONNECTED, true, true);
+        progressed = true;
+      } else if (use_ble && arrival == 3) {
+        reject_unpaired();
         progressed = true;
       } else if (arrival == 2 || arrival == 3) {
         reject_client(arrival == 2);
         progressed = true;
       }
-      if (tcp->connected()) {
+      const bool connected = use_ble ? ble->connected() : tcp->connected();
+      if (connected) {
         // Complete pending writes before admitting more input. Read sizes are
         // bounded by the remaining queue capacity to provide backpressure.
         if (!to_serial.empty()) {
@@ -145,30 +165,34 @@ void Bridge::run(pv_config config) noexcept {
             progressed = true;
           }
         }
-        if (!to_tcp.empty()) {
-          const size_t sent = tcp->send(to_tcp.front_data(),
-              std::min(to_tcp.front_size(), sizeof(buffer)));
+        if (!to_peer.empty()) {
+          const size_t sent = use_ble ?
+              ble->send(to_peer.front_data(), std::min(to_peer.front_size(), sizeof(buffer))) :
+              tcp->send(to_peer.front_data(), std::min(to_peer.front_size(), sizeof(buffer)));
           if (sent != 0) {
-            to_tcp.consume(sent);
-            add_tcp_accepted(sent);
+            to_peer.consume(sent);
+            if (use_ble) add_ble_accepted(sent);
+            else add_tcp_accepted(sent);
             progressed = true;
           }
         }
-        const size_t serial_room = config.queue_limit - to_tcp.size();
+        const size_t serial_room = config.queue_limit - to_peer.size();
         if (serial_room != 0) {
           const size_t count = serial->read(buffer, std::min(serial_room, sizeof(buffer)));
           if (count != 0) {
-            to_tcp.push(buffer, count, monotonic_ms());
+            to_peer.push(buffer, count, monotonic_ms());
             add_serial_received(count);
             progressed = true;
           }
         }
-        const size_t tcp_room = config.queue_limit - to_serial.size();
-        if (tcp_room != 0) {
-          const int64_t count = tcp->receive(buffer, std::min(tcp_room, sizeof(buffer)));
+        const size_t peer_room = config.queue_limit - to_serial.size();
+        if (peer_room != 0) {
+          const int64_t count = use_ble ?
+              ble->receive(buffer, std::min(peer_room, sizeof(buffer))) :
+              tcp->receive(buffer, std::min(peer_room, sizeof(buffer)));
           if (count == 0) {
-            const bool pending = !to_serial.empty() || !to_tcp.empty() ||
-                serial->write_pending();
+            const bool pending = !to_serial.empty() || !to_peer.empty() ||
+                serial->write_pending() || (use_ble && ble->write_pending());
             if (pending) {
               final_state = PV_STATE_INTERRUPTED;
               error_code = PV_DELIVERY_UNCERTAIN;
@@ -180,29 +204,31 @@ void Bridge::run(pv_config config) noexcept {
               message = "Client disconnected; restart for another session";
               break;
             }
-            if (!tcp->close_client()) {
-              throw TransportError(PV_NATIVE_FAILURE, "Cannot close TCP client");
+            if (use_ble ? !ble->close_client() : !tcp->close_client()) {
+              throw TransportError(PV_NATIVE_FAILURE, "Cannot close client");
             }
             to_serial.clear();
-            to_tcp.clear();
+            to_peer.clear();
             set_state(PV_STATE_LISTENING, true, false);
             progressed = true;
           }
           if (count > 0) {
             to_serial.push(buffer, static_cast<size_t>(count), monotonic_ms());
-            add_tcp_received(static_cast<size_t>(count));
+            if (use_ble) add_ble_received(static_cast<size_t>(count));
+            else add_tcp_received(static_cast<size_t>(count));
             progressed = true;
           }
         }
         to_serial.check_age(monotonic_ms(), config.queue_age_ms);
-        to_tcp.check_age(monotonic_ms(), config.queue_age_ms);
+        to_peer.check_age(monotonic_ms(), config.queue_age_ms);
       } else {
         // Bytes with no client have no owner. Discard them without capture.
         if (serial->read(buffer, sizeof(buffer)) != 0) progressed = true;
       }
       if (!progressed) std::this_thread::sleep_for(std::chrono::milliseconds(2));
     }
-    if (stop_ && (!to_serial.empty() || !to_tcp.empty() || serial->write_pending())) {
+    if (stop_ && (!to_serial.empty() || !to_peer.empty() || serial->write_pending() ||
+        (use_ble && ble->write_pending()))) {
       final_state = PV_STATE_INTERRUPTED;
       error_code = PV_DELIVERY_UNCERTAIN;
       message = "Stopped with output pending; delivery is uncertain";
@@ -224,10 +250,11 @@ void Bridge::run(pv_config config) noexcept {
   }
   // Only the worker releases live handles. Windows OVERLAPPED cancellation
   // must complete inside SerialPort::close before finished_ becomes true.
-  set_state(PV_STATE_STOPPING, serial != nullptr, tcp != nullptr && tcp->connected());
-  bool tcp_closed = tcp == nullptr || tcp->close();
+  set_state(PV_STATE_STOPPING, serial != nullptr, false);
+  bool peer_closed = use_ble ? (ble == nullptr || ble->close()) :
+      (tcp == nullptr || tcp->close());
   bool serial_closed = serial == nullptr || serial->close();
-  while (!tcp_closed || !serial_closed) {
+  while (!peer_closed || !serial_closed) {
     // The worker keeps ownership until every handle is confirmed closed.
     // A timeout in the Dart owner must not turn this into a clean stop.
     {
@@ -237,12 +264,12 @@ void Bridge::run(pv_config config) noexcept {
       status_.client_connected = 0;
       status_.error_code = PV_NATIVE_FAILURE;
       std::snprintf(status_.error_message, sizeof(status_.error_message), "%s",
-          !tcp_closed && !serial_closed ? "Transport shutdown could not be confirmed" :
-          !tcp_closed ? "TCP shutdown could not be confirmed" :
+          !peer_closed && !serial_closed ? "Transport shutdown could not be confirmed" :
+          !peer_closed ? "Peer shutdown could not be confirmed" :
           "Serial shutdown could not be confirmed");
     }
     std::this_thread::sleep_for(std::chrono::milliseconds(100));
-    if (!tcp_closed) tcp_closed = tcp->close();
+    if (!peer_closed) peer_closed = use_ble ? ble->close() : tcp->close();
     if (!serial_closed) serial_closed = serial->close();
   }
   finish(final_state, error_code, message.c_str());

@@ -96,6 +96,10 @@ class AppLocalizationsBe extends AppLocalizations {
   String get startingDescription => 'Адкрываем порт і TCP…';
 
   @override
+  String get bleStartingDescription =>
+      'Адкрываем паслядоўны порт і запускаем аб’яву BLE…';
+
+  @override
   String get listeningTitle => 'Чакаем кліента';
 
   @override
@@ -243,7 +247,7 @@ class AppLocalizationsBe extends AppLocalizations {
 
   @override
   String get bridgeSetupBody =>
-      'Налады паслядоўнага порта і TCP з’явяцца тут пасля падключэння працоўнага модуля. Гэты папярэдні прагляд не адкрывае порт.';
+      'У гэтым раздзеле наладжваецца мост паміж паслядоўным портам і TCP або BLE. Гэты папярэдні прагляд не адкрывае порт.';
 
   @override
   String get diagnosticsTitle => 'Няма актыўнага сеансу';
@@ -285,7 +289,7 @@ class AppLocalizationsBe extends AppLocalizations {
 
   @override
   String get aboutDescription =>
-      'Povad аб’ядноўвае падключэнні прылад. Мост паслядоўны порт ↔ TCP — першы модуль.';
+      'Povad перадае байты паміж паслядоўнымі прыладамі і кліентамі TCP або Bluetooth LE.';
 
   @override
   String get updates => 'Абнаўленні';
@@ -337,6 +341,10 @@ class AppLocalizationsBe extends AppLocalizations {
   @override
   String get connectionDiagram =>
       'Схема злучэння паслядоўнай прылады, моста Povad і TCP-кліента';
+
+  @override
+  String get bleConnectionDiagram =>
+      'Схема злучэння паслядоўнай прылады, моста Povad і BLE-кліента';
 
   @override
   String get interrupted => 'Завершаны';
@@ -473,11 +481,23 @@ class AppLocalizationsBe extends AppLocalizations {
   String get step2Body => 'Povad адкрывае порт і чакае аднаго TCP-кліента.';
 
   @override
+  String get step2BleBody =>
+      'Povad адкрывае паслядоўны порт і аб’яўляе сэрвіс Bluetooth LE для аднаго кліента.';
+
+  @override
   String get step3Title => 'Падключыце кліента';
 
   @override
   String get step3Body =>
       'Укажыце ў TCP-праграме адрас з экрана «Агляд». Байты перадаюцца без змен.';
+
+  @override
+  String get step3BleBody =>
+      'Знайдзіце імя ў аб’яве праз BLE-кліент. Выкарыстоўвайце UUID сэрвісу і характарыстык з налад моста. Падпішыцеся на апавяшчэнні і адпраўляйце запісы. Байты перадаюцца без змен.';
+
+  @override
+  String get step3BleWindowsBody =>
+      'Знайдзіце Bluetooth-імя гэтага камп’ютара або пашукайце UUID сэрвісу з налад моста. Падпішыцеся на апавяшчэнні і адпраўляйце запісы. Байты перадаюцца без змен.';
 
   @override
   String get faqTitle => 'Пытанні і рашэнні';
@@ -488,6 +508,17 @@ class AppLocalizationsBe extends AppLocalizations {
   @override
   String get faqClientA =>
       'Пераканайцеся, што стан — «Чакаем кліента», і выкарыстоўвайце адрас з экрана «Агляд». З іншага камп’ютара ўключыце «Дазволіць кліентаў лакальнай сеткі» і выкарыстоўвайце адрас лакальнай сеткі. Порт таксама можа блакаваць брандмаўэр.';
+
+  @override
+  String get faqBleClientQ => 'BLE-кліент не можа падключыцца';
+
+  @override
+  String get faqBleClientA =>
+      'Праверце, што Povad чакае кліента, Bluetooth уключаны і кліент шукае прылады Bluetooth LE. Выкарыстоўвайце імя і UUID з налад моста. Калі патрабуецца спалучэнне, пацвердзіце яго ў сістэме. Для кліентаў BT24, якія не спалучаюцца, выключыце патрабаванне спалучэння.';
+
+  @override
+  String get faqBleWindowsClientA =>
+      'Праверце, што Povad чакае кліента і Bluetooth уключаны. Windows аб’яўляе сэрвіс пад Bluetooth-імем гэтага камп’ютара; таксама можна шукаць UUID сэрвісу з налад моста. Калі патрабуецца спалучэнне, пацвердзіце яго. Для кліентаў BT24, якія не спалучаюцца, выключыце патрабаванне спалучэння.';
 
   @override
   String get faqPortQ => 'Не ўдаецца адкрыць паслядоўны порт';
@@ -504,6 +535,10 @@ class AppLocalizationsBe extends AppLocalizations {
       'Адзін сеанс абслугоўвае аднаго TCP-кліента. Калі ён адключаецца, сеанс завяршаецца, каб байты не трапілі іншаму кліенту. Націсніце «Запусціць зноў», каб чакаць наступнага.';
 
   @override
+  String get faqEndedBleA =>
+      'Адзін сеанс абслугоўвае аднаго BLE-кліента. Калі ён адключаецца, сеанс завяршаецца. Націсніце «Запусціць зноў», каб аб’явіць мост для наступнага кліента.';
+
+  @override
   String get faqBytesQ => 'Ці змяняе Povad мае даныя?';
 
   @override
@@ -516,6 +551,17 @@ class AppLocalizationsBe extends AppLocalizations {
   @override
   String get faqLanA =>
       'Кліенты лакальнай сеткі не правяраюцца і могуць адпраўляць байты ў вашу прыладу. Дазваляйце іх толькі ў даверанай сетцы і выключайце доступ пасля працы.';
+
+  @override
+  String get faqBlePairingQ => 'Ці трэба спалучаць BLE-кліент?';
+
+  @override
+  String get faqBlePairingA =>
+      'Патрабаванне спалучэння ўключана па змаўчанні. Пацвердзіце спалучэнне з Povad, калі сістэма папросіць. Злучэнне будзе зашыфраванае; іншы кліент не зможа заняць актыўны мост.';
+
+  @override
+  String get faqBleOpenA =>
+      'Патрабаванне спалучэння выключана. Гэта дазваляе кліентам накшталт BT24 працаваць без спалучэння, але любая прылада Bluetooth побач можа падключыцца і адпраўляць байты ў паслядоўную прыладу. Выкарыстоўвайце гэты рэжым толькі там, дзе давяраеце прыладам побач.';
 
   @override
   String get faqPrivacyQ => 'Ці адпраўляе Povad мае даныя кудысьці?';
@@ -762,4 +808,105 @@ class AppLocalizationsBe extends AppLocalizations {
   @override
   String get startAtLoginUnavailable =>
       'Аўтазапуск патрабуе macOS 13 або навейшай версіі і ўсталяванай праграмы.';
+
+  @override
+  String get stopBitsLabel => 'Стоп-біты';
+
+  @override
+  String get transportLabel => 'Транспарт';
+
+  @override
+  String get blePeripheral => 'Перыферыйная BLE-прылада';
+
+  @override
+  String get bleNameLabel => 'Імя ў аб’яве';
+
+  @override
+  String get bleWindowsNameLabel => 'Імя Bluetooth';
+
+  @override
+  String get bleWindowsComputerName => 'Bluetooth-імя камп’ютара';
+
+  @override
+  String get bleWindowsNameNote =>
+      'Windows аб’яўляе сэрвіс пад Bluetooth-імем гэтага камп’ютара. Povad не можа яго змяніць. Калі кліент падтрымлівае такую магчымасць, шукайце UUID сэрвісу.';
+
+  @override
+  String get bleNameInvalid => 'Увядзіце імя да 29 байтаў UTF-8.';
+
+  @override
+  String get bleServiceUuidLabel => 'UUID сэрвісу';
+
+  @override
+  String get bleWriteUuidLabel => 'UUID характарыстыкі запісу';
+
+  @override
+  String get bleNotifyUuidLabel => 'UUID характарыстыкі апавяшчэнняў';
+
+  @override
+  String get bleUuidInvalid => 'Увядзіце 16-бітны або 128-бітны UUID.';
+
+  @override
+  String get blePairingNote =>
+      'Кліент павінен спалучыцца для зашыфраванага злучэння. Абменьвацца данымі можа адзін кліент за раз.';
+
+  @override
+  String get fromBle => 'З BLE';
+
+  @override
+  String get bleListeningDescription =>
+      'Аб’ява актыўная, чаканне спалучанага BLE-кліента.';
+
+  @override
+  String get bleConnectedDescription =>
+      'Спалучаны BLE-кліент падключаны да паслядоўнага порта.';
+
+  @override
+  String bridgeBleConflict(String owner) {
+    return 'Адаптар Bluetooth ужо выкарыстоўвае $owner.';
+  }
+
+  @override
+  String get clientRejectedUnpaired =>
+      'Кліент адхілены: спачатку спалучыцеся з гэтай прыладай';
+
+  @override
+  String get bleBridgeSetupIntro =>
+      'Выберыце паслядоўную прыладу і налады BLE.';
+
+  @override
+  String get androidBleBridgeSetupIntro =>
+      'Выберыце паслядоўную USB-прыладу і налады BLE.';
+
+  @override
+  String get bleClientLabel => 'BLE-кліент';
+
+  @override
+  String get blePairingTitle => 'Патрабаваць спалучэнне';
+
+  @override
+  String get blePairingDescription =>
+      'Кліенты спалучаюцца для зашыфраванага злучэння. Выключыце для кліентаў BLE UART, якія не спалучаюцца, напрыклад праграм для модуляў BT24 або HM-10.';
+
+  @override
+  String get bleOpenRisk =>
+      'Без спалучэння да гэтай паслядоўнай прылады можа падключыцца любая прылада Bluetooth побач. Карыстайцеся гэтым толькі там, дзе давяраеце ўсім у радыусе дзеяння.';
+
+  @override
+  String get bleOpenNote => 'Абменьвацца данымі можа адзін кліент за раз.';
+
+  @override
+  String get bleStoppedDescription => 'Паслядоўны порт і BLE закрытыя.';
+
+  @override
+  String get bleOpenListeningDescription =>
+      'Аб’ява актыўная, чаканне BLE-кліента.';
+
+  @override
+  String get bleOpenConnectedDescription =>
+      'BLE-кліент падключаны да паслядоўнага порта.';
+
+  @override
+  String get hintBleClientLeft =>
+      'BLE-кліент адключыўся. Запусціце зноў, каб чакаць наступнага кліента.';
 }

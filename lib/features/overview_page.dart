@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
 import 'package:shadcn_flutter/shadcn_flutter.dart' as shad;
 
@@ -18,6 +19,8 @@ class OverviewPage extends StatelessWidget {
     this.serialValue,
     this.tcpValue,
     this.tcpReceived = 0,
+    this.bleMode = false,
+    this.blePaired = true,
     this.serialReceived = 0,
     this.animateConnection = true,
     this.detail,
@@ -35,6 +38,10 @@ class OverviewPage extends StatelessWidget {
   final bool previewMode, configured;
   final String? serialValue, tcpValue;
   final int tcpReceived, serialReceived;
+  final bool bleMode;
+
+  /// A BLE bridge that requires pairing (the words say "paired").
+  final bool blePaired;
   final bool animateConnection;
 
   /// The worker's own explanation for an error or ended session.
@@ -46,7 +53,7 @@ class OverviewPage extends StatelessWidget {
   Widget build(BuildContext context) {
     final l = AppLocalizations.of(context)!;
     final colors = paletteOf(context);
-    final copy = StateCopy.of(state, l);
+    final copy = StateCopy.of(state, l, bleMode: bleMode, blePaired: blePaired);
     final busy =
         state == BridgeViewState.starting || state == BridgeViewState.stopping;
     final active =
@@ -118,6 +125,7 @@ class OverviewPage extends StatelessWidget {
                             state: state,
                             tcpReceived: tcpReceived,
                             serialReceived: serialReceived,
+                            bleMode: bleMode,
                           ),
                         ),
                       ),
@@ -209,11 +217,18 @@ class OverviewPage extends StatelessWidget {
                     _EndpointSummary(
                       serialLabel: l.serialLabel,
                       serialValue: serialValue ?? l.serialValue,
-                      tcpLabel: l.tcpListener,
-                      tcpValue: tcpValue ?? l.tcpValue,
+                      tcpLabel: bleMode ? l.blePeripheral : l.tcpListener,
+                      tcpValue:
+                          tcpValue ??
+                          (bleMode
+                              ? defaultTargetPlatform == TargetPlatform.windows
+                                    ? l.bleWindowsComputerName
+                                    : 'Povad BLE'
+                              : l.tcpValue),
+                      bleMode: bleMode,
                       onEdit: active || busy ? null : onEditSetup,
                       editLabel: l.editSetup,
-                      onCopy: onCopyEndpoint,
+                      onCopy: bleMode ? null : onCopyEndpoint,
                       copyLabel: l.copyTcpEndpoint,
                       copied: endpointCopied,
                     ),
@@ -264,6 +279,7 @@ class _EndpointSummary extends StatelessWidget {
     required this.serialValue,
     required this.tcpLabel,
     required this.tcpValue,
+    required this.bleMode,
     required this.editLabel,
     required this.copyLabel,
     this.onEdit,
@@ -272,6 +288,7 @@ class _EndpointSummary extends StatelessWidget {
   });
 
   final String serialLabel, serialValue, tcpLabel, tcpValue;
+  final bool bleMode;
   final String editLabel, copyLabel;
   final VoidCallback? onEdit, onCopy;
   final bool copied;
@@ -285,7 +302,7 @@ class _EndpointSummary extends StatelessWidget {
       value: serialValue,
     );
     final tcp = _Endpoint(
-      icon: shad.LucideIcons.network,
+      icon: bleMode ? shad.LucideIcons.radio : shad.LucideIcons.network,
       label: tcpLabel,
       value: tcpValue,
     );
@@ -449,51 +466,63 @@ class StateCopy {
 
   final String badge, title, description, action;
 
-  factory StateCopy.of(BridgeViewState state, AppLocalizations l) =>
-      switch (state) {
-        BridgeViewState.stopped => StateCopy(
-          l.stopped,
-          l.stoppedTitle,
-          l.stoppedDescription,
-          l.startBridge,
-        ),
-        BridgeViewState.starting => StateCopy(
-          l.starting,
-          l.startingTitle,
-          l.startingDescription,
-          l.startingAction,
-        ),
-        BridgeViewState.listening => StateCopy(
-          l.listening,
-          l.listeningTitle,
-          l.listeningDescription,
-          l.stopBridge,
-        ),
-        BridgeViewState.connected => StateCopy(
-          l.connected,
-          l.connectedTitle,
-          l.connectedDescription,
-          l.stopBridge,
-        ),
-        BridgeViewState.stopping => StateCopy(
-          l.stopping,
-          l.stoppingTitle,
-          l.stoppingDescription,
-          l.stoppingAction,
-        ),
-        BridgeViewState.interrupted => StateCopy(
-          l.interrupted,
-          l.interruptedTitle,
-          l.interruptedDescription,
-          l.startAgain,
-        ),
-        BridgeViewState.error => StateCopy(
-          l.error,
-          l.errorTitle,
-          l.errorDescription,
-          l.startAgain,
-        ),
-      };
+  factory StateCopy.of(
+    BridgeViewState state,
+    AppLocalizations l, {
+    bool bleMode = false,
+    bool blePaired = true,
+  }) => switch (state) {
+    BridgeViewState.stopped => StateCopy(
+      l.stopped,
+      l.stoppedTitle,
+      bleMode ? l.bleStoppedDescription : l.stoppedDescription,
+      l.startBridge,
+    ),
+    BridgeViewState.starting => StateCopy(
+      l.starting,
+      l.startingTitle,
+      bleMode ? l.bleStartingDescription : l.startingDescription,
+      l.startingAction,
+    ),
+    BridgeViewState.listening => StateCopy(
+      l.listening,
+      l.listeningTitle,
+      !bleMode
+          ? l.listeningDescription
+          : blePaired
+          ? l.bleListeningDescription
+          : l.bleOpenListeningDescription,
+      l.stopBridge,
+    ),
+    BridgeViewState.connected => StateCopy(
+      l.connected,
+      l.connectedTitle,
+      !bleMode
+          ? l.connectedDescription
+          : blePaired
+          ? l.bleConnectedDescription
+          : l.bleOpenConnectedDescription,
+      l.stopBridge,
+    ),
+    BridgeViewState.stopping => StateCopy(
+      l.stopping,
+      l.stoppingTitle,
+      l.stoppingDescription,
+      l.stoppingAction,
+    ),
+    BridgeViewState.interrupted => StateCopy(
+      l.interrupted,
+      l.interruptedTitle,
+      l.interruptedDescription,
+      l.startAgain,
+    ),
+    BridgeViewState.error => StateCopy(
+      l.error,
+      l.errorTitle,
+      l.errorDescription,
+      l.startAgain,
+    ),
+  };
 }
 
 /// A compact pill with one action, used for update news on Overview.

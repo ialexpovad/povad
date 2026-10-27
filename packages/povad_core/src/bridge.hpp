@@ -25,10 +25,13 @@ class Bridge final {
   void run(pv_config config) noexcept;
   void set_state(uint32_t state, bool serial_open, bool connected);
   void add_tcp_received(size_t bytes);
+  void add_ble_received(size_t bytes);
   void add_serial_received(size_t bytes);
   void add_serial_accepted(size_t bytes);
   void add_tcp_accepted(size_t bytes);
+  void add_ble_accepted(size_t bytes);
   void reject_client(bool busy);
+  void reject_unpaired();
   void finish(uint32_t state, uint32_t error_code, const char* message);
 
   mutable std::mutex mutex_;
