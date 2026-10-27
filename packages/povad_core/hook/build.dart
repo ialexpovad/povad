@@ -11,9 +11,20 @@ void main(List<String> args) async {
     if (!input.config.buildCodeAssets) return;
     final target = input.config.code.targetOS;
     final transport = switch (target) {
-      OS.windows => ['src/transport_windows.cpp', 'src/transport_ble_windows.cpp'],
-      OS.macOS => ['src/transport_posix.cpp', 'src/transport_tcp_posix.cpp', 'src/transport_ble_macos.mm'],
-      OS.linux => ['src/transport_posix.cpp', 'src/transport_tcp_posix.cpp', 'src/transport_ble_linux.cpp'],
+      OS.windows => [
+        'src/transport_windows.cpp',
+        'src/transport_ble_windows.cpp',
+      ],
+      OS.macOS => [
+        'src/transport_posix.cpp',
+        'src/transport_tcp_posix.cpp',
+        'src/transport_ble_macos.mm',
+      ],
+      OS.linux => [
+        'src/transport_posix.cpp',
+        'src/transport_tcp_posix.cpp',
+        'src/transport_ble_linux.cpp',
+      ],
       OS.android => [
         'src/transport_android.cpp',
         'src/transport_ble_android.cpp',
@@ -35,7 +46,9 @@ void main(List<String> args) async {
         OS.linux => gio!.libraries,
         _ => const [],
       },
-      frameworks: target == OS.macOS ? ['Foundation', 'CoreBluetooth'] : const [],
+      frameworks: target == OS.macOS
+          ? ['Foundation', 'CoreBluetooth']
+          : const [],
       flags: switch (target) {
         OS.macOS => ['-fobjc-arc'],
         OS.windows => ['/bigobj', '/permissive-'],
