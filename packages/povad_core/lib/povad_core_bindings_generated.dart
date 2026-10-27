@@ -62,6 +62,20 @@ external int pv_read_snapshot(
 @ffi.Native<ffi.Int32 Function(ffi.Pointer<pv_handle>)>()
 external int pv_destroy(ffi.Pointer<pv_handle> handle);
 
+enum pv_peer_kind {
+  PV_PEER_TCP(0),
+  PV_PEER_BLE(1);
+
+  final int value;
+  const pv_peer_kind(this.value);
+
+  static pv_peer_kind fromValue(int value) => switch (value) {
+    0 => PV_PEER_TCP,
+    1 => PV_PEER_BLE,
+    _ => throw ArgumentError('Unknown value for pv_peer_kind: $value'),
+  };
+}
+
 enum pv_result {
   PV_OK(0),
   PV_ABI_MISMATCH(1),
@@ -115,7 +129,7 @@ enum pv_state {
 }
 
 /// All fields are fixed width. Strings are UTF-8 and must be NUL terminated.
-/// This v2 contract defines local serial selections and IPv4 listeners.
+/// This v3 contract defines local serial selections and TCP or BLE peers.
 /// Android selections use the usb:<device-name>:<port-index> form.
 final class pv_config extends ffi.Struct {
   @ffi.Uint32()
@@ -188,6 +202,9 @@ final class pv_config extends ffi.Struct {
   @ffi.Array.multi([37])
   external ffi.Array<ffi.Char> ble_notify_uuid;
 
+  /// 1: writes and the notification subscription need an encrypted, bonded
+  /// link. 0: open, as common BLE UART modules (BT24, HM-10) are, so their
+  /// clients connect without pairing; any nearby client may then connect.
   @ffi.Uint32()
   external int ble_require_pairing;
 }
