@@ -17,6 +17,7 @@
 #include <algorithm>
 #include <atomic>
 #include <chrono>
+#include <condition_variable>
 #include <cstring>
 #include <deque>
 #include <mutex>
@@ -51,9 +52,19 @@ struct BleServer::Impl {
   gatt::GattLocalCharacteristic notify_characteristic{nullptr};
   winrt::event_token write_token{};
   winrt::event_token subscribers_token{};
+  winrt::event_token advertising_token{};
+  bool write_handler_registered = false;
+  bool subscribers_handler_registered = false;
+  bool advertising_handler_registered = false;
   bool reserved = false;
 
   std::mutex mutex;
+  std::condition_variable advertising_changed;
+  gatt::GattServiceProviderAdvertisementStatus advertising_status =
+      gatt::GattServiceProviderAdvertisementStatus::Created;
+  bool advertising_event_seen = false;
+  bool advertising_started = false;
+  bool shutting_down = false;
   gatt::GattSubscribedClient owner{nullptr};
   std::wstring owner_id;   // The client's device ID (writes or subscription).
   bool disconnected = false;
@@ -64,6 +75,25 @@ struct BleServer::Impl {
   size_t incoming_offset = 0, incoming_size = 0;
   size_t limit = 65536;
   uint32_t max_age_ms = 2000;
+
+  void on_advertisement(gatt::GattServiceProvider const& sender,
+      gatt::GattServiceProviderAdvertisementStatusChangedEventArgs const& args) {
+    try {
+      std::lock_guard<std::mutex> lock(mutex);
+      if (sender != provider) return;
+      advertising_status = args.Status();
+      advertising_event_seen = true;
+      if (advertising_started && !shutting_down &&
+          advertising_status != gatt::GattServiceProviderAdvertisementStatus::Started) {
+        fault = "BLE advertising stopped or lost service data";
+      }
+      advertising_changed.notify_all();
+    } catch (...) {
+      std::lock_guard<std::mutex> lock(mutex);
+      fault = "BLE advertising status failed";
+      advertising_changed.notify_all();
+    }
+  }
 
   void claim(const std::wstring& device) {
     // Called with the mutex held: the first client owns the bridge.
@@ -90,14 +120,18 @@ struct BleServer::Impl {
       bool refused = false;
       {
         std::lock_guard<std::mutex> lock(mutex);
-        claim(device);
-        if (request.Offset() != 0 || owner_id != device || disconnected) {
-          if (owner_id != device) event = 2;
-          refused = true;
-        } else if (bytes.size() > limit - incoming_size) {
-          fault = "BLE input queue overflow; delivery is uncertain";
+        if (request.Offset() != 0) {
           refused = true;
         } else {
+          claim(device);
+        }
+        if (!refused && (owner_id != device || disconnected)) {
+          if (owner_id != device) event = 2;
+          refused = true;
+        } else if (!refused && bytes.size() > limit - incoming_size) {
+          fault = "BLE input queue overflow; delivery is uncertain";
+          refused = true;
+        } else if (!refused && !bytes.empty()) {
           incoming_size += bytes.size();
           incoming.push_back(std::move(bytes));
           received_at.push_back(now_ms());
@@ -116,38 +150,58 @@ struct BleServer::Impl {
 
   void on_subscribers(gatt::GattLocalCharacteristic const& characteristic,
       winrt::Windows::Foundation::IInspectable const&) {
-    const auto clients = characteristic.SubscribedClients();
-    std::lock_guard<std::mutex> lock(mutex);
-    if (owner != nullptr) {
-      bool still = false;
-      for (const auto& client : clients) {
-        if (client == owner) still = true;
-      }
-      if (!still) {
-        owner = nullptr;
-        disconnected = true;
-      }
-      return;
-    }
-    for (const auto& client : clients) {
-      const std::wstring device(client.Session().DeviceId().Id());
-      claim(device);
-      if (device == owner_id) {
-        owner = client;
+    try {
+      const auto clients = characteristic.SubscribedClients();
+      std::lock_guard<std::mutex> lock(mutex);
+      if (owner != nullptr) {
+        bool still = false;
+        for (const auto& client : clients) {
+          if (client == owner) still = true;
+        }
+        if (!still) {
+          owner = nullptr;
+          disconnected = true;
+        }
         return;
       }
-      event = 2;
+      for (const auto& client : clients) {
+        const std::wstring device(client.Session().DeviceId().Id());
+        claim(device);
+        if (device == owner_id) {
+          owner = client;
+          return;
+        }
+        event = 2;
+      }
+    } catch (...) {
+      std::lock_guard<std::mutex> lock(mutex);
+      fault = "BLE subscription handling failed";
     }
   }
 
   bool stop() {
+    {
+      std::lock_guard<std::mutex> lock(mutex);
+      shutting_down = true;
+    }
     try {
       if (provider != nullptr) {
-        if (provider.AdvertisementStatus() == gatt::GattServiceProviderAdvertisementStatus::Started)
+        const auto status = provider.AdvertisementStatus();
+        if (status == gatt::GattServiceProviderAdvertisementStatus::Started ||
+            status == gatt::GattServiceProviderAdvertisementStatus::StartedWithoutAllAdvertisementData)
           provider.StopAdvertising();
-        if (write_characteristic != nullptr) write_characteristic.WriteRequested(write_token);
-        if (notify_characteristic != nullptr)
+        if (write_handler_registered) {
+          write_characteristic.WriteRequested(write_token);
+          write_handler_registered = false;
+        }
+        if (subscribers_handler_registered) {
           notify_characteristic.SubscribedClientsChanged(subscribers_token);
+          subscribers_handler_registered = false;
+        }
+        if (advertising_handler_registered) {
+          provider.AdvertisementStatusChanged(advertising_token);
+          advertising_handler_registered = false;
+        }
       }
     } catch (...) {
       return false;
@@ -159,6 +213,13 @@ struct BleServer::Impl {
     received_at.clear();
     incoming_size = 0;
     incoming_offset = 0;
+    write_handler_registered = false;
+    subscribers_handler_registered = false;
+    advertising_handler_registered = false;
+    advertising_started = false;
+    advertising_event_seen = false;
+    advertising_status = gatt::GattServiceProviderAdvertisementStatus::Created;
+    shutting_down = false;
     write_characteristic = nullptr;
     notify_characteristic = nullptr;
     provider = nullptr;
@@ -223,13 +284,39 @@ void BleServer::listen(const pv_config& config) {
     Impl* self = &s;
     s.write_token = s.write_characteristic.WriteRequested(
         [self](auto const& sender, auto const& args) { self->on_write(sender, args); });
+    s.write_handler_registered = true;
     s.subscribers_token = s.notify_characteristic.SubscribedClientsChanged(
         [self](auto const& sender, auto const& args) { self->on_subscribers(sender, args); });
+    s.subscribers_handler_registered = true;
+    s.advertising_token = s.provider.AdvertisementStatusChanged(
+        [self](auto const& sender, auto const& args) { self->on_advertisement(sender, args); });
+    s.advertising_handler_registered = true;
 
     gatt::GattServiceProviderAdvertisingParameters advertising;
     advertising.IsConnectable(true);
     advertising.IsDiscoverable(true);
     s.provider.StartAdvertising(advertising);
+    const auto status = s.provider.AdvertisementStatus();
+    {
+      std::unique_lock<std::mutex> lock(s.mutex);
+      // StartAdvertising returns before the radio confirms its advertisement.
+      // The status event can also arrive before this wait begins.
+      if (!s.advertising_event_seen) s.advertising_status = status;
+      s.advertising_changed.wait_for(lock, std::chrono::seconds(5), [&s] {
+        return !s.fault.empty() ||
+            s.advertising_status == gatt::GattServiceProviderAdvertisementStatus::Started ||
+            s.advertising_status == gatt::GattServiceProviderAdvertisementStatus::StartedWithoutAllAdvertisementData ||
+            s.advertising_status == gatt::GattServiceProviderAdvertisementStatus::Aborted;
+      });
+      if (s.fault.empty() &&
+          s.advertising_status == gatt::GattServiceProviderAdvertisementStatus::Started)
+        s.advertising_started = true;
+    }
+    if (!s.advertising_started) {
+      close();
+      throw TransportError(PV_UNSUPPORTED_PLATFORM,
+          "BLE advertising did not start with complete service data");
+    }
   } catch (const TransportError&) {
     throw;
   } catch (...) {
