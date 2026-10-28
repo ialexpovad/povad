@@ -1,7 +1,8 @@
-# Povad 0.2.0
+# Povad 0.2.1
 
-Povad 0.2.0 adds a Serial ↔ Bluetooth LE bridge alongside the existing
-Serial ↔ TCP bridge. Each bridge has separate serial and transport settings.
+Povad 0.2.1 adds support for the built-in expansion port on compatible rugged
+Android handhelds, alongside USB–Serial adapters and the existing Serial ↔
+TCP and Serial ↔ Bluetooth LE bridges.
 
 ## Highlights
 
@@ -13,11 +14,17 @@ Serial ↔ TCP bridge. Each bridge has separate serial and transport settings.
 - Windows BLE startup waits for the system to confirm complete advertising and
   reports advertising failures. The Windows native build works from project
   paths containing spaces.
+- Compatible Android handhelds can expose their built-in expansion UART as a
+  serial port. This device-service interface supports 8N1 without flow control;
+  USB–Serial adapters continue to support their normal serial settings.
 
 ## BLE compatibility
 
 - macOS and Android BLE have been exercised with real serial hardware in both
   directions. Android 8 (API 26) or later is required.
+- The built-in expansion port requires a compatible handheld with its device
+  control service installed. Confirm it appears in the serial-port picker
+  before starting a bridge.
 - Windows BLE requires an adapter and driver that report support for the BLE
   peripheral role. Building and native tests pass, but operation with a
   compatible Windows adapter has not been verified. Windows advertises under

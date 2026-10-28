@@ -68,14 +68,16 @@ cannot set a separate name.
 | --- | --- | --- |
 | Windows | x64 ZIP | Extract the entire folder, then open `povad.exe`. |
 | Linux | x64 tar.xz | Extract the bundle, then run `povad`. |
-| Android | arm64 APK | Install the APK; connect a USB–Serial adapter through USB-OTG. |
+| Android | arm64 APK | Install the APK; connect a USB–Serial adapter through USB-OTG, or use a compatible handheld's built-in expansion port. |
 | macOS | Unsigned QA ZIP | Manual testing build; signing and notarization are pending. |
 
 **[Get the latest release →](https://github.com/ialexpovad/povad/releases/latest)**
 
 Keep desktop bundles in a permanent folder before enabling startup. macOS
-autostart requires version 13 or later. Android needs compatible USB host
-hardware; multiple adapters require a USB hub. Release assets include
+autostart requires version 13 or later. Android USB adapters require compatible
+USB host hardware; multiple adapters require a USB hub. Some rugged handhelds
+also expose a built-in expansion port; its serial format may be limited by the
+device service. Release assets include
 `SHA256SUMS.txt`. Stop all bridges before installing an update.
 
 ## Help & contribute
