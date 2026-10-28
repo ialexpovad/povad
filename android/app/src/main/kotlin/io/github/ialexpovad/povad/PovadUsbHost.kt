@@ -10,12 +10,14 @@ import java.io.IOException
 /** Permission is requested by the Activity. Only the C++ worker calls open. */
 object PovadUsbHost {
     @Volatile private lateinit var manager: UsbManager
+    @Volatile private lateinit var context: Context
 
     fun initialize(context: Context) {
+        this.context = context.applicationContext
         manager = context.applicationContext.getSystemService(Context.USB_SERVICE) as UsbManager
     }
 
-    fun deviceList(): List<Map<String, Any>> =
+    fun deviceList(): List<Map<String, Any>> = builtinPorts() +
         UsbSerialProber.getDefaultProber().findAllDrivers(manager).flatMap { driver ->
             val device = driver.device
             driver.ports.mapIndexed { index, _ ->
@@ -32,8 +34,29 @@ object PovadUsbHost {
             }
         }
 
+    /** A handheld's built-in expansion port, when this device has one. */
+    private fun builtinPorts(): List<Map<String, Any>> =
+        if (!BuiltinExpansionPort.present(context)) emptyList() else listOf(
+            mapOf(
+                "deviceName" to BuiltinExpansionPort.DEVICE_NAME,
+                "vendorId" to 0,
+                "productId" to 0,
+                "portIndex" to 0,
+                "portCount" to 1,
+                "productName" to "",
+                "builtin" to true,
+            )
+        )
+
+    /** A built-in port needs no USB permission. */
+    fun isBuiltin(deviceName: String): Boolean = deviceName == BuiltinExpansionPort.DEVICE_NAME
+
     fun hasPermission(deviceName: String): Boolean =
-        manager.deviceList[deviceName]?.let(manager::hasPermission) == true
+        if (isBuiltin(deviceName)) {
+            BuiltinExpansionPort.present(context)
+        } else {
+            manager.deviceList[deviceName]?.let(manager::hasPermission) == true
+        }
 
     fun deviceForPermission(deviceName: String) = manager.deviceList[deviceName]
 
@@ -55,6 +78,10 @@ object PovadUsbHost {
         val deviceName = specification.substring(4, separator)
         val portIndex = specification.substring(separator + 1).toIntOrNull()
             ?: throw IOException("Invalid USB serial port index")
+        if (isBuiltin(deviceName)) {
+            if (portIndex != 0) throw IOException("Built-in port unavailable")
+            return BuiltinExpansionPort.open(context, baud, dataBits, parity, stopBitsX10, hardwareFlow)
+        }
         val device = manager.deviceList[deviceName] ?: throw IOException("USB device disconnected")
         if (!manager.hasPermission(device)) throw IOException("USB permission not granted")
         val driver = UsbSerialProber.getDefaultProber().findAllDrivers(manager)
@@ -81,7 +108,7 @@ object PovadUsbHost {
             if (hardwareFlow) port.setFlowControl(UsbSerialPort.FlowControl.RTS_CTS)
             if (dtr) port.setDTR(true)
             if (rts && !hardwareFlow) port.setRTS(true)
-            return UsbSession(manager, deviceName, port, connection)
+            return UsbSerialSession(manager, deviceName, port, connection)
         } catch (error: Exception) {
             try {
                 if (opened) port.close() else connection.close()
@@ -94,18 +121,32 @@ object PovadUsbHost {
 }
 
 /**
- * Created, used, and closed by the C++ worker thread. It owns one reader
+ * One open serial session, created, used, and closed by the C++ worker
+ * thread, which resolves these methods on the session's own class.
+ */
+interface UsbSession {
+    /** Bytes received so far, without waiting; 0 when none. */
+    fun read(buffer: ByteArray): Int
+
+    /** Writes [length] bytes, or throws; never replays a partial write. */
+    fun write(buffer: ByteArray, length: Int): Int
+
+    fun close()
+}
+
+/**
+ * A USB serial adapter's session. It owns one reader
  * thread for its lifetime: reading continuously with the driver's queued
  * request is how a USB adapter keeps up with a long reply (its own receive
  * buffer lasts milliseconds), which polled short reads between other work
  * cannot. close() stops and joins the reader before the port is released.
  */
-class UsbSession(
+class UsbSerialSession(
     private val manager: UsbManager,
     private val deviceName: String,
     private val port: UsbSerialPort,
     private val connection: UsbDeviceConnection,
-) {
+) : UsbSession {
     private val lock = Object()
     private val received = ArrayDeque<ByteArray>()
     private var receivedOffset = 0
@@ -147,8 +188,7 @@ class UsbSession(
         if (!manager.deviceList.containsKey(deviceName)) throw IOException("USB device disconnected")
     }
 
-    /** Bytes the reader has received, without waiting; 0 when none. */
-    fun read(buffer: ByteArray): Int {
+    override fun read(buffer: ByteArray): Int {
         failure?.let { throw IOException(it) }
         checkAttached()
         synchronized(lock) {
@@ -169,7 +209,7 @@ class UsbSession(
         }
     }
 
-    fun write(buffer: ByteArray, length: Int): Int {
+    override fun write(buffer: ByteArray, length: Int): Int {
         if (length < 0 || length > buffer.size) throw IOException("Invalid USB write length")
         failure?.let { throw IOException(it) }
         checkAttached()
@@ -179,7 +219,7 @@ class UsbSession(
         return length
     }
 
-    fun close() {
+    override fun close() {
         stopping = true
         try {
             // Closing the port cancels the reader's queued request.

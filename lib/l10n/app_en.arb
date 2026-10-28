@@ -44,6 +44,10 @@
   "reviewDetails": "Review details",
   "configureBridge": "Configure bridge",
   "serialPortPath": "Serial port",
+  "builtinSerialPort": "Built-in expansion port",
+  "@builtinSerialPort": {
+    "description": "A rugged handheld's own serial expansion port, listed beside USB serial adapters."
+  },
   "usbPortsTitle": "USB serial devices",
   "scanUsbDevices": "Refresh devices",
   "scanningUsbDevices": "Scanning for USB serial devices…",

@@ -940,6 +940,24 @@ void main() {
     expect(find.textContaining('Require pairing is off'), findsOneWidget);
   });
 
+  testWidgets('a BLE bridge can wait for the next client', (tester) async {
+    await tester.pumpWidget(
+      PovadApp(session: BridgeSession(), preferences: MemoryUiPreferences()),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Configure bridge'));
+    await tester.pumpAndSettle();
+    await tester.ensureVisible(find.text('BLE'));
+    await tester.tap(find.text('BLE'));
+    await tester.pumpAndSettle();
+    final wait = find.byKey(const ValueKey('ble-wait-next-client'));
+    await tester.ensureVisible(wait);
+    expect(tester.widget<shad.Switch>(wait).value, isFalse);
+    await tester.tap(wait);
+    await tester.pumpAndSettle();
+    expect(tester.widget<shad.Switch>(wait).value, isTrue);
+  });
+
   testWidgets('Windows BLE explains the system advertising name', (
     tester,
   ) async {

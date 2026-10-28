@@ -67,5 +67,7 @@
             <action android:name="android.intent.action.PROCESS_TEXT"/>
             <data android:mimeType="text/plain"/>
         </intent>
+        <!-- A rugged handheld's device-control service owns its built-in expansion port. -->
+        <package android:name="com.techinfo.devicemanager" />
     </queries>
 </manifest>

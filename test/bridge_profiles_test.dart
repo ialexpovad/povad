@@ -78,6 +78,48 @@ void main() {
       expect(saved.profiles.last.settings.tcpPort, '9271');
     },
   );
+  test(
+    'Android keeps a built-in port selection, whose name is stable',
+    () async {
+      String? value;
+      final store = DeviceBridgeProfilesStore(
+        rememberSerialPort: false,
+        readValue: () async => value,
+        writeValue: (next) async {
+          value = next;
+        },
+      );
+      await store.save(
+        BridgeProfiles(
+          selectedId: 'a',
+          profiles: [
+            BridgeProfile(
+              id: 'a',
+              number: 1,
+              name: 'Built-in',
+              settings: const BridgeSettings(
+                serialPort: 'usb:builtin:expansion:0',
+              ),
+            ),
+            BridgeProfile(
+              id: 'b',
+              number: 2,
+              name: 'Adapter',
+              settings: const BridgeSettings(
+                serialPort: 'usb:/dev/bus/usb/001/002:0',
+              ),
+            ),
+          ],
+        ),
+      );
+      final saved = await store.read();
+      expect(
+        saved.profiles.first.settings.serialPort,
+        'usb:builtin:expansion:0',
+      );
+      expect(saved.profiles.last.settings.serialPort, isEmpty);
+    },
+  );
   test('v1 profiles migrate as TCP and BLE settings round-trip', () {
     const legacy =
         '{"version":1,"selectedId":"old","profiles":[{"id":"old","number":1,"name":"",'

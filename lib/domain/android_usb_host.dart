@@ -22,6 +22,7 @@ final class AndroidUsbHost {
             portIndex: value['portIndex'] as int,
             portCount: value['portCount'] as int? ?? 1,
             productName: value['productName'] as String? ?? '',
+            builtin: value['builtin'] as bool? ?? false,
           );
         })
         .toList(growable: false);
@@ -34,6 +35,9 @@ final class AndroidUsbHost {
       false;
 }
 
+/// The native selection prefix of a device's own built-in serial port.
+const builtinSerialPrefix = 'usb:builtin:';
+
 final class AndroidUsbPort {
   const AndroidUsbPort({
     required this.deviceName,
@@ -42,6 +46,7 @@ final class AndroidUsbPort {
     required this.portIndex,
     this.portCount = 1,
     this.productName = '',
+    this.builtin = false,
   });
 
   final String deviceName;
@@ -50,11 +55,17 @@ final class AndroidUsbPort {
   /// The adapter's name from its USB descriptor; empty when it has none.
   final String productName;
 
+  /// The device's own built-in serial port (a rugged handheld's expansion
+  /// port), not a USB adapter. It needs no USB permission.
+  final bool builtin;
+
   String get nativeSelection => 'usb:$deviceName:$portIndex';
 
   /// Identical adapter models need a local bus address in the picker.
   /// This is a label only, not a durable identity or a permission grant.
-  String labelIn(List<AndroidUsbPort> ports) {
+  /// [builtinName] names a built-in port in the UI language.
+  String labelIn(List<AndroidUsbPort> ports, {required String builtinName}) {
+    if (builtin) return builtinName;
     if (ports.where((port) => port.label == label).length < 2) return label;
     const prefix = '/dev/bus/usb/';
     final address = deviceName.startsWith(prefix)

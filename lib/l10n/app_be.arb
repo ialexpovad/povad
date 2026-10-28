@@ -44,6 +44,7 @@
   "reviewDetails": "Паглядзець падрабязнасці",
   "configureBridge": "Наладзіць мост",
   "serialPortPath": "Паслядоўны порт",
+  "builtinSerialPort": "Убудаваны порт пашырэння",
   "usbPortsTitle": "Паслядоўныя USB-прылады",
   "scanUsbDevices": "Абнавіць спіс прылад",
   "scanningUsbDevices": "Шукаем паслядоўныя USB-прылады…",

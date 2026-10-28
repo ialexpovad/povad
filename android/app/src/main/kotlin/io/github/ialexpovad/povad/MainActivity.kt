@@ -112,7 +112,9 @@ class MainActivity : FlutterActivity() {
                     "permission" -> {
                         val name = call.argument<String>("deviceName")
                         val device = name?.let(PovadUsbHost::deviceForPermission)
-                        if (device == null) {
+                        if (name != null && PovadUsbHost.isBuiltin(name)) {
+                            result.success(true)
+                        } else if (device == null) {
                             result.error("USB_MISSING", "USB device is no longer connected", null)
                         } else if (PovadUsbHost.hasPermission(name)) {
                             result.success(true)

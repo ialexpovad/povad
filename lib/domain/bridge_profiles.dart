@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'android_usb_host.dart';
 import 'bridge_settings.dart';
 
 /// Durable configuration only. LAN consent, USB grants, and worker state
@@ -30,7 +31,11 @@ final class BridgeProfile {
     'id': id,
     'number': number,
     'name': name,
-    'serialPort': rememberSerialPort ? settings.serialPort : '',
+    'serialPort':
+        rememberSerialPort ||
+            settings.serialPort.startsWith(builtinSerialPrefix)
+        ? settings.serialPort
+        : '',
     'baud': settings.baud,
     'parity': settings.parity,
     'tcpPort': settings.tcpPort,
@@ -152,7 +157,11 @@ final class DeviceBridgeProfilesStore implements BridgeProfilesStore {
         selectedId: saved.selectedId,
         profiles: [
           for (final p in saved.profiles)
-            p.copyWith(settings: p.settings.copyWith(serialPort: '')),
+            // A built-in port's name is stable across launches; a USB
+            // adapter's bus address is not.
+            p.settings.serialPort.startsWith(builtinSerialPrefix)
+                ? p
+                : p.copyWith(settings: p.settings.copyWith(serialPort: '')),
         ],
       );
     }

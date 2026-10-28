@@ -48,10 +48,19 @@ void main() {
         productId: 0x5740,
         portIndex: 0,
       );
-      expect(first.labelIn([first]), first.label);
-      expect(first.labelIn([first, second]), endsWith('001/002'));
-      expect(second.labelIn([first, second]), endsWith('001/003'));
-      expect(first.labelIn([second, first]), first.labelIn([first, second]));
+      expect(first.labelIn([first], builtinName: 'Built-in'), first.label);
+      expect(
+        first.labelIn([first, second], builtinName: 'Built-in'),
+        endsWith('001/002'),
+      );
+      expect(
+        second.labelIn([first, second], builtinName: 'Built-in'),
+        endsWith('001/003'),
+      );
+      expect(
+        first.labelIn([second, first], builtinName: 'Built-in'),
+        first.labelIn([first, second], builtinName: 'Built-in'),
+      );
       expect(first.nativeSelection, isNot(second.nativeSelection));
     },
   );
@@ -72,6 +81,21 @@ void main() {
     );
     expect(named.label, 'Example Serial Adapter');
     expect(unnamed.label, 'USB 0403:6001');
+  });
+
+  test('a built-in port is named in the UI language, not as an adapter', () {
+    const builtin = AndroidUsbPort(
+      deviceName: 'builtin:expansion',
+      vendorId: 0,
+      productId: 0,
+      portIndex: 0,
+      builtin: true,
+    );
+    expect(
+      builtin.labelIn([builtin], builtinName: 'Built-in expansion port'),
+      'Built-in expansion port',
+    );
+    expect(builtin.nativeSelection, 'usb:builtin:expansion:0');
   });
 
   test(

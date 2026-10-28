@@ -146,6 +146,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get serialPortPath => 'Serial port';
 
   @override
+  String get builtinSerialPort => 'Built-in expansion port';
+
+  @override
   String get usbPortsTitle => 'USB serial devices';
 
   @override

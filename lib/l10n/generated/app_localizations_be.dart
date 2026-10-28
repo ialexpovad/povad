@@ -146,6 +146,9 @@ class AppLocalizationsBe extends AppLocalizations {
   String get serialPortPath => 'Паслядоўны порт';
 
   @override
+  String get builtinSerialPort => 'Убудаваны порт пашырэння';
+
+  @override
   String get usbPortsTitle => 'Паслядоўныя USB-прылады';
 
   @override

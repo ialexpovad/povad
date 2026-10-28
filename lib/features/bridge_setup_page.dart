@@ -495,6 +495,16 @@ class BridgeSetupPage extends StatelessWidget {
                         text: l.bleOpenRisk,
                       ),
               ),
+              SectionRow(
+                label: l.waitNextClient,
+                description: l.waitNextDescription,
+                stackBelow: 0,
+                trailing: shad.Switch(
+                  key: const ValueKey('ble-wait-next-client'),
+                  value: waitNextClient,
+                  onChanged: running ? null : onWaitNextChanged,
+                ),
+              ),
               const SizedBox(height: 12),
               Text(
                 bleRequirePairing ? l.blePairingNote : l.bleOpenNote,
@@ -631,7 +641,7 @@ class _UsbPicker extends StatelessWidget {
           Padding(
             padding: const EdgeInsets.only(top: 6),
             child: _UsbRow(
-              label: port.labelIn(ports),
+              label: port.labelIn(ports, builtinName: l.builtinSerialPort),
               selected: port.nativeSelection == selected,
               onTap: !enabled || loading ? null : () => onSelected?.call(port),
             ),

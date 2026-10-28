@@ -384,7 +384,10 @@ class _PovadAppState extends State<PovadApp> with WidgetsBindingObserver {
           final serial = entry.profile.settings.serialPort;
           for (final port in discovered) {
             if (port.nativeSelection == serial) {
-              _uiFor(entry.id).selectedUsbLabel = port.labelIn(discovered);
+              _uiFor(entry.id).selectedUsbLabel = port.labelIn(
+                discovered,
+                builtinName: lookupAppLocalizations(locale).builtinSerialPort,
+              );
               break;
             }
           }
@@ -419,7 +422,10 @@ class _PovadAppState extends State<PovadApp> with WidgetsBindingObserver {
           fleet.connections.contains(target) &&
           !target.active &&
           !fleet.shuttingDown) {
-        _uiFor(target.id).selectedUsbLabel = port.labelIn(usbPorts);
+        _uiFor(target.id).selectedUsbLabel = port.labelIn(
+          usbPorts,
+          builtinName: lookupAppLocalizations(locale).builtinSerialPort,
+        );
         fleet.updateProfile(
           target.id,
           settings: target.profile.settings.copyWith(

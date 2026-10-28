@@ -362,6 +362,12 @@ abstract class AppLocalizations {
   /// **'Serial port'**
   String get serialPortPath;
 
+  /// A rugged handheld's own serial expansion port, listed beside USB serial adapters.
+  ///
+  /// In en, this message translates to:
+  /// **'Built-in expansion port'**
+  String get builtinSerialPort;
+
   /// No description provided for @usbPortsTitle.
   ///
   /// In en, this message translates to:
