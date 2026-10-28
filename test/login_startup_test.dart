@@ -215,5 +215,5 @@ void main() {
         throwsArgumentError,
       );
     });
-  });
+  }, skip: Platform.isWindows ? 'Linux paths only' : null);
 }

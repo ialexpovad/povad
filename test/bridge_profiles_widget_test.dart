@@ -58,7 +58,8 @@ void main() {
       await tester.tap(find.text('Bridge 1').last);
       await tester.pumpAndSettle();
       expect(fleet.selected.id, 'legacy');
-      expect(find.text('COM3'), findsOneWidget);
+      expect(fleet.selected.profile.settings.serialPort, 'COM3');
+      expect(find.text('COM3'), findsWidgets);
       await tester.tap(find.byKey(const ValueKey('nav-0')));
       await tester.pumpAndSettle();
       await tester.tap(find.text('Start bridge'));
