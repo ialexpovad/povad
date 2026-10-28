@@ -8,6 +8,7 @@ import 'package:povad_core/povad_core.dart' as core;
 import 'package:shadcn_flutter/shadcn_flutter.dart' as shad;
 import 'package:url_launcher/url_launcher.dart';
 
+import '../design/app_surface_scale.dart';
 import '../design/povad_components.dart';
 import '../design/povad_mark.dart';
 import '../design/povad_theme.dart';
@@ -1171,13 +1172,13 @@ class _PovadAppState extends State<PovadApp> with WidgetsBindingObserver {
   Widget build(BuildContext context) => shad.ShadcnApp(
     title: 'Povad',
     scaling: shad.AdaptiveScaling(
-      (defaultTargetPlatform == TargetPlatform.android ||
-                  defaultTargetPlatform == TargetPlatform.iOS
-              ? 1.25
-              : 1.0) *
-          interfaceScale /
-          100,
+      defaultTargetPlatform == TargetPlatform.android ||
+              defaultTargetPlatform == TargetPlatform.iOS
+          ? 1.25
+          : 1.0,
     ),
+    surfaceBuilder: (context, child) =>
+        AppSurfaceScale(scale: interfaceScale / 100, child: child),
     navigatorKey: _navigatorKey,
     debugShowCheckedModeBanner: false,
     locale: locale,
