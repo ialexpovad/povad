@@ -308,9 +308,27 @@ class BleSession(
                 context.getSharedPreferences("povad_ble_name", Context.MODE_PRIVATE)
                     .edit().putString("previous", previousAdapterName).commit()
                 if (!adapter.setName(name)) throw IOException("Cannot set BLE advertising name")
+                // setName returns before the controller has the new name;
+                // advertising started now would carry the old one.
+                val deadline = android.os.SystemClock.elapsedRealtime() + 3000
+                while (adapter.name != name) {
+                    if (android.os.SystemClock.elapsedRealtime() > deadline) {
+                        throw IOException("Bluetooth did not apply the name $name")
+                    }
+                    Thread.sleep(50)
+                }
+                Thread.sleep(200)
             }
-            val data = AdvertiseData.Builder().addServiceUuid(ParcelUuid(serviceId)).build()
-            val response = AdvertiseData.Builder().setIncludeDeviceName(true).build()
+            // The name goes in the advertisement itself when it fits (flags,
+            // service UUID, name ≤ 31 bytes), so scanners that do not ask
+            // for a scan response still see it; otherwise in the response.
+            val uuidBytes = if (serviceId.toString().endsWith("-0000-1000-8000-00805f9b34fb") &&
+                serviceId.toString().startsWith("0000")) 2 else 16
+            val nameFits = 3 + (2 + uuidBytes) + (2 + name.toByteArray().size) <= 31
+            val data = AdvertiseData.Builder().addServiceUuid(ParcelUuid(serviceId))
+                .setIncludeDeviceName(nameFits).build()
+            val response = AdvertiseData.Builder().setIncludeDeviceName(!nameFits).build()
+            Log.i("PovadBleHost", "advertising name in ${if (nameFits) "advertisement" else "scan response"}")
             advertiser.startAdvertising(
                 AdvertiseSettings.Builder().setAdvertiseMode(AdvertiseSettings.ADVERTISE_MODE_LOW_LATENCY)
                     .setConnectable(true).build(), data, response,

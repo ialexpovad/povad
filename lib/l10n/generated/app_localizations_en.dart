@@ -439,6 +439,13 @@ class AppLocalizationsEn extends AppLocalizations {
   String get interfaceSection => 'Interface';
 
   @override
+  String get interfaceScale => 'Interface scale';
+
+  @override
+  String get interfaceScaleDescription =>
+      'Adjust text, icons, and controls. 100% keeps the current size.';
+
+  @override
   String updateAvailableVersion(String version) {
     return 'Povad $version is available';
   }

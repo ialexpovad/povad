@@ -569,6 +569,32 @@ void main() {
     );
   });
 
+  testWidgets('interface scale changes control sizing and survives restart', (
+    tester,
+  ) async {
+    final preferences = MemoryUiPreferences();
+    await tester.pumpWidget(PovadApp(preferences: preferences));
+    await tester.tap(find.byKey(const ValueKey('nav-3')));
+    await tester.pumpAndSettle();
+
+    final selector = find.byKey(const ValueKey('interface-scale'));
+    final original = shad.Theme.of(tester.element(selector)).scaling;
+    tester.widget<shad.Select<int>>(selector).onChanged!(80);
+    await tester.pumpAndSettle();
+    expect(preferences.interfaceScale, 80);
+    expect(
+      shad.Theme.of(tester.element(selector)).scaling,
+      closeTo(original * 0.8, 0.001),
+    );
+
+    await tester.pumpWidget(const SizedBox());
+    await tester.pumpWidget(PovadApp(preferences: preferences));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('nav-3')));
+    await tester.pumpAndSettle();
+    expect(tester.widget<shad.Select<int>>(selector).value, 80);
+  });
+
   testWidgets('an error offers a restart and shows the worker cause', (
     tester,
   ) async {
@@ -946,6 +972,7 @@ class MemoryUiPreferences implements UiPreferences {
   String? language;
   PovadAppearance? appearance;
   bool? connectionAnimation;
+  int? interfaceScale;
 
   @override
   Future<String?> readLanguage() async => language;
@@ -955,6 +982,9 @@ class MemoryUiPreferences implements UiPreferences {
 
   @override
   Future<bool?> readConnectionAnimation() async => connectionAnimation;
+
+  @override
+  Future<int?> readInterfaceScale() async => interfaceScale;
 
   @override
   Future<void> saveLanguage(String languageCode) async =>
@@ -967,6 +997,10 @@ class MemoryUiPreferences implements UiPreferences {
   @override
   Future<void> saveConnectionAnimation(bool enabled) async =>
       connectionAnimation = enabled;
+
+  @override
+  Future<void> saveInterfaceScale(int percent) async =>
+      interfaceScale = percent;
 }
 
 // Fake widget time does not schedule the native OS worker. Give it bounded

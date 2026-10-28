@@ -914,6 +914,18 @@ abstract class AppLocalizations {
   /// **'Interface'**
   String get interfaceSection;
 
+  /// No description provided for @interfaceScale.
+  ///
+  /// In en, this message translates to:
+  /// **'Interface scale'**
+  String get interfaceScale;
+
+  /// No description provided for @interfaceScaleDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Adjust text, icons, and controls. 100% keeps the current size.'**
+  String get interfaceScaleDescription;
+
   /// No description provided for @updateAvailableVersion.
   ///
   /// In en, this message translates to:

@@ -136,6 +136,8 @@
   "workerMessage": "Worker message",
   "settingsSubtitle": "Language, appearance, updates, and app information.",
   "interfaceSection": "Interface",
+  "interfaceScale": "Interface scale",
+  "interfaceScaleDescription": "Adjust text, icons, and controls. 100% keeps the current size.",
   "updateAvailableVersion": "Povad {version} is available",
   "updateBadge": "Update available",
   "authorProfile": "Open author profile",

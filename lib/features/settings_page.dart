@@ -19,6 +19,8 @@ class SettingsPage extends StatelessWidget {
     required this.onAppearanceChanged,
     required this.animateConnection,
     required this.onAnimateConnectionChanged,
+    this.interfaceScale = 100,
+    this.onInterfaceScaleChanged,
     this.feedbackError,
     this.versionLabel,
     this.updateChecking = false,
@@ -51,6 +53,8 @@ class SettingsPage extends StatelessWidget {
   final ValueChanged<PovadAppearance> onAppearanceChanged;
   final bool animateConnection;
   final ValueChanged<bool> onAnimateConnectionChanged;
+  final int interfaceScale;
+  final ValueChanged<int>? onInterfaceScaleChanged;
   final String? feedbackError;
   final String? versionLabel;
   final bool updateChecking;
@@ -189,6 +193,36 @@ class SettingsPage extends StatelessWidget {
                 ],
                 value: appearance,
                 onChanged: onAppearanceChanged,
+              ),
+            ),
+            SectionRow(
+              label: l.interfaceScale,
+              description: l.interfaceScaleDescription,
+              stackBelow: 0,
+              trailing: shad.Select<int>(
+                key: const ValueKey('interface-scale'),
+                value: interfaceScale,
+                enabled: onInterfaceScaleChanged != null,
+                onChanged: onInterfaceScaleChanged == null
+                    ? null
+                    : (selected) {
+                        if (selected != null) {
+                          onInterfaceScaleChanged!(selected);
+                        }
+                      },
+                theme: const shad.SelectTheme(adaptiveOverlay: false),
+                itemBuilder: (context, selected) => Text('$selected%'),
+                popup: (context) => shad.SelectPopup<int>(
+                  items: shad.SelectItemList(
+                    children: [
+                      for (var percent = 75; percent <= 125; percent += 5)
+                        shad.SelectItemButton<int>(
+                          value: percent,
+                          child: Text('$percent%'),
+                        ),
+                    ],
+                  ),
+                ),
               ),
             ),
             SectionRow(

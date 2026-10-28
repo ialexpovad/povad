@@ -1,7 +1,10 @@
-# Povad 0.2.0-rc.1
+# Povad 0.2.0-rc.2
 
 This is a test candidate for the Serial ↔ Bluetooth LE bridge. It also keeps
 the existing transparent Serial ↔ TCP bridge.
+
+This build replaces `0.2.0-rc.1`. Do not use the `rc.1` Android APK; its
+release optimizer removed JNI classes needed to start the USB and BLE worker.
 
 ## What to test
 
@@ -9,6 +12,8 @@ the existing transparent Serial ↔ TCP bridge.
   service, write, and notify UUIDs. Defaults are `FFE0`, `FFE2`, and `FFE1`.
 - The serial settings include one or two stop bits. For BDKG-11M, use
   `115200 8N2`.
+- Set **Interface scale** in Settings from 75% to 125%. The default 100% keeps
+  the existing size; the choice is saved on the device.
 - A client can write with or without response and receive notifications. The
   bridge forwards bytes unchanged and serves one BLE client at a time.
 - **Require pairing** is on by default. Turn it off only when testing a
@@ -21,8 +26,9 @@ the existing transparent Serial ↔ TCP bridge.
 ## Platform status
 
 - **macOS and Android:** the BLE bridge has been exercised with real serial
-  hardware in both directions. Android targets Android 8 (API 26) and later;
-  API 26 and current Android emulator checks are part of CI.
+  hardware in both directions. The Android release keeps the JNI classes needed
+  by the USB and BLE native worker. Android targets Android 8 (API 26) and
+  later; API 26 and current Android emulator checks are part of CI.
 - **Linux:** the BlueZ backend builds and passes native tests in Ubuntu 24.04,
   but has not been tested with a Bluetooth adapter and serial device.
 - **Windows:** the C++/WinRT GATT backend builds and passes native tests in CI,

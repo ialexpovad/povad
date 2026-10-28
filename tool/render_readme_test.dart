@@ -173,9 +173,13 @@ class _Preferences implements UiPreferences {
   @override
   Future<bool?> readConnectionAnimation() async => true;
   @override
+  Future<int?> readInterfaceScale() async => null;
+  @override
   Future<void> saveLanguage(String value) async {}
   @override
   Future<void> saveAppearance(PovadAppearance value) async {}
   @override
   Future<void> saveConnectionAnimation(bool value) async {}
+  @override
+  Future<void> saveInterfaceScale(int value) async {}
 }

@@ -442,6 +442,13 @@ class AppLocalizationsBe extends AppLocalizations {
   String get interfaceSection => 'Інтэрфейс';
 
   @override
+  String get interfaceScale => 'Маштаб інтэрфейсу';
+
+  @override
+  String get interfaceScaleDescription =>
+      'Змяняе памер тэксту, значкоў і элементаў кіравання. 100% захоўвае цяперашні памер.';
+
+  @override
   String updateAvailableVersion(String version) {
     return 'Даступная Povad $version';
   }

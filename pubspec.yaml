@@ -1,7 +1,7 @@
 name: povad
 description: Transparent Serial to TCP and Bluetooth LE bridges.
 publish_to: none
-version: 0.2.0-rc.1+7
+version: 0.2.0-rc.2+8
 
 environment:
   sdk: ^3.13.1

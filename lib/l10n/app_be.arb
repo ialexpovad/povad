@@ -136,6 +136,8 @@
   "workerMessage": "Паведамленне модуля",
   "settingsSubtitle": "Мова, выгляд, абнаўленні і звесткі пра праграму.",
   "interfaceSection": "Інтэрфейс",
+  "interfaceScale": "Маштаб інтэрфейсу",
+  "interfaceScaleDescription": "Змяняе памер тэксту, значкоў і элементаў кіравання. 100% захоўвае цяперашні памер.",
   "updateAvailableVersion": "Даступная Povad {version}",
   "updateBadge": "Даступна абнаўленне",
   "authorProfile": "Адкрыць профіль аўтара",

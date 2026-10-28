@@ -100,6 +100,13 @@ void main() {
     }
   }
 
+  Future<void> tapInstall(WidgetTester tester) async {
+    final action = find.byKey(const ValueKey('install-update'));
+    await tester.ensureVisible(action);
+    await tester.pumpAndSettle();
+    await tester.tap(action);
+  }
+
   testWidgets('a verified update downloads itself and installs on restart', (
     tester,
   ) async {
@@ -125,7 +132,7 @@ void main() {
     expect(find.text('Restart to update'), findsOneWidget);
     expect(find.text('Download updates automatically'), findsOneWidget);
 
-    await tester.tap(find.text('Restart to update'));
+    await tapInstall(tester);
     await settle(tester);
     expect(store.pending, (from: '0.1.0-rc.1', to: '0.1.0-rc.2'));
     expect(started.single, ['launch', '0.1.0-rc.2', '1']);
@@ -191,7 +198,7 @@ void main() {
 
     await tester.tap(find.byKey(const ValueKey('nav-3')));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Restart to update'));
+    await tapInstall(tester);
     await tester.pumpAndSettle();
     expect(
       find.text('Stop all bridges to install the update.'),
@@ -223,13 +230,13 @@ void main() {
       await settle(tester);
       await tester.tap(find.byKey(const ValueKey('nav-3')));
       await tester.pumpAndSettle();
-      await tester.tap(find.text('Restart to update'));
+      await tapInstall(tester);
       await tester.pumpAndSettle();
       expect(started, isEmpty);
       expect(fleet.connection(first).active, true);
       await fleet.stopAll();
       await tester.pumpAndSettle();
-      await tester.tap(find.text('Restart to update'));
+      await tapInstall(tester);
       await settle(tester);
       expect(started, hasLength(1));
     },

@@ -34,7 +34,8 @@ peripheral. Each bridge has its own settings and clear connection states.
 - **Background operation** — desktop tray controls and an Android foreground notification.
 - **Open at login** — enabled by default on supported desktops; change it in Settings.
 - **Updates from GitHub** — verified downloads for Windows, Linux, and Android.
-- **Your preferences** — English or Belarusian, light or dark, optional traffic animation.
+- **Your preferences** — English or Belarusian, light or dark, adjustable
+  interface scale, and optional traffic animation.
 
 ## Get connected
 

@@ -136,6 +136,7 @@ class _PovadAppState extends State<PovadApp> with WidgetsBindingObserver {
   Locale locale = const Locale('en');
   PovadAppearance appearance = PovadAppearance.system;
   bool animateConnection = true;
+  int interfaceScale = 100;
   int page = 0;
   late final UiPreferences preferences;
   bool settingsChanged = false;
@@ -573,6 +574,7 @@ class _PovadAppState extends State<PovadApp> with WidgetsBindingObserver {
       final savedAppearance = await preferences.readAppearance();
       final savedConnectionAnimation = await preferences
           .readConnectionAnimation();
+      final savedInterfaceScale = await preferences.readInterfaceScale();
       if (!mounted || settingsChanged) return;
       setState(() {
         if (savedLanguage == 'en' || savedLanguage == 'be') {
@@ -581,6 +583,12 @@ class _PovadAppState extends State<PovadApp> with WidgetsBindingObserver {
         if (savedAppearance != null) appearance = savedAppearance;
         if (savedConnectionAnimation != null) {
           animateConnection = savedConnectionAnimation;
+        }
+        if (savedInterfaceScale != null &&
+            savedInterfaceScale >= 75 &&
+            savedInterfaceScale <= 125 &&
+            savedInterfaceScale % 5 == 0) {
+          interfaceScale = savedInterfaceScale;
         }
       });
       unawaited(reflectPresence());
@@ -606,6 +614,12 @@ class _PovadAppState extends State<PovadApp> with WidgetsBindingObserver {
     settingsChanged = true;
     setState(() => animateConnection = value);
     unawaited(saveConnectionAnimation(value));
+  }
+
+  void changeInterfaceScale(int value) {
+    settingsChanged = true;
+    setState(() => interfaceScale = value);
+    unawaited(saveInterfaceScale(value));
   }
 
   Future<ActiveCloseAction> chooseActiveCloseAction() async {
@@ -978,6 +992,14 @@ class _PovadAppState extends State<PovadApp> with WidgetsBindingObserver {
     }
   }
 
+  Future<void> saveInterfaceScale(int value) async {
+    try {
+      await preferences.saveInterfaceScale(value);
+    } catch (error) {
+      debugPrint('Unable to save interface scale: $error');
+    }
+  }
+
   void act() {
     final restartable =
         state == BridgeViewState.stopped ||
@@ -1148,6 +1170,14 @@ class _PovadAppState extends State<PovadApp> with WidgetsBindingObserver {
   @override
   Widget build(BuildContext context) => shad.ShadcnApp(
     title: 'Povad',
+    scaling: shad.AdaptiveScaling(
+      (defaultTargetPlatform == TargetPlatform.android ||
+                  defaultTargetPlatform == TargetPlatform.iOS
+              ? 1.25
+              : 1.0) *
+          interfaceScale /
+          100,
+    ),
     navigatorKey: _navigatorKey,
     debugShowCheckedModeBanner: false,
     locale: locale,
@@ -1338,6 +1368,8 @@ class _PovadAppState extends State<PovadApp> with WidgetsBindingObserver {
         onAppearanceChanged: changeAppearance,
         animateConnection: animateConnection,
         onAnimateConnectionChanged: changeConnectionAnimation,
+        interfaceScale: interfaceScale,
+        onInterfaceScaleChanged: changeInterfaceScale,
         feedbackError: feedbackUnavailable ? l.feedbackUnavailable : null,
         versionLabel: installedBuild?.label,
         updateChecking: updateChecking,

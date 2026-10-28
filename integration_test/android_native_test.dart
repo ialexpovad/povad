@@ -103,6 +103,9 @@ class _MemoryPreferences implements UiPreferences {
   Future<bool?> readConnectionAnimation() async => null;
 
   @override
+  Future<int?> readInterfaceScale() async => null;
+
+  @override
   Future<void> saveLanguage(String languageCode) async {}
 
   @override
@@ -110,4 +113,7 @@ class _MemoryPreferences implements UiPreferences {
 
   @override
   Future<void> saveConnectionAnimation(bool enabled) async {}
+
+  @override
+  Future<void> saveInterfaceScale(int percent) async {}
 }
